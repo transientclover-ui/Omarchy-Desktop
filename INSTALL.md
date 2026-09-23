@@ -3,6 +3,14 @@
 Frankenstein currently supports **Omarchy 4.0.4 with KDE Plasma Wayland**.
 GNOME and other desktops are intentionally out of scope.
 
+**Current host-adoption limitation:** setup replaces an existing all-desktops
+Omarchy shell service with the filtered KDE adapter. Its default menu-only
+profile does not preserve an existing full Omarchy bar/plugin setup. Do not use
+this path to adopt a customized KDE session whose active Omarchy features must
+remain enabled. Preserving that baseline is now required before host adoption;
+the earlier menu-only VM demonstration is not evidence that this requirement
+is met. See the latest compatibility-journal entry.
+
 ## Preflight
 
 ### Pacman packages

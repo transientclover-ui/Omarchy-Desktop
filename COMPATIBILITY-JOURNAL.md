@@ -1075,3 +1075,43 @@ Next step: reconcile package source checksums and `.SRCINFO`, assign a fresh
 revision, build reproducibly, then validate those exact KDE packages in a fresh
 baseline-backed VM. Preserve menu-only scope. This checkpoint is not a new
 validated package release.
+
+## 2026-09-23: preserve the user's current KDE/Omarchy baseline
+
+The user clarified that whatever Omarchy features are active now must remain
+active under KDE. This supersedes the earlier instruction to treat menu-only
+scope as sufficient for host adoption. KDE remains the only desktop target.
+
+Read-only host inspection found Plasma Wayland already running alongside the
+enabled, active `omarchy-shell.service`, launching the stock Omarchy shell.
+The live shell's read-only `listPlugins` response reported 31 enabled entries,
+including the Omarchy bar and seven third-party plugins: Invaders, Tetris,
+Plug, Recall, Tutor, World Radio and DistroWatch Rankings. The bar configuration
+also includes a custom local service-status command widget, which is not a
+plugin-registry entry and must not be lost during adoption.
+
+The user's explicit disabled list is workspaces, idle, lock, nightlight and
+monitor. Preserve those choices; this request does not mean enabling every
+installed component. Registry enablement is not proof of functional ownership:
+for example, Notifications is enabled in the shell registry, while the current
+`org.freedesktop.Notifications` bus name is owned by Plasma. Do not force an
+ownership change or assume every enabled feature has been validated.
+
+A local sanitized baseline inventory was saved in this task's outputs as
+`kde-omarchy-baseline.json`: enabled IDs, layout IDs, disabled IDs, service state,
+observation time and shell-config fingerprint. Raw plugin settings and custom
+command contents were not copied into the repository.
+
+The current setup path would disable the existing shell service and use the
+menu-only profile; it therefore does not meet this clarified acceptance
+criterion. INSTALL.md now states this limitation. No host settings, plugin
+states, services, package configuration or trust were changed, and no adapter
+was installed or launched.
+
+Next work must design and test adoption that preserves the observed enabled
+features, disabled choices and custom widgets without duplicate shell instances
+or silently replacing functionality. First classify the observed components
+and ownership, then implement and validate in an isolated KDE environment.
+The earlier VM menu-only results remain valid only for that narrower profile.
+Do not advance to host installation based on them or treat profile-merge unit
+tests as graphical validation of this broader preservation requirement.

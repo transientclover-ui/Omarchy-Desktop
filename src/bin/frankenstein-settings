@@ -1,0 +1,119 @@
+#!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 Frankenstein contributors
+# SPDX-License-Identifier: MIT
+set -euo pipefail
+
+usage() {
+  echo 'Usage: frankenstein-settings [--list | --preview KEEP_JSON]'
+  echo 'Choose individual plugins/widgets to keep; all current items start selected.'
+  echo 'Preview and confirmation are required before writing any settings.'
+}
+mode=choose
+keep_file=
+case ${1:-} in
+  --help|-h) usage; exit 0 ;;
+  --list) mode=list; [[ $# == 1 ]] || { usage >&2; exit 2; } ;;
+  --preview) mode=preview; [[ $# == 2 ]] || { usage >&2; exit 2; }; keep_file=$2 ;;
+  '') ;;
+  *) usage >&2; exit 2 ;;
+esac
+
+config=${XDG_CONFIG_HOME:-$HOME/.config}/omarchy/shell.json
+[[ -f $config && ! -L $config && -O $config ]] || {
+  echo 'A regular, user-owned Omarchy shell.json is required; refusing to replace links or infer defaults.' >&2
+  exit 1
+}
+work=$(mktemp -d)
+replacement=
+trap 'rm -rf -- "$work"; [[ -z $replacement ]] || rm -f -- "$replacement"' EXIT
+cp -p -- "$config" "$work/original.json"
+# Read the running stock shell only. Never start a shell or execute widget commands.
+timeout --kill-after=1s 5s qs ipc -n -p /usr/share/omarchy/shell call -- shell listPlugins >"$work/plugins.json"
+jq -e 'type == "array" and all(.[]; (.id | type == "string") and (.kinds | type == "array"))' "$work/plugins.json" >/dev/null
+jq -e 'type == "object" and (.bar.layout | type == "object") and
+  all(.bar.layout[]; type == "array" and all(.[]; type == "object" and (.id | type == "string"))) and
+  ((.disabledPlugins // []) | type == "array") and ((.plugins // []) | type == "array")' "$work/original.json" >/dev/null || {
+  echo 'Unsupported shell configuration; no settings were changed.' >&2; exit 1
+}
+jq -n --slurpfile plugins "$work/plugins.json" --slurpfile config "$work/original.json" '
+  def safe_label: gsub("[[:cntrl:]]"; "?");
+  ([$plugins[0][] | select(.enabled == true and .canDisable != false) |
+    select(any(.kinds[]; . != "bar-widget" and . != "bar")) |
+    {key:("plugin:" + .id), id, kind:"plugin", label:("Plugin: " + (.name // .id))}] +
+   [$config[0].bar.layout | to_entries[] | .key as $section | .value | to_entries[] |
+    {key:("widget:" + $section + ":" + (.key|tostring)), id:.value.id, kind:"widget",
+     section:$section, index:.key,
+     label:("Widget: " + .value.id + " (" + $section + " #" + ((.key+1)|tostring) + ")") }]) |
+  map(.label |= safe_label)
+' >"$work/catalog.json"
+if [[ $mode == list ]]; then
+  cat "$work/catalog.json"
+  exit 0
+fi
+if [[ $(jq length "$work/catalog.json") == 0 ]]; then
+  echo 'No selectable enabled plugins or widgets; settings unchanged.'
+  exit 0
+fi
+if [[ $mode == preview ]]; then
+  cp -- "$keep_file" "$work/keep.json"
+else
+  echo 'Keep selected items. Unchecked items will be disabled/removed from the bar after confirmation.'
+  echo 'Disabled items stay disabled. The bar itself and all unrelated settings stay unchanged.'
+  # Numeric labels avoid ambiguous names and delimiters; keys remain in the catalog.
+  jq -r 'to_entries[] | "\(.key + 1). \(.value.label)"' "$work/catalog.json" >"$work/options"
+  if ! gum choose --no-limit --selected '*' --ordered --header 'Keep these plugins and widgets' \
+      <"$work/options" >"$work/chosen"; then
+    echo 'Cancelled; settings unchanged.'; exit 0
+  fi
+  jq -Rn '[inputs | select(length > 0)]' <"$work/chosen" >"$work/labels.json"
+  jq -n --slurpfile choices "$work/labels.json" --slurpfile catalog "$work/catalog.json" '
+    [$catalog[0] | to_entries[] | {label:("\(.key + 1). \(.value.label)"), key:.value.key}] as $options |
+    if all($choices[0][]; . as $label | any($options[]; .label == $label)) then
+      [$options[] | select(.label as $label | $choices[0] | index($label)) | .key]
+    else error("Unknown selection") end
+  ' >"$work/keep.json"
+fi
+jq -e --slurpfile catalog "$work/catalog.json" '
+  type == "array" and length == (unique|length) and
+  all(.[]; type == "string" and (. as $key | any($catalog[0][]; .key == $key)))
+' "$work/keep.json" >/dev/null || { echo 'Invalid selection; settings unchanged.' >&2; exit 1; }
+jq --slurpfile catalog "$work/catalog.json" --slurpfile keep "$work/keep.json" '
+  [$catalog[0][] | select(.key as $key | ($keep[0] | index($key)) == null)] as $removed |
+  [$removed[] | select(.kind == "plugin") | .id] as $off |
+  if ($removed|length) == 0 then . else
+    (if ($off|length) > 0 then
+      .disabledPlugins = ((.disabledPlugins // []) + $off | unique) |
+      if has("plugins") then .plugins |= map(select((if type == "object" then .id else . end) as $id | ($off|index($id)) == null)) else . end
+    else . end) |
+    .bar.layout |= with_entries(.key as $section | .value |=
+      (to_entries | map(select(. as $entry |
+        ($off|index($entry.value.id)) == null and
+        (any($removed[]; .kind == "widget" and .section == $section and .index == $entry.key)|not))) |
+       map(.value)))
+  end
+' "$work/original.json" >"$work/proposed.json"
+jq -S . "$work/original.json" >"$work/before"
+jq -S . "$work/proposed.json" >"$work/after"
+if cmp -s "$work/before" "$work/after"; then
+  echo 'Keep everything: no settings changed.'
+  exit 0
+fi
+echo 'Proposed changes only (unchecking a plugin also removes its linked bar widgets):'
+diff -u --label existing --label proposed "$work/before" "$work/after" || [[ $? == 1 ]]
+[[ $mode != preview ]] || exit 0
+printf 'Type APPLY to save these changes (the running shell may reload immediately): '
+read -r confirmation
+[[ $confirmation == APPLY ]] || { echo 'Cancelled; settings unchanged.'; exit 0; }
+[[ -f $config && ! -L $config && -O $config ]] && cmp -s "$work/original.json" "$config" || {
+  echo 'Configuration changed during selection; refusing to overwrite it. Start again.' >&2; exit 1
+}
+backup_dir=${XDG_STATE_HOME:-$HOME/.local/state}/frankenstein/settings-backups
+mkdir -p -- "$backup_dir"
+backup=$(mktemp "$backup_dir/shell-$(date -u +%Y%m%dT%H%M%SZ)-XXXXXX.json")
+cp -p -- "$work/original.json" "$backup"
+replacement=$(mktemp "${config%/*}/.frankenstein-shell-XXXXXX")
+cp -p -- "$config" "$replacement"
+cat "$work/proposed.json" >"$replacement"
+mv -f -- "$replacement" "$config"
+replacement=
+printf 'Settings saved. Original preserved at: %s\n' "$backup"

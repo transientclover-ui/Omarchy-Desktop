@@ -64,6 +64,7 @@ def fixture(root, existed, standalone=False):
         'src/lib/installer-state.sh': 'usr/lib/frankenstein/installer-state',
         'src/lib/shell-profile.sh': 'usr/lib/frankenstein/shell-profile',
         'src/bin/frankenstein-shell-adapter': 'usr/bin/frankenstein-shell-adapter',
+        'src/bin/frankenstein-settings': 'usr/bin/frankenstein-settings',
         'src/bin/omarchy-default-desktop': 'usr/bin/omarchy-default-desktop',
         'src/frankenstein/plasma-shell-profile.json': 'usr/share/frankenstein/profiles/plasma.json',
         'src/frankenstein/plasma-menu.jsonc': 'usr/share/frankenstein/profiles/plasma-menu.jsonc',
@@ -117,15 +118,34 @@ esac
 exec "$@"
 ''', True)
     put(root, 'mock/systemctl', '''#!/bin/bash
+case "$*" in
+  '--user show omarchy-shell.service -p LoadState --value')
+    if [[ -f /home/test/.config/systemd/user/omarchy-shell.service ]]; then echo loaded; else echo not-found; fi
+    exit 0;;
+  '--user is-enabled omarchy-shell.service')
+    [[ -L /home/test/.config/systemd/user/graphical-session.target.wants/omarchy-shell.service ]] && { echo enabled; exit 0; }
+    echo disabled; exit 1;;
+  '--user is-active omarchy-shell.service')
+    [[ -e /var/original-shell-active ]] && { echo active; exit 0; }
+    echo inactive; exit 3;;
+esac
 printf '%s\\n' "$*" >>/var/service-calls
 case "$*" in
-  'enable --now omarchy-desktop-manager-default.path') touch /var/path-active;;
+  'enable --now omarchy-desktop-manager-default.path')
+    touch /var/path-active
+    [[ ${FAIL_WATCH:-0} == 1 ]] && exit 42;;
   'disable --now omarchy-desktop-manager-default.path')
     [[ ${FAIL_STOP:-} == path ]] && exit 43
     rm -f /var/path-active;;
   'stop omarchy-desktop-manager-default.service')
     [[ ${FAIL_STOP:-} == service ]] && exit 43
     rm -f /var/sync-active;;
+  '--user disable --now omarchy-shell.service')
+    rm -f /home/test/.config/systemd/user/graphical-session.target.wants/omarchy-shell.service /var/original-shell-active;;
+  '--user enable omarchy-shell.service')
+    mkdir -p /home/test/.config/systemd/user/graphical-session.target.wants
+    ln -sfn ../omarchy-shell.service /home/test/.config/systemd/user/graphical-session.target.wants/omarchy-shell.service;;
+  '--user start omarchy-shell.service') touch /var/original-shell-active;;
   '--user start frankenstein-omarchy-shell.service')
     [[ ${FAIL_SETUP:-0} == 1 ]] && exit 42;;
   '--user daemon-reload'|'--user stop frankenstein-omarchy-shell.service'|'daemon-reload') ;;
@@ -138,6 +158,8 @@ printf '[Last]\\nSession=changed.desktop\\n' >/var/lib/sddm/state.conf
 touch /var/sync-active
 mkdir -p /var/lib/omarchy-desktop-manager
 echo "$1" >/var/lib/omarchy-desktop-manager/default-session
+[[ ${FAIL_DEFAULT:-0} == 1 ]] && exit 42
+exit 0
 ''', True)
     shutil.copy2(root / 'usr/lib/frankenstein/set-default', root / 'mock/set-default')
     for name in ('quickshell', 'qs', 'systemsettings', 'xdg-terminal-exec', 'qdbus6'):
@@ -151,16 +173,17 @@ echo "$1" >/var/lib/omarchy-desktop-manager/default-session
         shutil.rmtree(root / 'usr/share/frankenstein')
         shutil.rmtree(root / 'usr/lib/systemd/system')
         (root / 'usr/lib/systemd/system').mkdir()
-        for name in ('frankenstein-shell-adapter', 'omarchy-default-desktop'):
+        for name in ('frankenstein-shell-adapter', 'omarchy-default-desktop', 'frankenstein-settings'):
             (root / 'usr/bin' / name).unlink()
         shutil.copytree(PROJECT / 'src', root / 'home/source/src')
         for name in ('install.sh', 'uninstall.sh'):
             copy(root, name, 'home/source/' + name)
 
 
-def run(root, script, fail=False, fail_stop="", fail_restore="", preflight=False):
+def run(root, script, fail=False, fail_stop="", fail_restore="", preflight=False, fail_default=False, fail_watch=False, arguments=None):
     standalone = (root / 'home/source').exists()
-    entry = ('/home/source/' + script if standalone else
+    entry = ('/usr/bin/frankenstein-shell-adapter' if script == 'adapter' else
+             '/home/source/' + script if standalone else
              '/usr/lib/frankenstein/' + {'install.sh': 'setup', 'uninstall.sh': 'uninstall'}[script])
     command = ['bwrap', '--ro-bind', '/', '/', '--unshare-all', '--die-with-parent',
                '--ro-bind', '/usr', '/mnt', '--bind', str(root / 'usr'), '/usr',
@@ -171,10 +194,13 @@ def run(root, script, fail=False, fail_stop="", fail_restore="", preflight=False
                '--setenv', 'HOME', '/home/test', '--setenv', 'USER', 'test',
                '--setenv', 'XDG_CURRENT_DESKTOP', 'KDE', '--setenv', 'DESKTOP_SESSION', 'plasma',
                '--setenv', 'FAIL_SETUP', str(int(fail)),
+               '--setenv', 'FAIL_DEFAULT', str(int(fail_default)),
+               '--setenv', 'FAIL_WATCH', str(int(fail_watch)),
                '--setenv', 'FAIL_STOP', fail_stop,
                '--setenv', 'FAIL_RESTORE', fail_restore,
                '--setenv', 'STANDALONE', str(int(standalone)),
-               '/usr/bin/bash', entry, '--preflight' if preflight else '--yes']
+               '/usr/bin/bash', entry]
+    command += arguments if arguments is not None else ['--preflight' if preflight else '--yes']
     return subprocess.run(command, text=True, capture_output=True, timeout=30)
 
 
@@ -192,7 +218,8 @@ def test(existed, failed_setup, fail_stop="", fail_restore="", standalone=False)
         before = (state.read_bytes(), state.stat().st_mode, state.stat().st_mtime_ns,
                   state.stat().st_uid, state.stat().st_gid) if existed else None
         result = run(root, 'install.sh', fail=failed_setup, fail_stop=fail_stop,
-                     fail_restore=fail_restore if failed_setup else '')
+                     fail_restore=fail_restore if failed_setup else '',
+                     arguments=['--yes', '--login', 'chooser', '--default', 'auto'])
         if failed_setup:
             check(result.returncode == 42, 'setup did not fail at the injected point', result)
         else:
@@ -328,7 +355,7 @@ def test_sddm_precedence(standalone, scenario):
             put(root, 'etc/sddm.conf.d/zzzzz-local.conf', '[Autologin]\nUser=existing-user\n')
         else:
             raise AssertionError(scenario)
-        result = run(root, 'install.sh', preflight=True)
+        result = run(root, 'install.sh', arguments=['--preflight', '--login', 'chooser'])
         if scenario.endswith('conflict'):
             check(result.returncode == 1 and 'overrides the proposed' in result.stderr,
                   'ineffective SDDM override accepted', result)

@@ -86,7 +86,7 @@ ipc() {
       sort -n | tail -n 1 | cut -d' ' -f2-)
     [[ -n $socket ]] && export WAYLAND_DISPLAY=$socket
   fi
-  timeout --kill-after=1s "$timeout" qs ipc -n -p "$shell_dir" call -- "$@"
+  timeout --kill-after=1s "$timeout" qs ipc -n -p "${ipc_shell_dir:-$shell_dir}" call -- "$@"
 }
 
 open_terminal() {
@@ -155,6 +155,62 @@ check() {
   [[ $desktop == "$expected" && $state == enabled && $count -eq 1 &&
     $ping == ok && $active_plugins == "$expected_plugins" ]]
 }
+
+# Consult only the installer-owned scalar fields; never evaluate state as code.
+# A preservation installation must not accidentally launch a second shell via
+# the convenience commands or a stale autostart entry.
+installed_shell_mode() {
+  local current=/var/lib/frankenstein/current id state owner home mode
+  if [[ ! -e $current && ! -L $current ]]; then
+    echo filtered
+    return
+  fi
+  id=$(cat "$current") || return 1
+  [[ $id =~ ^[0-9]{8}T[0-9]{6}Z$ ]] || {
+    echo "Invalid installation record; refusing shell control." >&2
+    return 1
+  }
+  state=/var/lib/frankenstein/installations/$id.env
+  [[ -r $state ]] || {
+    echo "Installation state is unavailable; refusing shell control." >&2
+    return 1
+  }
+  owner=$(sed -n 's/^INSTALL_USER=//p' "$state")
+  home=$(sed -n 's/^INSTALL_HOME=//p' "$state")
+  mode=$(sed -n 's/^SHELL_MODE=//p' "$state")
+  [[ $owner == "$USER" && $home == "$HOME" ]] || {
+    echo "Installation belongs to a different user; refusing shell control." >&2
+    return 1
+  }
+  case ${mode:-filtered} in
+    preserve|filtered) printf '%s\n' "${mode:-filtered}" ;;
+    *) echo "Invalid shell mode; refusing shell control." >&2; return 1 ;;
+  esac
+}
+
+check_preserved_shell() {
+  local state ping
+  state=$(systemctl --user is-active omarchy-shell.service 2>/dev/null || true)
+  ping=$(ipc shell ping 2>/dev/null || true)
+  printf 'integration=preserve-existing\nservice=%s\nshell_ipc=%s\n' "$state" "${ping:-unavailable}"
+  echo 'plugin_compatibility=not-certified'
+  echo 'Existing configuration and enabled/disabled choices are user-managed.'
+  [[ $state == active && $ping == ok ]]
+}
+
+shell_mode=$(installed_shell_mode) || exit 1
+ipc_shell_dir=$shell_dir
+if [[ $shell_mode == preserve ]]; then
+  ipc_shell_dir=/usr/share/omarchy/shell
+  case ${1:-} in
+    run|enable|disable)
+      echo "Your existing Omarchy shell is preserved. Frankenstein will not start, stop or replace it." >&2
+      exit 1
+      ;;
+    check) check_preserved_shell; exit $? ;;
+    status) systemctl --user is-active omarchy-shell.service; exit $? ;;
+  esac
+fi
 
 case ${1:-} in
   run)

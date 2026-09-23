@@ -20,7 +20,9 @@ fi
 
 assume_yes=false
 preflight_only=false
-requested_default=auto
+requested_default=keep
+requested_shell=auto
+requested_login=preserve
 mutation_started=false
 payload_installed=false
 sddm_override_created=false
@@ -83,6 +85,7 @@ rollback_partial_install() {
     sudo rm -f \
       /usr/bin/frankenstein-shell-adapter \
       /usr/bin/omarchy-default-desktop \
+      /usr/bin/frankenstein-settings \
       /usr/lib/frankenstein/set-default \
       /usr/lib/frankenstein/installer-state \
       /usr/lib/frankenstein/shell-profile \
@@ -114,11 +117,17 @@ trap 'handle_signal "$LINENO"' INT TERM
 
 usage() {
   cat <<'EOF'
-Usage: ./install.sh [--preflight] [--yes] [--default auto|omarchy|plasma]
+Usage: ./install.sh [--preflight] [--yes] [--shell auto|preserve|filtered]
+                    [--login preserve|chooser] [--default keep|auto|omarchy|plasma]
 
   --preflight       Run read-only checks and print the proposed changes.
   --yes             Confirm the printed plan non-interactively.
-  --default VALUE   Initial SDDM default; auto preserves the current choice.
+  --shell VALUE     auto preserves an existing shell; otherwise adds a filtered menu.
+                    preserve requires an existing shell; filtered explicitly replaces it.
+  --login VALUE     preserve (default) leaves theme/autologin unchanged; chooser
+                    requests a reversible Breeze/no-autologin override.
+  --default VALUE   keep (default) leaves remembered session state unchanged;
+                    auto selects the active supported desktop; or choose a desktop.
 EOF
 }
 
@@ -126,10 +135,24 @@ while (($#)); do
   case $1 in
     --preflight) preflight_only=true ;;
     --yes) assume_yes=true ;;
+    --shell)
+      shift
+      requested_shell=${1:-}
+      [[ $requested_shell =~ ^(auto|preserve|filtered)$ ]] || {
+        echo "Invalid shell integration: $requested_shell" >&2; exit 2
+      }
+      ;;
+    --login)
+      shift
+      requested_login=${1:-}
+      [[ $requested_login =~ ^(preserve|chooser)$ ]] || {
+        echo "Invalid login integration: $requested_login" >&2; exit 2
+      }
+      ;;
     --default)
       shift
       requested_default=${1:-}
-      [[ $requested_default =~ ^(auto|omarchy|plasma)$ ]] || {
+      [[ $requested_default =~ ^(keep|auto|omarchy|plasma)$ ]] || {
         echo "Invalid default desktop: $requested_default" >&2
         exit 2
       }
@@ -189,6 +212,7 @@ if [[ $package_managed == true ]]; then
   payload_files=(
     /usr/bin/frankenstein-shell-adapter
     /usr/bin/omarchy-default-desktop
+    /usr/bin/frankenstein-settings
     /usr/lib/frankenstein/set-default
     "$installed_share/omarchy-shell/shell.qml"
     "$installed_share/omarchy-shell/services/PluginRegistry.qml"
@@ -212,6 +236,7 @@ else
   payload_files=(
     "$project_dir/src/bin/frankenstein-shell-adapter"
     "$project_dir/src/bin/omarchy-default-desktop"
+    "$project_dir/src/bin/frankenstein-settings"
     "$project_dir/src/libexec/omarchy-desktop-manager-set-default"
     "$project_dir/src/frankenstein/omarchy-shell/shell.qml"
     "$project_dir/src/frankenstein/omarchy-shell/services/PluginRegistry.qml"
@@ -343,10 +368,22 @@ effective_sddm_value() {
 existing_shell_unit=false
 existing_shell_enabled=false
 existing_shell_active=false
-if [[ -e $HOME/.config/systemd/user/omarchy-shell.service ]]; then
+if [[ -e $HOME/.config/systemd/user/omarchy-shell.service || -L $HOME/.config/systemd/user/omarchy-shell.service ]] ||
+   [[ $(systemctl --user show omarchy-shell.service -p LoadState --value 2>/dev/null || true) == loaded ]]; then
   existing_shell_unit=true
   systemctl --user is-enabled omarchy-shell.service >/dev/null 2>&1 && existing_shell_enabled=true
   systemctl --user is-active omarchy-shell.service >/dev/null 2>&1 && existing_shell_active=true
+fi
+
+# An existing shell belongs to the user. Do not substitute a reduced profile
+# or change its enablement just to add desktop-selection integration.
+shell_mode=filtered
+if [[ $requested_shell == preserve && $existing_shell_unit != true ]]; then
+  echo "No existing Omarchy shell service to preserve; refusing to guess a replacement." >&2
+  exit 1
+fi
+if [[ $requested_shell != filtered && $existing_shell_unit == true ]]; then
+  shell_mode=preserve
 fi
 
 [[ ! -e $system_state_dir/current && ! -L $system_state_dir/current ]] || {
@@ -358,6 +395,7 @@ fi
 system_conflicting_paths=(
   /usr/bin/frankenstein-shell-adapter
   /usr/bin/omarchy-default-desktop
+  /usr/bin/frankenstein-settings
   /usr/lib/frankenstein/set-default
   /usr/lib/frankenstein/installer-state
   /usr/lib/frankenstein/shell-profile
@@ -368,6 +406,7 @@ system_conflicting_paths=(
   /usr/lib/systemd/system/omarchy-desktop-manager-default.service
 )
 configuration_conflicting_paths=(
+  /var/lib/omarchy-desktop-manager
   /etc/sddm.conf.d/zzzz-frankenstein.conf
   "$HOME/.config/systemd/user/frankenstein-omarchy-shell.service"
   "$HOME/.config/autostart/frankenstein-omarchy-shell.desktop"
@@ -394,7 +433,7 @@ sddm_theme=$(effective_sddm_value Theme Current)
 autologin_user=$(effective_sddm_value Autologin User)
 autologin_session=$(effective_sddm_value Autologin Session)
 sddm_action=preserve
-if [[ $sddm_theme != breeze || -n $autologin_user || -n $autologin_session ]]; then
+if [[ $requested_login == chooser && ( $sddm_theme != breeze || -n $autologin_user || -n $autologin_session ) ]]; then
   sddm_action=add-reversible-breeze-override
 fi
 
@@ -413,7 +452,9 @@ if [[ $sddm_action == add-reversible-breeze-override ]]; then
   done
 fi
 
-if [[ $requested_default == auto ]]; then
+if [[ $requested_default == keep ]]; then
+  default_session=unchanged
+elif [[ $requested_default == auto ]]; then
   active_desktop=${XDG_CURRENT_DESKTOP:-}
   active_session=${DESKTOP_SESSION:-}
   if [[ -z $active_desktop || -z $active_session ]]; then
@@ -448,6 +489,7 @@ Frankenstein KDE compatibility preflight
   SDDM theme:            ${sddm_theme:-not configured}
   SDDM action:           $sddm_action
   Initial default:       $default_session
+  Shell integration:     $shell_mode
   Existing shell unit:   $existing_shell_unit
   Shell unit enabled:    $existing_shell_enabled
   Shell unit active:     $existing_shell_active
@@ -461,16 +503,35 @@ Planned preservation:
 
 Planned changes:
   - ${plasma_action^} KDE Plasma packages.
-  - Install the filtered KDE Omarchy Shell adapter and compatibility checks.
-  - Add a KDE-only autostart entry and an Omarchy Setup Menu application entry.
+  - Install the KDE integration payload and compatibility checks.
   - Add validated default-desktop helpers and state synchronization.
-  - Disable the existing all-desktops omarchy-shell.service if present.
   - SDDM: $sddm_action.
   - Payload ownership: $([[ $package_managed == true ]] && echo pacman || echo standalone installer).
 
 No service or display-manager restart will be performed. Log out normally after
 installation and choose Plasma from SDDM to complete verification.
 EOF
+
+if [[ $shell_mode == preserve ]]; then
+  echo "Existing Omarchy shell: preserve its service, configuration, bar, plugins and disabled choices."
+  echo "No filtered shell, replacement autostart or shell service changes will be made."
+  echo "This preserves the existing setup; it does not certify every enabled plugin."
+else
+  echo "Add the menu-only KDE adapter and autostart; existing configuration files remain intact."
+  if [[ $existing_shell_unit == true ]]; then
+    echo "Explicit filtered choice: stop/disable the existing shell service; its bar and other plugins will not run in the filtered shell."
+  fi
+fi
+
+if [[ $requested_login == preserve ]]; then
+  echo "Keep the current SDDM theme and autologin settings."
+  if [[ -n $autologin_user || -n $autologin_session ]]; then
+    echo "Existing autologin may override chooser/default selection; it will not be disabled automatically."
+  fi
+fi
+if [[ $requested_default == keep ]]; then
+  echo "Keep remembered desktop state; no Frankenstein default is imposed until you choose one."
+fi
 
 if [[ $preflight_only == true ]]; then
   exit 0
@@ -575,6 +636,8 @@ if [[ $package_managed != true ]]; then
 
   sudo install -m 0755 "$project_dir/src/bin/frankenstein-shell-adapter" \
     /usr/bin/frankenstein-shell-adapter
+  sudo install -m 0755 "$project_dir/src/bin/frankenstein-settings" \
+    /usr/bin/frankenstein-settings
   sudo install -m 0755 "$project_dir/src/bin/omarchy-default-desktop" \
     /usr/bin/omarchy-default-desktop
   sudo install -m 0755 "$project_dir/src/libexec/omarchy-desktop-manager-set-default" \
@@ -628,30 +691,34 @@ fi
 sudo systemctl daemon-reload
 default_path_enabled=true
 sudo systemctl enable --now omarchy-desktop-manager-default.path
-sudo /usr/lib/frankenstein/set-default "$default_session"
-
-install -d -m 0755 \
-  "$HOME/.config/systemd/user" \
-  "$HOME/.config/autostart" \
-  "$HOME/.local/share/applications"
-user_files_installed=true
-install -m 0644 "$shell_service_source" \
-  "$HOME/.config/systemd/user/frankenstein-omarchy-shell.service"
-install -m 0644 "$shell_autostart_source" \
-  "$HOME/.config/autostart/frankenstein-omarchy-shell.desktop"
-install -m 0644 "$menu_desktop_source" \
-  "$HOME/.local/share/applications/frankenstein-omarchy-menu.desktop"
-
-if [[ $existing_shell_unit == true ]]; then
-  shell_unit_disabled=true
-  systemctl --user disable --now omarchy-shell.service
+if [[ $default_session != unchanged ]]; then
+  sudo /usr/lib/frankenstein/set-default "$default_session"
 fi
-systemctl --user daemon-reload
 
-current_desktop=${XDG_CURRENT_DESKTOP:-}
-if [[ $current_desktop == KDE* ]]; then
-  filtered_shell_started=true
-  systemctl --user start frankenstein-omarchy-shell.service
+if [[ $shell_mode == filtered ]]; then
+  install -d -m 0755 \
+    "$HOME/.config/systemd/user" \
+    "$HOME/.config/autostart" \
+    "$HOME/.local/share/applications"
+  user_files_installed=true
+  install -m 0644 "$shell_service_source" \
+    "$HOME/.config/systemd/user/frankenstein-omarchy-shell.service"
+  install -m 0644 "$shell_autostart_source" \
+    "$HOME/.config/autostart/frankenstein-omarchy-shell.desktop"
+  install -m 0644 "$menu_desktop_source" \
+    "$HOME/.local/share/applications/frankenstein-omarchy-menu.desktop"
+
+  if [[ $existing_shell_unit == true ]]; then
+    shell_unit_disabled=true
+    systemctl --user disable --now omarchy-shell.service
+  fi
+  systemctl --user daemon-reload
+
+  current_desktop=${XDG_CURRENT_DESKTOP:-}
+  if [[ $current_desktop == KDE* ]]; then
+    filtered_shell_started=true
+    systemctl --user start frankenstein-omarchy-shell.service
+  fi
 fi
 
 cat >"$user_backup/install-state.env" <<EOF
@@ -666,6 +733,7 @@ DEFAULT_SESSION=$default_session
 PLASMA_ACTION=$plasma_action
 PACKAGE_MANAGED=$package_managed
 SDDM_STATE_BACKED_UP=true
+SHELL_MODE=$shell_mode
 EOF
 sudo install -m 0644 "$user_backup/install-state.env" \
   "$system_state_dir/installations/$backup_id.env"
@@ -678,6 +746,9 @@ echo "User backup:   $user_backup"
 echo "System backup: $system_backup"
 echo "Log out normally, choose Plasma in SDDM, then run:"
 echo "  frankenstein-shell-adapter check"
+if [[ $shell_mode == preserve ]]; then
+  echo "Your existing Omarchy shell was preserved; the check does not certify plugin compatibility."
+fi
 echo
 echo "Rollback:"
 if [[ $package_managed == true ]]; then

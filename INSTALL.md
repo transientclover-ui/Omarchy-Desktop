@@ -3,13 +3,11 @@
 Frankenstein currently supports **Omarchy 4.0.4 with KDE Plasma Wayland**.
 GNOME and other desktops are intentionally out of scope.
 
-**Current host-adoption limitation:** setup replaces an existing all-desktops
-Omarchy shell service with the filtered KDE adapter. Its default menu-only
-profile does not preserve an existing full Omarchy bar/plugin setup. Do not use
-this path to adopt a customized KDE session whose active Omarchy features must
-remain enabled. Preserving that baseline is now required before host adoption;
-the earlier menu-only VM demonstration is not evidence that this requirement
-is met. See the latest compatibility-journal entry.
+The current source includes an **existing-shell preservation path**. When an
+`omarchy-shell.service` already exists, setup keeps its configuration and
+active/enabled state and does not start a second, filtered shell. This path has
+isolated regression coverage but still needs packaged graphical-VM validation.
+It does not certify every existing plugin's behavior under KDE.
 
 ## Preflight
 
@@ -30,7 +28,7 @@ explicitly:
 frankenstein preflight
 ```
 
-Then configure the KDE adapter:
+Then add integration while preserving existing settings by default:
 
 ```bash
 frankenstein setup
@@ -68,6 +66,28 @@ omarchy pkg add plasma-meta
 ./install.sh
 ```
 
+The default setup preserves the existing shell when present, SDDM theme,
+autologin configuration and remembered desktop. Without an existing shell
+service, it adds the filtered menu-only adapter. Existing KDE appearance,
+shortcuts, panel, wallpaper and other configuration are not replaced.
+
+Choose categories independently when you want changes:
+
+| Option | Effect |
+| --- | --- |
+| `--shell auto` (default) | Preserve an existing shell service; otherwise add the filtered adapter |
+| `--shell preserve` | Require and preserve the existing shell service |
+| `--shell filtered` | Explicitly replace the existing service with the menu-only adapter; its configuration stays backed up and intact |
+| `--login preserve` (default) | Keep the current SDDM theme and autologin settings |
+| `--login chooser` | Request a reversible Breeze/no-autologin override |
+| `--default keep` (default) | Leave remembered session state unchanged |
+| `--default auto`, `omarchy` or `plasma` | Explicitly set a supported initial desktop preference |
+
+For example, `frankenstein preflight --login chooser` previews a login chooser
+without replacing an existing Omarchy shell. Repeat the same options with
+`frankenstein setup` only after reviewing that plan. Existing autologin can
+still override desktop selection when login settings are preserved.
+
 The installer requires the user to type `INSTALL` after reviewing the plan.
 `--yes` is intended for controlled automated testing and constitutes explicit
 consent.
@@ -84,6 +104,36 @@ input files are not edited.
 The installer does not restart SDDM. Log out normally after installation and
 choose Plasma from the session selector.
 
+## Individual plugins and custom widgets
+
+`frankenstein settings` opens an opt-in selection for the running stock Omarchy
+shell. All currently enabled, selectable plugins and each configured bar widget
+start selected. Keep everything to leave `shell.json` byte-for-byte unchanged.
+Custom command widgets are included even though they have no plugin manifest;
+keeping one preserves its commands, click action, interval, position and other
+fields. Duplicate widget instances can be selected separately.
+
+Unchecking a plugin disables it and removes its linked bar widgets. Unchecking
+one widget removes that occurrence without resetting unrelated configuration.
+Already-disabled plugins stay disabled, the bar itself is retained, and no
+plugin is installed or newly enabled. Custom scripts are not executed or edited.
+The tool shows a diff, requires `APPLY`, saves the original configuration under
+`~/.local/state/frankenstein/settings-backups/`, and refuses a detected concurrent
+edit. Applying choices changes the live shell configuration and can hot-reload
+it; setup never runs this selector automatically.
+
+For inspection only, use `frankenstein settings --list`. A JSON array of catalog
+keys can be passed to `frankenstein settings --preview KEEP_JSON` to preview
+choices without writing settings. Source installations use
+`frankenstein-settings` directly. The selector requires a regular user-owned
+`shell.json` with an explicit bar layout and a responding stock shell; it
+refuses unsupported layouts rather than inventing defaults.
+
+Use `frankenstein desktop` (or `omarchy-default-desktop --choose-and-switch` in
+a standalone installation) to choose a default and optionally confirm logout.
+This remains available when the existing shell is preserved; its menu extension
+is not overwritten to add the command.
+
 ## Verification
 
 Inside Plasma:
@@ -92,7 +142,11 @@ Inside Plasma:
 frankenstein-shell-adapter check
 ```
 
-A passing result requires exactly one filtered shell instance, working IPC,
+For a preserved shell, the check reports its service/IPC availability and
+explicitly states that plugin compatibility is not certified. `enable`,
+`disable` and `run` refuse to replace or control that user-owned shell.
+
+For the filtered profile, a passing result requires exactly one filtered shell instance, working IPC,
 and `omarchy.menu` as the only enabled Omarchy Shell plugin. Plasma remains the
 native owner of its panel, launcher, wallpaper, lock/idle behavior,
 notifications, Polkit agent, workspaces, and OSD.
@@ -115,9 +169,11 @@ For a standalone source installation:
 ./uninstall.sh
 ```
 
-Rollback removes only Frankenstein-created files, restores the prior
-`omarchy-shell.service` enablement state, and leaves KDE configuration and
-packages intact. Use `--force` only after manually reviewing locally modified
+Rollback removes Frankenstein-created integration and leaves KDE configuration
+and packages intact. Preserved shells are not stopped, enabled or restarted.
+An explicitly replaced shell has its prior service state restored. Settings
+changed separately through the opt-in selector are user choices; uninstall does
+not reset them. Their original files remain in the selector backup directory. Use `--force` only after manually reviewing locally modified
 Frankenstein files.
 
 Packages added during installation are listed in the timestamped backup but

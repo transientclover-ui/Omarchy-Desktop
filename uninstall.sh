@@ -65,8 +65,8 @@ fi
 
 if [[ $assume_yes != true ]]; then
   cat <<EOF
-This will remove Frankenstein integration files, restore the prior shell-unit
-enablement state, and leave KDE packages and all KDE user configuration intact.
+This will remove Frankenstein-owned integration and leave KDE packages and
+configuration intact. A preserved existing Omarchy shell will not be changed.
 Backups will remain at:
   $HOME/.local/state/frankenstein/backups/$backup_id
   $state_dir/backups/$backup_id
@@ -79,56 +79,63 @@ EOF
   }
 fi
 
-if [[ $force != true ]]; then
-  for path in \
-    "$HOME/.config/systemd/user/frankenstein-omarchy-shell.service" \
+# Older installation records used the filtered shell path.
+case ${SHELL_MODE:-filtered} in
+  preserve|filtered) ;;
+  *) echo "Unknown shell mode; refusing uninstall." >&2; exit 1 ;;
+esac
+if [[ ${SHELL_MODE:-filtered} == filtered ]]; then
+  if [[ $force != true ]]; then
+    for path in \
+      "$HOME/.config/systemd/user/frankenstein-omarchy-shell.service" \
+      "$HOME/.config/autostart/frankenstein-omarchy-shell.desktop" \
+      "$HOME/.local/share/applications/frankenstein-omarchy-menu.desktop"; do
+      [[ -e $path ]] || continue
+      case ${path##*/} in
+        frankenstein-omarchy-shell.service)
+          if [[ ${PACKAGE_MANAGED:-false} == true ]]; then
+            source_path=$template_dir/frankenstein-omarchy-shell.service
+          else
+            source_path=$template_dir/systemd/frankenstein-omarchy-shell.service
+          fi
+          ;;
+        frankenstein-omarchy-shell.desktop)
+          if [[ ${PACKAGE_MANAGED:-false} == true ]]; then
+            source_path=$template_dir/frankenstein-omarchy-shell.desktop
+          else
+            source_path=$template_dir/frankenstein/frankenstein-omarchy-shell-autostart.desktop
+          fi
+          ;;
+        frankenstein-omarchy-menu.desktop)
+          if [[ ${PACKAGE_MANAGED:-false} == true ]]; then
+            source_path=$template_dir/frankenstein-omarchy-menu.desktop
+          else
+            source_path=$template_dir/frankenstein/frankenstein-omarchy-menu.desktop
+          fi
+          ;;
+      esac
+      cmp -s "$path" "$source_path" || {
+        echo "Refusing to remove a modified file: $path" >&2
+        echo "Review it or rerun with --force." >&2
+        exit 1
+      }
+    done
+  fi
+
+  systemctl --user stop frankenstein-omarchy-shell.service 2>/dev/null || true
+  rm -f \
     "$HOME/.config/autostart/frankenstein-omarchy-shell.desktop" \
-    "$HOME/.local/share/applications/frankenstein-omarchy-menu.desktop"; do
-    [[ -e $path ]] || continue
-    case ${path##*/} in
-      frankenstein-omarchy-shell.service)
-        if [[ ${PACKAGE_MANAGED:-false} == true ]]; then
-          source_path=$template_dir/frankenstein-omarchy-shell.service
-        else
-          source_path=$template_dir/systemd/frankenstein-omarchy-shell.service
-        fi
-        ;;
-      frankenstein-omarchy-shell.desktop)
-        if [[ ${PACKAGE_MANAGED:-false} == true ]]; then
-          source_path=$template_dir/frankenstein-omarchy-shell.desktop
-        else
-          source_path=$template_dir/frankenstein/frankenstein-omarchy-shell-autostart.desktop
-        fi
-        ;;
-      frankenstein-omarchy-menu.desktop)
-        if [[ ${PACKAGE_MANAGED:-false} == true ]]; then
-          source_path=$template_dir/frankenstein-omarchy-menu.desktop
-        else
-          source_path=$template_dir/frankenstein/frankenstein-omarchy-menu.desktop
-        fi
-        ;;
-    esac
-    cmp -s "$path" "$source_path" || {
-      echo "Refusing to remove a modified file: $path" >&2
-      echo "Review it or rerun with --force." >&2
-      exit 1
-    }
-  done
-fi
+    "$HOME/.config/systemd/user/frankenstein-omarchy-shell.service" \
+    "$HOME/.local/share/applications/frankenstein-omarchy-menu.desktop"
+  rm -f "$HOME/.config/frankenstein/shell-disabled"
+  systemctl --user daemon-reload
 
-systemctl --user stop frankenstein-omarchy-shell.service 2>/dev/null || true
-rm -f \
-  "$HOME/.config/autostart/frankenstein-omarchy-shell.desktop" \
-  "$HOME/.config/systemd/user/frankenstein-omarchy-shell.service" \
-  "$HOME/.local/share/applications/frankenstein-omarchy-menu.desktop"
-rm -f "$HOME/.config/frankenstein/shell-disabled"
-systemctl --user daemon-reload
-
-if [[ $EXISTING_SHELL_UNIT == true && $EXISTING_SHELL_ENABLED == true ]]; then
-  systemctl --user enable omarchy-shell.service
-fi
-if [[ $EXISTING_SHELL_UNIT == true && $EXISTING_SHELL_ACTIVE == true ]]; then
-  systemctl --user start omarchy-shell.service
+  if [[ $EXISTING_SHELL_UNIT == true && $EXISTING_SHELL_ENABLED == true ]]; then
+    systemctl --user enable omarchy-shell.service
+  fi
+  if [[ $EXISTING_SHELL_UNIT == true && $EXISTING_SHELL_ACTIVE == true ]]; then
+    systemctl --user start omarchy-shell.service
+  fi
 fi
 
 # Stop new activations, then wait for any in-flight writer before restoration.
@@ -156,6 +163,7 @@ if [[ ${PACKAGE_MANAGED:-false} != true ]]; then
     /usr/lib/systemd/system/omarchy-desktop-manager-default.service \
     /usr/bin/frankenstein-shell-adapter \
     /usr/bin/omarchy-default-desktop \
+    /usr/bin/frankenstein-settings \
     /usr/lib/frankenstein/installer-state \
     /usr/lib/frankenstein/shell-profile \
     /usr/lib/frankenstein/set-default \

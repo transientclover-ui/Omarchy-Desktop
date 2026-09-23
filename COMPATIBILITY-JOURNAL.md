@@ -1115,3 +1115,73 @@ and ownership, then implement and validate in an isolated KDE environment.
 The earlier VM menu-only results remain valid only for that narrower profile.
 Do not advance to host installation based on them or treat profile-merge unit
 tests as graphical validation of this broader preservation requirement.
+
+## 2026-09-23: preserve existing settings and offer selective choices
+
+The user requested Frankenstein's benefits without losing current settings,
+then clarified that optional selection must include individual plugins/widgets
+and a custom widget. This supersedes the prior menu-only adoption scope.
+KDE remains the only target; no host installation was performed.
+
+Implemented in source:
+
+- Setup defaults to `--shell auto --login preserve --default keep`. Existing
+  Omarchy shell services keep their configuration and active/enabled state;
+  no replacement shell/autostart is created. Without an existing service,
+  auto still installs the filtered menu-only adapter.
+- Login theme/autologin and remembered desktop remain unchanged by default.
+  The default-session watcher is installed but has no preference to enforce
+  until the user selects one. Existing default-manager state is refused as a
+  conflict rather than overwritten.
+- Independent explicit choices are `--shell preserve|filtered`,
+  `--login chooser`, and `--default auto|omarchy|plasma`. Choosing filtered
+  explicitly replaces the service, while retaining original config files and
+  restoring the original service state on rollback. Preflight describes this
+  reduction; it is never silently chosen for an existing service.
+- Installation records persist shell ownership. Uninstall and rollback leave
+  preserved shell services and user files alone. Adapter run/enable/disable
+  refuse to replace a preserved shell; menu IPC targets the stock shell, and
+  checks report availability without claiming plugin compatibility.
+- `frankenstein desktop` exposes the existing chooser/default/switch controls.
+- `frankenstein settings` provides opt-in per-plugin/per-widget selection from
+  the running stock shell and explicit bar layout. Everything starts selected;
+  keeping everything is a byte-for-byte no-op. Custom command widgets and
+  repeated instances are included; retained entries keep all their fields.
+  Disabled plugins stay disabled. The bar itself is not deselectable.
+- Deselecting a plugin disables it and removes linked widgets; deselecting a
+  widget removes only that occurrence. No new plugin is enabled. A diff and
+  typed APPLY are required, an original-file backup is saved, and detected
+  concurrent changes are refused. Commands inside widgets are never executed
+  by selection. A read-only catalog and preview are available separately.
+
+Validation:
+
+- 56 existing isolated installer/rollback cases passed.
+- 16 new packaged/standalone preservation and independent-category cases
+  passed, including failure/retry, inactive-service preservation, unchanged
+  config/plugin/script files, and no unsolicited shell service mutations.
+- 9 selection tests passed: custom widget fields and duplicate instances,
+  keep-all exact no-op, selective changes, cancellation, invalid selections,
+  preview-only behavior, original backups, concurrent edits and refusal of
+  symlinks/unsupported configurations. Widget commands were not executed.
+- Existing installer-state and shell-profile suites (22 invalid overrides),
+  Bash syntax checks and `git diff --check` passed.
+- A read-only catalog/keep-all preview on the current host recognized the
+  custom `local-rp-status` widget. The shell.json SHA-256 remained
+  `e7fd16b4c4ffb58b34181b12738e7792512e3c454fc548f65f3e81fb798c4b5a`.
+  No selection was applied and no user service was changed.
+
+Packaging has source/install entries for the new settings command and its
+explicit gum/diffutils dependencies. Checksums, revision and `.SRCINFO` still
+need reconciliation before building; no package from this tree was built or
+installed. This is local source/control-flow validation, not graphical proof
+of all 31 currently enabled entries. The selection UI was tested with mocked
+input, not a live interactive apply on the user's desktop.
+
+Next: reconcile and build packages with a new revision, then test both fresh
+menu-only setup (explicit chooser/default options) and existing-shell
+preservation in a disposable KDE VM. Test custom-widget selection there before
+any host use. Existing autologin can still override desktop choice when the
+user elects to preserve it; report that limitation rather than changing it
+silently. Keep all host settings and plugin states unchanged until a separately
+reviewed host installation plan is approved.

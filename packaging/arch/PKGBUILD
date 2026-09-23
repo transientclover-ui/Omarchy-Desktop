@@ -14,6 +14,7 @@ source=(
   "install.sh::file://$_root/install.sh"
   "uninstall.sh::file://$_root/uninstall.sh"
   "frankenstein::file://$_root/src/bin/frankenstein"
+  "frankenstein-settings::file://$_root/src/bin/frankenstein-settings"
   "omarchy-default-desktop::file://$_root/src/bin/omarchy-default-desktop"
   "omarchy-desktop-manager-set-default::file://$_root/src/libexec/omarchy-desktop-manager-set-default"
   "installer-state.sh::file://$_root/src/lib/installer-state.sh"
@@ -67,12 +68,13 @@ sha256sums=('2898062cd32d4386b1a35ee8efd26842e82514720b11a064a76b8d01a0d7e838'
 package_frankenstein-core() {
   pkgdesc='Common CLI and default-session manager for Frankenstein'
   depends=(
-    bash coreutils findutils gawk grep jq
+    bash coreutils diffutils findutils gawk grep gum jq
     'omarchy=4.0.4-1'
     pacman polkit sed sudo systemd tar
   )
 
   install -Dm0755 "$srcdir/frankenstein" "$pkgdir/usr/bin/frankenstein"
+  install -Dm0755 "$srcdir/frankenstein-settings" "$pkgdir/usr/bin/frankenstein-settings"
   install -Dm0755 "$srcdir/install.sh" "$pkgdir/usr/lib/frankenstein/setup"
   install -Dm0755 "$srcdir/uninstall.sh" "$pkgdir/usr/lib/frankenstein/uninstall"
   install -Dm0755 "$srcdir/omarchy-default-desktop" \

@@ -37,7 +37,14 @@ For development directly from a source checkout, run:
 The preflight validates the operating system, exact supported Omarchy version,
 original Omarchy session, installed shell source layout, Plasma session, SDDM
 state, and any existing user shell service. It prints the complete change plan
-and exits without requesting privilege.
+and exits without requesting privilege. Existing Frankenstein integration files
+(including dangling symlinks) are refused before mutation. Standalone setup also
+refuses existing helper payloads. Review conflicts instead of deleting them
+blindly.
+
+SDDM settings are read in vendor-fragment, local-fragment, then main-file order.
+If a higher-precedence setting would defeat the proposed Breeze/no-autologin
+fragment, setup stops for review rather than editing that existing configuration.
 
 If Plasma's packaged Wayland session is already valid, the installer adopts it
 and performs no package transaction. If Plasma is absent, the approved install
@@ -110,11 +117,16 @@ are not automatically removed. Removing a desktop dependency closure after it
 has been used or customized is unsafe; package rollback remains an explicit
 administrator decision.
 
-If setup fails after changes begin, it removes the SDDM override, user
+When automatic rollback succeeds after a setup failure, it removes the SDDM override, user
 autostart/application files, default-session service state, and any
 standalone-installed payload. It also restores the prior
 `omarchy-shell.service` enablement and active state. Packages installed as
 dependencies are intentionally retained and listed in the timestamped backup.
+
+If stopping SDDM synchronization or restoring its prior state fails, cleanup
+stops and reports incomplete recovery. Keep the retained backups and payload;
+resolve the reported error before retrying uninstall for an active installation.
+A failed setup may require manual recovery from its reported backup directory.
 
 ## Current fresh-overlay status
 
@@ -125,3 +137,9 @@ sessions, package upgrade and downgrade, configuration rollback, and package
 removal passed. The initial Plasma black screen was fixed in package revision
 2 by adding the required `plasma-desktop` dependency. See the journal for the
 complete evidence and remaining limitations.
+
+The later KDE adoption and rollback changes in the current source tree have only
+local isolated tests so far, including packaged and standalone control flow,
+KDE configuration backup/preservation, and SDDM precedence/conflict checks.
+They have not yet been rebuilt and validated in a fresh graphical VM. The
+previous VM results do not certify these newer changes or non-menu profiles.

@@ -1027,3 +1027,51 @@ parity, then reconcile package metadata/checksums with a new revision and run
 reproducible builds and fresh disposable-VM lifecycle validation. Keep the
 menu-only KDE profile as the demonstrated baseline; non-menu profiles remain
 experimental/unvalidated. This checkpoint is not a newly validated release.
+
+## 2026-09-23: KDE installer parity and preservation review
+
+Resumed from `47cc226`. Scope remained the KDE-only proof of concept, with
+no host adoption or additional desktop/plugin work.
+
+Review fixes:
+
+- Standalone setup now includes the same inert Bar import symlink as the KDE
+  package. The recorded VM QML failure established why loading requires this
+  even though the menu-only profile does not instantiate an Omarchy bar.
+- Setup refuses pre-existing SDDM override and integration paths, including
+  dangling symlinks. Standalone conflict checks now include both new helper
+  libraries, avoiding overwrites and later removal of pre-existing files.
+- Packaged setup prints the working `frankenstein uninstall` command instead
+  of a nonexistent `uninstall.sh` path. Test fixtures now use the actual
+  packaged `setup` and `uninstall` filenames.
+- SDDM preflight now reads vendor fragments, local fragments, then the main
+  configuration file, matching the installed SDDM 0.21.0 manual. It handles
+  whitespace around values and previews the proposed fragment in that order.
+  Higher-precedence settings that defeat the proposed override cause a refusal
+  before mutation; existing administrator configuration is not rewritten.
+
+Validation:
+
+- `python3 -W error tests/installer-rollback.py`: 56 cases passed across
+  packaged and standalone layouts (36 lifecycle/failure cases, 12 conflict
+  cases and 8 SDDM precedence/preflight cases).
+- Lifecycle fixtures verify unchanged KDE settings and matching archive copies
+  for panel layout, display output, session, power and Qt configuration; active
+  KDE default selection; standalone payload removal versus package retention;
+  and the existing restoration/retry checks.
+- Existing installer-state and shell-profile suites passed (including 22 invalid
+  profile overrides), as did Bash syntax and `git diff --check`.
+- INSTALL.md now describes conflict handling, incomplete recovery and the
+  distinction between earlier VM evidence and current source-only testing.
+
+Limits: service/package/default-writer commands remain simulated. These checks
+exercise real installer/uninstaller control flow and file operations, not QML
+loading, real systemd timing, all failure points, package installation or
+arbitrary SDDM configuration syntax. No VM was started and no host configuration,
+service, package database, repository or trust was changed. Unrelated untracked
+ISO/boot reference files remain untouched.
+
+Next step: reconcile package source checksums and `.SRCINFO`, assign a fresh
+revision, build reproducibly, then validate those exact KDE packages in a fresh
+baseline-backed VM. Preserve menu-only scope. This checkpoint is not a new
+validated package release.

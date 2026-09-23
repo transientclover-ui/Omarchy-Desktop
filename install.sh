@@ -299,21 +299,38 @@ if [[ -z $plasma_session ]]; then
 fi
 
 effective_sddm_value() {
-  local wanted_section=$1 wanted_key=$2 file result value
+  local wanted_section=$1 wanted_key=$2 proposed=${3:-false} file result value dir
   local -a files=()
-  [[ -f /etc/sddm.conf ]] && files+=(/etc/sddm.conf)
-  while IFS= read -r file; do files+=("$file"); done < <(
-    find /etc/sddm.conf.d -maxdepth 1 -type f -name '*.conf' -print 2>/dev/null | LC_ALL=C sort
-  )
+  # SDDM reads vendor fragments, local fragments, then the legacy main file.
+  for dir in /usr/lib/sddm/sddm.conf.d /etc/sddm.conf.d; do
+    while IFS= read -r file; do files+=("$file"); done < <(
+      {
+        [[ ! -d $dir ]] || find "$dir" -maxdepth 1 \( -type f -o -type l \) -name '*.conf' -print
+        if [[ $proposed == true && $dir == /etc/sddm.conf.d ]]; then
+          printf '%s\n' /etc/sddm.conf.d/zzzz-frankenstein.conf
+        fi
+      } | LC_ALL=C sort -u
+    )
+  done
+  [[ ! -f /etc/sddm.conf ]] || files+=(/etc/sddm.conf)
   result=
   for file in "${files[@]}"; do
+    if [[ $proposed == true && $file == /etc/sddm.conf.d/zzzz-frankenstein.conf ]]; then
+      file=$sddm_override_source
+    fi
     value=$(awk -F= -v section="$wanted_section" -v key="$wanted_key" '
+      /^[[:space:]]*[#;]/ { next }
+      { sub(/\r$/, ""); sub(/^[[:space:]]+/, ""); sub(/[[:space:]]+$/, "") }
       $0 == "[" section "]" { active=1; next }
       /^\[/ { active=0 }
-      active && $1 == key {
-        sub(/^[^=]*=/, "")
-        value=$0
-        found=1
+      active {
+        name=$1
+        sub(/[[:space:]]+$/, "", name)
+        if (name == key) {
+          sub(/^[^=]*=[[:space:]]*/, "")
+          value=$0
+          found=1
+        }
       }
       END { if (found) printf "set:%s", value }
     ' "$file")
@@ -322,13 +339,6 @@ effective_sddm_value() {
   printf '%s\n' "$result"
 }
 
-sddm_theme=$(effective_sddm_value Theme Current)
-autologin_user=$(effective_sddm_value Autologin User)
-autologin_session=$(effective_sddm_value Autologin Session)
-sddm_action=preserve
-if [[ $sddm_theme != breeze || -n $autologin_user || -n $autologin_session ]]; then
-  sddm_action=add-reversible-breeze-override
-fi
 
 existing_shell_unit=false
 existing_shell_enabled=false
@@ -339,7 +349,7 @@ if [[ -e $HOME/.config/systemd/user/omarchy-shell.service ]]; then
   systemctl --user is-active omarchy-shell.service >/dev/null 2>&1 && existing_shell_active=true
 fi
 
-[[ ! -e $system_state_dir/current ]] || {
+[[ ! -e $system_state_dir/current && ! -L $system_state_dir/current ]] || {
   echo "Frankenstein already has an active installation record." >&2
   echo "Run ./uninstall.sh before reinstalling." >&2
   exit 1
@@ -349,33 +359,59 @@ system_conflicting_paths=(
   /usr/bin/frankenstein-shell-adapter
   /usr/bin/omarchy-default-desktop
   /usr/lib/frankenstein/set-default
+  /usr/lib/frankenstein/installer-state
+  /usr/lib/frankenstein/shell-profile
   /usr/share/frankenstein/omarchy-shell
   /usr/share/frankenstein/profiles/plasma.json
   /usr/share/frankenstein/profiles/plasma-menu.jsonc
   /usr/lib/systemd/system/omarchy-desktop-manager-default.path
   /usr/lib/systemd/system/omarchy-desktop-manager-default.service
 )
-user_conflicting_paths=(
+configuration_conflicting_paths=(
+  /etc/sddm.conf.d/zzzz-frankenstein.conf
   "$HOME/.config/systemd/user/frankenstein-omarchy-shell.service"
   "$HOME/.config/autostart/frankenstein-omarchy-shell.desktop"
   "$HOME/.local/share/applications/frankenstein-omarchy-menu.desktop"
 )
 if [[ $package_managed != true ]]; then
   for conflicting_path in "${system_conflicting_paths[@]}"; do
-    [[ ! -e $conflicting_path ]] || {
+    [[ ! -e $conflicting_path && ! -L $conflicting_path ]] || {
       echo "Unmanaged Frankenstein path already exists: $conflicting_path" >&2
       echo "Move or remove it before installation so it cannot be overwritten." >&2
       exit 1
     }
   done
 fi
-for conflicting_path in "${user_conflicting_paths[@]}"; do
-  [[ ! -e $conflicting_path ]] || {
-    echo "User integration path already exists: $conflicting_path" >&2
+for conflicting_path in "${configuration_conflicting_paths[@]}"; do
+  [[ ! -e $conflicting_path && ! -L $conflicting_path ]] || {
+    echo "Integration path already exists: $conflicting_path" >&2
     echo "Move or remove it before installation so it cannot be overwritten." >&2
     exit 1
   }
 done
+
+sddm_theme=$(effective_sddm_value Theme Current)
+autologin_user=$(effective_sddm_value Autologin User)
+autologin_session=$(effective_sddm_value Autologin Session)
+sddm_action=preserve
+if [[ $sddm_theme != breeze || -n $autologin_user || -n $autologin_session ]]; then
+  sddm_action=add-reversible-breeze-override
+fi
+
+# Refuse configurations whose higher-precedence settings defeat our fragment.
+# Do not rewrite an existing administrator-owned file to force the plan through.
+if [[ $sddm_action == add-reversible-breeze-override ]]; then
+  for setting in 'Theme Current breeze' 'Autologin User' 'Autologin Session' \
+                 'Autologin Relogin false' 'Users RememberLastUser true' \
+                 'Users RememberLastSession true'; do
+    read -r section key expected <<<"$setting"
+    actual=$(effective_sddm_value "$section" "$key" true)
+    [[ $actual == "$expected" ]] || {
+      echo "SDDM configuration overrides the proposed $section/$key setting; refusing installation. Review higher-precedence configuration first." >&2
+      exit 1
+    }
+  done
+fi
 
 if [[ $requested_default == auto ]]; then
   active_desktop=${XDG_CURRENT_DESKTOP:-}
@@ -568,6 +604,8 @@ fi
 if [[ $package_managed != true ]]; then
   sudo ln -sfn /usr/share/omarchy/shell/Commons "$installed_share/omarchy-shell/Commons"
   sudo ln -sfn /usr/share/omarchy/shell/Ui "$installed_share/omarchy-shell/Ui"
+  # QML resolves Bar even when the KDE profile disables its instance.
+  sudo ln -sfn /usr/share/omarchy/shell/plugins/bar "$installed_share/omarchy-shell/plugins/bar"
   for source in /usr/share/omarchy/shell/services/*; do
     name=${source##*/}
     [[ $name == PluginRegistry.qml ]] && continue
@@ -642,4 +680,8 @@ echo "Log out normally, choose Plasma in SDDM, then run:"
 echo "  frankenstein-shell-adapter check"
 echo
 echo "Rollback:"
-echo "  $project_dir/uninstall.sh"
+if [[ $package_managed == true ]]; then
+  echo "  frankenstein uninstall"
+else
+  echo "  $project_dir/uninstall.sh"
+fi

@@ -189,13 +189,19 @@ installed_shell_mode() {
 }
 
 check_preserved_shell() {
-  local state ping
+  local state ping count
   state=$(systemctl --user is-active omarchy-shell.service 2>/dev/null || true)
   ping=$(ipc shell ping 2>/dev/null || true)
-  printf 'integration=preserve-existing\nservice=%s\nshell_ipc=%s\n' "$state" "${ping:-unavailable}"
+  # Quickshell filters this list to the selected config and current display.
+  # IPC alone can succeed even when two competing launchers started the shell.
+  count=$(timeout --kill-after=1s 5s qs list --json -p "$ipc_shell_dir" 2>/dev/null |
+    jq -er 'if type == "array" then length else error("invalid instance list") end' 2>/dev/null) || count=unknown
+  printf 'shell_instances=%s\n' "$count"
+  [[ $count == 1 ]] || echo 'Shell ownership is unresolved: expected exactly one instance on this display.' >&2
+  printf 'integration=preserve-existing\nservice=%s\nshell_ipc=%s\n'  "$state" "${ping:-unavailable}"
   echo 'plugin_compatibility=not-certified'
   echo 'Existing configuration and enabled/disabled choices are user-managed.'
-  [[ $state == active && $ping == ok ]]
+  [[ $state == active && $ping == ok && $count == 1 ]]
 }
 
 shell_mode=$(installed_shell_mode) || exit 1

@@ -1230,3 +1230,20 @@ including `guest-logs.tar.gz`, screenshots and build log. These tests cover a
 representative custom widget, not every enabled third-party plugin or the
 user's exact widget command. Revision 5 is an unsigned test build, not a
 validated public release. Host config, services, packages and trust unchanged.
+
+## 2026-09-23 — Refuse a misleading preserved-shell health pass
+
+The source health check now requires exactly one Quickshell instance for the
+stock config on the current display, in addition to active service and working
+IPC. Query failure/malformed output fails conservatively. It reports unresolved
+ownership without starting, stopping or rewriting an existing service. Seven
+isolated health scenarios passed, including duplicate/zero instances, query
+failure, inactive service and unavailable IPC. The same function passed against
+the running VM's single Plasma shell after package removal. This diagnostic
+fix does not resolve the Hyprland dual-launcher race.
+
+Reserved revision 6 and refreshed source checksums/metadata to avoid changing
+the frozen revision 5 artifacts. Revision 6 is not built or VM-package-validated
+yet. The next implementation task is an explicit, reversible ownership policy
+for an existing shell service across KDE/Omarchy sessions, followed by repeated
+login and reboot testing. Do not silently rewrite the preserved service.

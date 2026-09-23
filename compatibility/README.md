@@ -55,3 +55,13 @@ compatibility and require retesting. A reviewed report does not bypass approval.
   a stock Omarchy installation or other desktops.
 
 Neither source substitutes for this project's integration test reports.
+
+## Reported regression to reproduce
+
+On the owner's actual computer, returning to KDE reportedly showed SDDM login,
+then an identical-looking login screen, then the desktop. The same password
+worked on both screens. Cause is unconfirmed;
+this has not yet been reproduced in the test VM. Correlate session/SDDM logs to
+distinguish a failed first session, a second greeter and a lock screen. Do not
+disable authentication or locking as a workaround. Require one intended login
+and verify explicit/idle locking still works.

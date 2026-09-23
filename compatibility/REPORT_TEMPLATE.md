@@ -36,6 +36,8 @@ a VM. Untested required checks prevent promotion.
 | Logout and repeat login | UNTESTED | |
 | SDDM select another desktop and return | UNTESTED | |
 | Last-used-session/remembered state behavior | UNTESTED | |
+| Return to KDE: one intended login, no second unexpected login screen | UNTESTED | |
+| Explicit and idle locking still work after login repair | UNTESTED | |
 | Recovery to original desktop | UNTESTED | |
 | Existing sessions and configurations preserved | UNTESTED | |
 

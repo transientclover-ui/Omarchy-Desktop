@@ -42,3 +42,11 @@ class CompatibilityTests(unittest.TestCase):
             with patch("omarchy_desktop.cli.discover", return_value={"omarchy_version": "unknown"}), contextlib.redirect_stdout(io.StringIO()) as out:
                 self.assertEqual(main(args), 0)
             self.assertTrue(out.getvalue())
+
+
+class LoginRegressionTests(unittest.TestCase):
+    def test_repair_identifies_both_login_screens(self):
+        prompt = generate("repair-sddm", None, {"omarchy_version": "unknown"})
+        self.assertIn("SDDM login -> another login -> desktop", prompt)
+        self.assertIn("identify the owner of each screen", prompt)
+        self.assertIn("working explicit and idle locking", prompt)

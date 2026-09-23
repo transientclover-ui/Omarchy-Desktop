@@ -1185,3 +1185,48 @@ any host use. Existing autologin can still override desktop choice when the
 user elects to preserve it; report that limitation rather than changing it
 silently. Keep all host settings and plugin states unchanged until a separately
 reviewed host installation plan is approved.
+
+## 2026-09-23 — Revision 5 disposable-VM validation
+
+Built the source at `a072ab2` twice with reconciled revision/checksums; both
+clean builds produced identical unsigned package hashes:
+
+- core: `b41a3f75a0a1c84d8a276710ce1aff069803dd09b155b2f998b12e951b418292`
+- kde: `975fd3daf45c08663f7278d2113c4b9ad2a1269ef3ccbbacfd0ae9950d65c67b`
+
+Installed both 0.1.0-5 packages in a fresh overlay backed by the preserved
+Omarchy baseline. Explicit chooser/default setup and filtered Plasma login
+passed, with menu IPC and native Plasma panel/portal. A VM-only existing-shell
+fixture then exercised preservation: unchanged shell config, custom command
+widget, service file, active PID and SDDM files after default setup. Keeping
+everything in the real selection UI was a bytewise no-op. Interactive selective
+apply disabled Background, then removed the audio widget while retaining the
+custom widget and its fields; original backups were created. No user host
+selection was applied.
+
+Preservation survived Plasma logout/login with exactly one stock shell. After
+restarting the VM and returning through Omarchy to Plasma, the custom config
+remained byte-identical to the selected result. Uninstall and actual pacman
+removal of both packages left Plasma and the original shell active with one
+instance and retained the selected settings. A cached shell command lookup
+after removal was misleading; fresh filesystem/package checks confirmed the
+executable, helper directory and both packages were absent.
+
+**Release blocker:** the synthetic preserved service and Omarchy's native shell
+launcher race on Hyprland login. The first return logged “An instance of this
+configuration is already running” and left the service inactive while IPC
+worked. On a subsequent boot both launchers started separate stock-shell
+instances. Revision 5's preservation check does not count instances, so an
+active service plus IPC can falsely pass that duplicate state. Returning to
+KDE yielded one instance. Do not claim preserved-shell round-trip support or
+install on the host based on these results. Preserve-mode installation did
+not create this service; the test fixture deliberately supplies it as existing
+configuration. Fixing ownership must respect the user's preservation choices.
+
+81 local installer/preservation/selection cases and both shell helper suites
+passed again (including 22 invalid profile cases). Offline overlay integrity
+check passed before reopening. Evidence is under `evidence/kde-0.1.0-5/`,
+including `guest-logs.tar.gz`, screenshots and build log. These tests cover a
+representative custom widget, not every enabled third-party plugin or the
+user's exact widget command. Revision 5 is an unsigned test build, not a
+validated public release. Host config, services, packages and trust unchanged.

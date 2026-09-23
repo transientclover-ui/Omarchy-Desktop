@@ -892,3 +892,101 @@ Resume from this checkpoint by:
 The real host remained unchanged: Frankenstein was not installed, no package
 or repository trust was added, and no SDDM configuration or service state was
 modified.
+
+## 2026-09-23: shell-profile regression suite repaired
+
+Resumed from `a14c43c` (`Checkpoint partial host adoption fixes`). The tracked
+working tree was clean; the existing untracked `iso-readme.md`,
+`omarchy-4.0.4.iso.sha256`, and `upstream-boot.sh` were left untouched.
+
+The single task in this continuation was to complete the local shell-profile
+merge regression suite from resume item 3. The checkpoint's suite failed on
+its first plugin-list assertion because a single-quoted jq expression included
+literal backslashes before its string delimiters. Both affected expressions
+were corrected. No production implementation was changed.
+
+Coverage now checks absent overrides, panel-only and plugin-only overrides,
+replacement of plugin arrays (including an empty array), preservation of all
+other packaged fields, and unchanged source files. Twenty-two independent
+invalid-override cases exercise malformed JSON, schema/type errors, forbidden
+fields, invalid panels, invalid plugin identifiers, and duplicate identifiers.
+Each is rejected by both the validator and the merge entry point without
+emitting an effective profile. An invalid packaged profile is also rejected
+even when an override could replace its invalid field.
+
+Validation:
+
+- `bash tests/shell-profile.sh`: passed, including all 22 rejection cases.
+- `bash tests/installer-state.sh`: passed the existing helper-level cases.
+- Bash syntax checks for both suites and `src/lib/shell-profile.sh`: passed.
+- `git diff --check`: passed.
+
+These are local helper tests only. They do not validate QML loading, non-menu
+plugin compatibility, adapter startup, setup-failure/uninstall integration, or
+SDDM rollback in a real session. The remaining review, component classification,
+integration cases, package metadata/revision updates, reproducible builds, and
+fresh disposable-VM validation recorded above remain pending. No package was
+built or installed, no VM was started, and no host desktop, service, package,
+or trust configuration was changed.
+
+## 2026-09-23: isolated SDDM rollback integration tests
+
+Completed the next bounded task: exercise the actual packaged-layout installer
+and uninstaller control flow for failed setup and uninstall, using temporary
+filesystem fixtures and simulated system services. The new test is run with:
+
+```bash
+python3 tests/installer-rollback.py
+```
+
+It requires Linux user namespaces, bubblewrap, Python 3, Bash, and jq. It fails
+closed if sandboxing is unavailable. Host files are mounted read-only, fixture
+paths are writable only inside the temporary tree, networking is isolated, and
+package/service/default-writer commands are simulated. The real installer,
+uninstaller, and SDDM backup/restore helper execute without source rewriting.
+
+The initial test reproduced restoration while a simulated synchronization
+service remained active. Disabling the path watcher alone does not stop the
+independent oneshot service it previously activated. Both rollback paths now
+stop the watcher first and then stop/wait for the service before restoring
+SDDM state. If either stop fails, they report incomplete cleanup and preserve
+recovery data instead of attempting restoration; uninstall also retains its
+active installation record for retry.
+
+Validation passed:
+
+- Four integration cases: failed setup after SDDM mutation and successful
+  setup followed by uninstall, each with existing and initially absent state.
+- Existing state restored with exact bytes, mode, uid/gid, and nanosecond mtime;
+  initially absent state removed; original SDDM configuration and backups
+  preserved; successful cleanup removes the override and active record.
+- Four additional cases inject watcher/service stop failures in each rollback
+  path and verify diagnostics, unchanged mutated state, and recovery retention.
+- Existing installer-state and shell-profile regression suites.
+- Bash syntax checks for changed scripts and the installer-state helper, plus
+  `git diff --check`.
+
+This validates packaged-layout control flow with simulated services, not real
+systemd timing, SDDM sessions, standalone-install parity, or every setup failure
+point. No VM or real service was started, and no package was built or installed.
+Package checksums, revision, and `.SRCINFO` remain pending alongside the broader
+partial-work review and disposable-VM validation. These tests do not make the
+checkpoint release-ready.
+
+## 2026-09-23: checkpoint after local rollback validation
+
+Checkpoint requested after the shell-profile regression repair and isolated
+SDDM rollback tests above. These changes are saved together; the three unrelated
+untracked ISO/boot reference files remain outside the checkpoint.
+
+Next small task: inject a failure in SDDM state restoration itself. The current
+setup rollback prints a restoration error but continues removing state and
+ultimately claims completed mutations were rolled back. Verify failure behavior
+in both setup rollback and uninstall, preserve recovery information, and make
+incomplete-cleanup reporting accurate. This task has not yet been implemented.
+
+Resume by reading this journal and inspecting the working tree. Continue with
+one bounded task; do not treat local regression passes as package, real-systemd,
+or VM validation. Package metadata/checksum/revision updates, broader partial
+implementation review, reproducible builds, and disposable-VM validation remain
+pending. No host installation is authorized by this checkpoint.

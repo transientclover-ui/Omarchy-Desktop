@@ -131,7 +131,12 @@ if [[ $EXISTING_SHELL_UNIT == true && $EXISTING_SHELL_ACTIVE == true ]]; then
   systemctl --user start omarchy-shell.service
 fi
 
-sudo systemctl disable --now omarchy-desktop-manager-default.path 2>/dev/null || true
+# Stop new activations, then wait for any in-flight writer before restoration.
+if ! sudo systemctl disable --now omarchy-desktop-manager-default.path ||
+   ! sudo systemctl stop omarchy-desktop-manager-default.service; then
+  echo "Uninstall stopped: could not stop SDDM synchronization; installation record and backups retained." >&2
+  exit 1
+fi
 if [[ ${SDDM_STATE_BACKED_UP:-false} == true ]]; then
   frankenstein_restore_sddm_state \
     "$sddm_state" "$state_dir/backups/$backup_id"

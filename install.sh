@@ -60,7 +60,13 @@ rollback_partial_install() {
       systemctl --user start omarchy-shell.service
   fi
   if [[ $default_path_enabled == true ]]; then
-    sudo systemctl disable --now omarchy-desktop-manager-default.path
+    # A path unit can already have launched its independent oneshot service.
+    # Stop the trigger first, then wait for the writer before restoring state.
+    if ! sudo systemctl disable --now omarchy-desktop-manager-default.path ||
+       ! sudo systemctl stop omarchy-desktop-manager-default.service; then
+      echo "Rollback incomplete: could not stop SDDM synchronization; backups retained at $system_backup." >&2
+      exit "$status"
+    fi
   fi
   if [[ $sddm_state_backup_ready == true ]]; then
     if ! frankenstein_restore_sddm_state "$sddm_state" "$system_backup"; then

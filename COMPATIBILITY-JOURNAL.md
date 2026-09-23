@@ -637,3 +637,214 @@ logs are retained on the results disk as `package-install*.log`,
 
 No host desktop configuration, host SDDM configuration, host package database,
 or host installed package was changed during this test.
+
+## 2026-09-23: fresh-overlay package lifecycle completed
+
+Testing resumed from checkpoint `1c5ccaa`. Before boot, exact project-local
+copies of the writable test overlay, installer-test UEFI variables, and results
+disk were saved under `checkpoints/`. The baseline image remained unchanged and
+the writable overlay passed an offline `qemu-img check`.
+
+### Plasma black-screen root cause and fix
+
+The black screen was reproduced after a successful SDDM authentication. KWin
+was running and owned the rendered cursor, but `plasma-plasmashell.service`
+failed three times with:
+
+```text
+starting invalid corona "org.kde.plasma.desktop"
+```
+
+The guest had `plasma-workspace` but not `plasma-desktop`; consequently
+`/usr/share/plasma/shells/org.kde.plasma.desktop` did not exist. The
+`frankenstein-kde` package dependency was corrected to include
+`plasma-desktop`.
+
+An independent adapter error also caused
+`frankenstein-omarchy-shell.service` to restart continuously:
+
+```text
+Failed to load configuration
+caused by @shell.qml[239:5]: Bar is not a type
+```
+
+The filtered shell disables the bar at runtime, but QML still resolves the
+statically imported `Bar` type. The package now supplies an inert symlink from
+its shell tree to `/usr/share/omarchy/shell/plugins/bar`. The profile still
+sets `FRANKENSTEIN_SHELL_NO_BAR=1`, so Plasma remains the only panel owner.
+
+Both corrections are in package revision `0.1.0-2`. After installing that
+revision, `plasma-plasmashell.service` and
+`frankenstein-omarchy-shell.service` became active with no failed user units.
+The desktop rendered with Plasma's native panel and wallpaper. The KDE portal
+was active, the Hyprland portal was inactive, Plasma owned notifications, and
+`frankenstein-shell-adapter check` reported one filtered shell with only
+`omarchy.menu` enabled.
+
+### Breeze session selector
+
+The stock Breeze selector was retested independently. A normal pointer press
+and release opened the menu, selecting `Omarchy (Hyprland uwsm)` updated the
+footer immediately, and password authentication launched the selected Omarchy
+session. The earlier highlight-only observation was caused by test input
+timing, not a Breeze activation defect.
+
+Native Plasma logout returned to Breeze. Omarchy then launched through its
+preserved UWSM entry with one stock Omarchy shell, the Hyprland portal active,
+the KDE portal inactive, the Frankenstein adapter inactive, and no failed
+user units.
+
+### Package lifecycle results
+
+| Test | Result |
+|---|---|
+| Upgrade `0.1.0-1` to `0.1.0-2` | Pass; `plasma-desktop` was installed and both graphical services recovered |
+| Downgrade `0.1.0-2` to `0.1.0-1` | Pass; Omarchy remained active |
+| Re-upgrade to `0.1.0-2` | Pass; corrected payload and bar symlink restored |
+| `frankenstein uninstall --yes` | Pass; user integration, SDDM override, default-session state, and enabled path unit were removed |
+| Remove both Frankenstein packages | Pass; package-owned payload disappeared while Plasma packages and the active desktop remained intact |
+| Omarchy after rollback | Pass; one stock `/usr/share/omarchy/shell` process and no failed user units |
+| Plasma after package removal | Pass; native Plasma shell and KDE portal remained active without Frankenstein |
+| Reproducible revision-2 build | Pass; two clean builds produced identical unsigned SHA-256 hashes |
+
+Unsigned revision-2 package hashes:
+
+```text
+152caacb8c4849e0a364e33d21cc2a6382828a9c98b8c38a0e0c9440e0c8a90b  frankenstein-core-0.1.0-2-x86_64.pkg.tar.zst
+7c372a0d749b7ef061fd0353c5b9e713081e597294ed344cebb6d0fec20dde2e  frankenstein-kde-0.1.0-2-x86_64.pkg.tar.zst
+```
+
+Diagnostics, screenshots, package hashes, and reproducibility manifests are
+retained under `evidence/checkpoint-20260923-fresh-overlay/`. No package
+signing or trust configuration was added.
+
+The final guest state has both Frankenstein packages removed and the original
+Omarchy SDDM configuration restored. Plasma remains installed because
+dependency removal is intentionally an explicit administrator decision.
+
+The temporary SSH key and narrow UFW rule were removed, `sshd` was returned to
+its disabled state, and the runtime-only QEMU forwarding disappeared at
+shutdown. A final reboot required only the encrypted-disk unlock; the restored
+Omarchy configuration then autologged into a working Hyprland desktop without
+an SDDM password prompt.
+
+The guest was shut down through Omarchy's native power menu. The final overlay
+passed offline `qemu-img check`, the preserved baseline still hashed to
+`844be5c310a5750902c40d1ab95fb5144b6788b29cbfa7d3b96b29aaa253c4c0`,
+and the evidence directory was verified directly on the unmounted results
+image. Final recovery copies are:
+
+```text
+88cf4233da8d265a926d836dff51b841101055e082e189eb6fab0b102f739308  checkpoints/omarchy-frankenstein-final-20260923.qcow2
+7bcf10d11d8617b663214bfbf0c0180f3c4d72b8342999573aa684cb5dc25cc8  checkpoints/OVMF_VARS-frankenstein-final-20260923.fd
+713b6e2108fbd2e463a4e3699543210bd2b7dfda4799ed602cd74a3e400fd6f6  checkpoints/frankenstein-results-final-20260923.img
+```
+
+No VM process or control socket remained active. No host desktop
+configuration, host SDDM configuration, host package database, host installed
+package, package-signing configuration, or trust configuration was changed.
+
+## 2026-09-23: signed repository workflow completed
+
+Package revision `0.1.0-2` was frozen as the compatibility release-candidate
+baseline. A disposable VM-only Ed25519 OpenPGP key was then created in the
+Git-ignored `.signing/test-repository/` keyring. Its full fingerprint was:
+
+```text
+506AE0340CB7DAF54767BB25F205C2BA26C570ED
+```
+
+The private key never left that isolated project directory. Only the armored
+public key and full fingerprint were copied into the test repository. No key
+was imported into the development host's pacman keyring.
+
+Signed install and update snapshots contained detached package signatures,
+signed `frankenstein.db` and `frankenstein.files` databases, the public key,
+fingerprint, and a SHA-256 manifest. Local verification of every package and
+database signature passed.
+
+### Clean baseline-backed install
+
+A new writable overlay backed directly by the immutable clean Omarchy image
+was booted with a read-only repository disk and a separate writable results
+disk. The guest initially contained no Frankenstein package or repository
+configuration.
+
+The public key's complete fingerprint was verified before it was added to the
+VM pacman keyring and locally signed. The VM-only repository used:
+
+```ini
+SigLevel = Required DatabaseRequired
+```
+
+Pacman synchronized the signed database and installed signed
+`frankenstein-core 0.1.0-2` and `frankenstein-kde 0.1.0-2`.
+`frankenstein preflight` and `frankenstein setup --yes` passed. Omarchy
+remained healthy, and an explicit Breeze selection launched Plasma with its
+native panel, KDE portal, notification service, and Polkit agent plus one
+filtered Frankenstein shell.
+
+### Signed update
+
+Omarchy's direct-pacman guard correctly rejected an ordinary `pacman -Syu`.
+The documented normal-system path is `omarchy update`; only this controlled VM
+test used Omarchy's explicit `OMARCHY_ALLOW_DIRECT_PACMAN=1` override.
+
+An initial update candidate reused revision `0.1.0-3` after its package bytes
+had changed. Pacman correctly rejected the cached package/signature mismatch.
+No cache or integrity bypass was used. Revision `0.1.0-3` is abandoned and
+must not be published.
+
+The local-source build helpers were corrected to remove stale makepkg
+`file://` source copies before checksum generation and package builds. The
+replacement `0.1.0-4` packages were built twice with identical unsigned
+hashes:
+
+```text
+3eaca0497d108afe5666d9f848cb76af7d1d7943393c8b19224563497e3ce07f  frankenstein-core-0.1.0-4-x86_64.pkg.tar.zst
+3f507ab506c9a03645cb156cb17062c8a864eb9e7010d6092ef75b00b178f628  frankenstein-kde-0.1.0-4-x86_64.pkg.tar.zst
+```
+
+After publishing only that signed snapshot to the VM-local repository,
+`pacman -Syu` upgraded both packages from `0.1.0-2` to `0.1.0-4`. Updated
+Omarchy passed with its stock shell and Hyprland portal. Updated Plasma passed
+after an explicit post-restart Breeze selection, with:
+
+- `Desktop=KDE`, `Type=wayland`, and an active login session
+- active `plasma-plasmashell.service`
+- running KDE portal backend and inactive Hyprland portal
+- one filtered shell with only `omarchy.menu` enabled
+- native Plasma panel, notifications, Polkit agent, wallpaper, lock screen,
+  idle management, workspaces, and OSD
+- no failed user units
+
+An intermediate login launched Omarchy because the intended selector choice
+had not been explicitly activated after restarting SDDM. Reopening the
+selector and clicking `Plasma (Wayland)` launched Plasma correctly; this
+matched the earlier press-and-release selector finding rather than exposing a
+new session defect.
+
+### Cleanup and recovery
+
+The VM-only repository configuration, copied repository, and pacman trust were
+removed. The temporary SSH key and narrow UFW rule were deleted, and `sshd`
+was disabled before a native Plasma shutdown. The overlay passed offline
+`qemu-img check`, the results filesystem passed read-only `e2fsck`, and the
+baseline still hashed to:
+
+```text
+844be5c310a5750902c40d1ab95fb5144b6788b29cbfa7d3b96b29aaa253c4c0  omarchy-kde.qcow2
+```
+
+Install, update, version, cleanup, and post-update Plasma evidence is retained
+under `evidence/repository-workflow-20260923/`. Final recovery copies are:
+
+```text
+60a931b54e403842d5c50c67ea7727ee8b090cbcb15f6133a7bd615da5b2244a  checkpoints/omarchy-repository-test-final-20260923.qcow2
+4c1d2ecdbf348ed1556c5a996a36e869e15cf667d93f4edd34786c878e73434f  checkpoints/OVMF_VARS-repository-test-final-20260923.fd
+59030537581c1103e81709b67208cc7f683f22e67bb8b4cbf149c7d6920d54c6  checkpoints/frankenstein-repository-results-final-20260923.img
+```
+
+No VM process or control socket remained active. The repository was not
+published, and no host package, desktop, pacman configuration, signing-key
+trust, or Frankenstein installation was changed.

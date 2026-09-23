@@ -3,7 +3,7 @@
 pkgbase=frankenstein
 pkgname=(frankenstein-core frankenstein-kde)
 pkgver=0.1.0
-pkgrel=1
+pkgrel=4
 pkgdesc='Reversible Omarchy desktop compatibility manager'
 arch=(x86_64)
 license=(MIT)
@@ -30,6 +30,8 @@ source=(
   "frankenstein-omarchy-menu.desktop::file://$_root/src/frankenstein/frankenstein-omarchy-menu.desktop"
   "zzzz-frankenstein.conf::file://$_root/src/frankenstein/zzzz-frankenstein.conf"
   "INSTALL.md::file://$_root/INSTALL.md"
+  "DISTRIBUTION.md::file://$_root/DISTRIBUTION.md"
+  "LICENSES-README.md::file://$_root/LICENSES/README.md"
   "LICENSE::file://$_root/LICENSE"
   "MIT.txt::file://$_root/LICENSES/MIT.txt"
   "THIRD_PARTY_NOTICES.md::file://$_root/THIRD_PARTY_NOTICES.md"
@@ -53,10 +55,12 @@ sha256sums=('2898062cd32d4386b1a35ee8efd26842e82514720b11a064a76b8d01a0d7e838'
             '652700e339e22f3be83fdcf02d202ba98a1973c7a3e9005a8e224eb702c6caaf'
             '49e9cb294beec3db540aa6d0e5c7609951f7ff3c71bba2d646212438ce776458'
             'a48edade017ac1417e88d485cbc0d46ce0d907b6565730cee4520715e39890a2'
-            'bf2fa2255f031c1c38a5518c3899f59ffc15b3c7663beaafa2c9c9cae8410b50'
+            '690518346cc48b8195e896f9b15c987c96da9690c232b2c34d5c62ecf2c91809'
+            '1850b1f6e6a29aeeb9cf92ca298771b74a8d47387ac831ab071a3847dd93bb72'
+            '97ee7bc04ccb0bd8086dcea75639aff73aa2156c4f3235302c0b99a343d00afc'
             '9c6cab6fc2ed586d11cc4468235c35d927b9e8cd2fc434a017837b67360df0e9'
             'f18861fdf84c2a227febb8d7152b0e29f720d6c59bc93517eac7d0fd8af3def9'
-            'ad4b83ac72bac56aece3388c1e27215b220cdc7d8931117917db3a883e4bff37')
+            '05f3528231724e3c042111b2a681b4809c7fb37c46026f5f69add59fbcb3334e')
 
 package_frankenstein-core() {
   pkgdesc='Common CLI and default-session manager for Frankenstein'
@@ -80,6 +84,10 @@ package_frankenstein-core() {
 
   install -Dm0644 "$srcdir/INSTALL.md" \
     "$pkgdir/usr/share/doc/frankenstein/INSTALL.md"
+  install -Dm0644 "$srcdir/DISTRIBUTION.md" \
+    "$pkgdir/usr/share/doc/frankenstein/DISTRIBUTION.md"
+  install -Dm0644 "$srcdir/LICENSES-README.md" \
+    "$pkgdir/usr/share/doc/frankenstein/LICENSES.md"
   install -Dm0644 "$srcdir/THIRD_PARTY_NOTICES.md" \
     "$pkgdir/usr/share/doc/frankenstein/THIRD_PARTY_NOTICES.md"
   install -Dm0644 "$srcdir/LICENSE" \
@@ -92,7 +100,7 @@ package_frankenstein-kde() {
   pkgdesc='KDE Plasma adapter for Frankenstein'
   depends=(
     "frankenstein-core=$pkgver-$pkgrel"
-    breeze jq 'omarchy=4.0.4-1' plasma-workspace
+    breeze jq 'omarchy=4.0.4-1' plasma-desktop plasma-workspace
     qt6-tools quickshell sddm systemsettings xdg-terminal-exec
   )
 
@@ -115,6 +123,8 @@ package_frankenstein-kde() {
     "$pkgdir/usr/share/frankenstein/omarchy-shell/Commons"
   ln -s /usr/share/omarchy/shell/Ui \
     "$pkgdir/usr/share/frankenstein/omarchy-shell/Ui"
+  ln -s /usr/share/omarchy/shell/plugins/bar \
+    "$pkgdir/usr/share/frankenstein/omarchy-shell/plugins/bar"
   local source name
   for source in /usr/share/omarchy/shell/services/*; do
     name=${source##*/}

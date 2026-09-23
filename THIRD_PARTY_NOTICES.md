@@ -25,17 +25,12 @@ Frankenstein modifications:
 - load a desktop-profile menu overlay after the user's existing menu extension
 - report effective profile state through shell IPC
 
-## Experimental Breeze-derived SDDM theme
+## Breeze
 
-Files under `src/sddm/` contain experimental Breeze-derived theme metadata and
-configuration from the VM prototype. They are excluded from the initial
-Frankenstein pacman packages.
-
-The metadata declares `CC-BY-SA`, while the Breeze QML implementation used
-during the prototype carries `LGPL-2.0-or-later` notices. The exact provenance
-and applicable Creative Commons version have not yet been resolved. These files
-must not be redistributed as MIT or included in a release package until that
-review is complete.
+Frankenstein does not bundle or modify the Breeze SDDM theme. Its original
+MIT-licensed SDDM configuration selects the separately installed `breeze`
+package. The unused Breeze-derived prototype metadata was removed before the
+release-candidate distribution build.
 
 ## Runtime dependencies
 

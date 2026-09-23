@@ -120,6 +120,8 @@ dependencies are intentionally retained and listed in the timestamped backup.
 
 The first package and setup run on an untouched Omarchy 4.0.4 baseline is
 recorded in `COMPATIBILITY-JOURNAL.md`. Package installation, setup, rollback
-after an injected setup failure, and the original Omarchy session passed.
-Fresh-overlay Plasma login currently reaches a black screen and remains under
-investigation; this build is not release-ready.
+after an injected setup failure, Breeze session selection, Plasma and Omarchy
+sessions, package upgrade and downgrade, configuration rollback, and package
+removal passed. The initial Plasma black screen was fixed in package revision
+2 by adding the required `plasma-desktop` dependency. See the journal for the
+complete evidence and remaining limitations.

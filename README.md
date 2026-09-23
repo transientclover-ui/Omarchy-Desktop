@@ -15,3 +15,5 @@ Only KDE Plasma is supported in this checkpoint. See
 [`COMPATIBILITY-JOURNAL.md`](COMPATIBILITY-JOURNAL.md) for verification evidence,
 known limitations, and rollback instructions.
 
+See [`DISTRIBUTION.md`](DISTRIBUTION.md) for isolated signing-key handling,
+repository creation, and the public-key trust procedure.

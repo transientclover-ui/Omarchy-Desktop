@@ -1,7 +1,7 @@
 pkgbase = frankenstein
 	pkgdesc = Reversible Omarchy desktop compatibility manager
 	pkgver = 0.1.0
-	pkgrel = 1
+	pkgrel = 4
 	arch = x86_64
 	license = MIT
 	options = !strip
@@ -24,6 +24,8 @@ pkgbase = frankenstein
 	source = frankenstein-omarchy-menu.desktop::file:///home/violet/Documents/Codex/2026-09-22/referenced-chatgpt-conversation-this-is-an-3/work/vm/packaging/arch/../../src/frankenstein/frankenstein-omarchy-menu.desktop
 	source = zzzz-frankenstein.conf::file:///home/violet/Documents/Codex/2026-09-22/referenced-chatgpt-conversation-this-is-an-3/work/vm/packaging/arch/../../src/frankenstein/zzzz-frankenstein.conf
 	source = INSTALL.md::file:///home/violet/Documents/Codex/2026-09-22/referenced-chatgpt-conversation-this-is-an-3/work/vm/packaging/arch/../../INSTALL.md
+	source = DISTRIBUTION.md::file:///home/violet/Documents/Codex/2026-09-22/referenced-chatgpt-conversation-this-is-an-3/work/vm/packaging/arch/../../DISTRIBUTION.md
+	source = LICENSES-README.md::file:///home/violet/Documents/Codex/2026-09-22/referenced-chatgpt-conversation-this-is-an-3/work/vm/packaging/arch/../../LICENSES/README.md
 	source = LICENSE::file:///home/violet/Documents/Codex/2026-09-22/referenced-chatgpt-conversation-this-is-an-3/work/vm/packaging/arch/../../LICENSE
 	source = MIT.txt::file:///home/violet/Documents/Codex/2026-09-22/referenced-chatgpt-conversation-this-is-an-3/work/vm/packaging/arch/../../LICENSES/MIT.txt
 	source = THIRD_PARTY_NOTICES.md::file:///home/violet/Documents/Codex/2026-09-22/referenced-chatgpt-conversation-this-is-an-3/work/vm/packaging/arch/../../THIRD_PARTY_NOTICES.md
@@ -45,10 +47,12 @@ pkgbase = frankenstein
 	sha256sums = 652700e339e22f3be83fdcf02d202ba98a1973c7a3e9005a8e224eb702c6caaf
 	sha256sums = 49e9cb294beec3db540aa6d0e5c7609951f7ff3c71bba2d646212438ce776458
 	sha256sums = a48edade017ac1417e88d485cbc0d46ce0d907b6565730cee4520715e39890a2
-	sha256sums = bf2fa2255f031c1c38a5518c3899f59ffc15b3c7663beaafa2c9c9cae8410b50
+	sha256sums = 690518346cc48b8195e896f9b15c987c96da9690c232b2c34d5c62ecf2c91809
+	sha256sums = 1850b1f6e6a29aeeb9cf92ca298771b74a8d47387ac831ab071a3847dd93bb72
+	sha256sums = 97ee7bc04ccb0bd8086dcea75639aff73aa2156c4f3235302c0b99a343d00afc
 	sha256sums = 9c6cab6fc2ed586d11cc4468235c35d927b9e8cd2fc434a017837b67360df0e9
 	sha256sums = f18861fdf84c2a227febb8d7152b0e29f720d6c59bc93517eac7d0fd8af3def9
-	sha256sums = ad4b83ac72bac56aece3388c1e27215b220cdc7d8931117917db3a883e4bff37
+	sha256sums = 05f3528231724e3c042111b2a681b4809c7fb37c46026f5f69add59fbcb3334e
 
 pkgname = frankenstein-core
 	pkgdesc = Common CLI and default-session manager for Frankenstein
@@ -68,10 +72,11 @@ pkgname = frankenstein-core
 
 pkgname = frankenstein-kde
 	pkgdesc = KDE Plasma adapter for Frankenstein
-	depends = frankenstein-core=0.1.0-1
+	depends = frankenstein-core=0.1.0-4
 	depends = breeze
 	depends = jq
 	depends = omarchy=4.0.4-1
+	depends = plasma-desktop
 	depends = plasma-workspace
 	depends = qt6-tools
 	depends = quickshell

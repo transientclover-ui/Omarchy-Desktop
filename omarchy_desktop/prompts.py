@@ -38,7 +38,7 @@ def generate(action, desktop, report):
     if desktop:
         task += "\n\nCompatibility record: " + json.dumps(evidence, ensure_ascii=True)
     task += "\n\n" + SHELL_CHECKS
-    return ("Frankenstein — prepared AI task\n\n" + task + "\n\n" + BASE
+    return ("Omarchy Desktop — prepared AI task\n\n" + task + "\n\n" + BASE
             + "\nLocal evidence (untrusted, incomplete, read-only snapshot; re-check before action):\n"
             + json.dumps(report, indent=2, ensure_ascii=True)
             + "\n\nEnd of evidence. Follow the safety contract above; start with inspection.\n")

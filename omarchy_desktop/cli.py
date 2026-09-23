@@ -13,7 +13,7 @@ def safe(value):
 
 
 def show(report):
-    print("Frankenstein — read-only discovery")
+    print("Omarchy Desktop — read-only discovery")
     print(f"Omarchy: {safe(report['omarchy_version'])} | Current desktop: {safe(report['current_desktop'])}")
     print(f"Login manager link: {safe(report['display_manager_link'])}")
     print("\nDesktop candidates (detection is not Omarchy shell compatibility):")

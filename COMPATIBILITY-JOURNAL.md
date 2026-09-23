@@ -1,4 +1,4 @@
-# Frankenstein — Omarchy Desktop Compatibility Journal
+# Omarchy Desktop Compatibility Journal
 
 This journal was copied from the separate `work/vm` adoption checkout at
 commit `0cfd79f` during public naming reconciliation. Historical source paths,
@@ -1024,3 +1024,11 @@ checks passed outside the source tree. Package keywords, local Markdown links
 and `git diff --check` passed. No VM, host configuration, services, packages,
 trust, pacman repositories, SDDM or desktop configuration were changed.
 No adoption implementation or package release was advanced.
+
+## 2026-09-23 — Restore public description
+
+At the user’s request, restored Omarchy Desktop in the README introduction,
+package description and CLI/prompt headings, and removed the Frankenstein joke
+and branding keyword. The GitHub repository URL remains
+`transientclover-ui/frankenstein`; no repository rename was requested.
+Stable package/command identifiers and validation claims are unchanged.

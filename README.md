@@ -1,13 +1,11 @@
-# Frankenstein — Omarchy desktop compatibility
+# Omarchy Desktop — Omarchy desktop compatibility
 
 **Choose your desktop. Keep Omarchy shell.**
 
-Frankenstein is an independent Omarchy desktop compatibility/adoption project,
+Omarchy Desktop is an independent Omarchy desktop compatibility/adoption project,
 not an official Omarchy tool. The goal is freedom to choose another desktop
 while retaining a desktop-appropriate Omarchy shell experience. It explores
 Omarchy desktop adoption, KDE Plasma integration and safe desktop switching.
-
-*Frankenstein isn't the monster. It makes the monster.*
 
 This repository provides a beginner-friendly, read-only desktop chooser and AI
 prompt generator, including SDDM diagnosis for the “it keeps opening the last

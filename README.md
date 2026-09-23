@@ -1,6 +1,6 @@
 # Omarchy Desktop
 
-**Choose your desktop. Keep Omarchy shell. Keep your way back.**
+**Choose your desktop. Keep Omarchy shell.**
 
 A beginner-friendly, read-only desktop chooser and AI prompt generator inspired
 by switching between Hyprland and KDE on Omarchy. The goal is freedom to use

@@ -13,7 +13,7 @@ desktop” problem. The current Python CLI (0.2) is a prompt generator, not an
 automatic installer or repair engine.
 It never installs packages, edits settings, launches an AI, or changes sessions.
 
-The public repository is [transientclover-ui/frankenstein](https://github.com/transientclover-ui/frankenstein).
+The public repository is [transientclover-ui/Omarchy-Desktop](https://github.com/transientclover-ui/Omarchy-Desktop).
 The Python package/module `omarchy_desktop`, distribution name `omarchy-desktop`,
 and CLI command `omarchy-desktop` remain stable for compatibility.
 

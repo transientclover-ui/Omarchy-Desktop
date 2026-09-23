@@ -1032,3 +1032,11 @@ package description and CLI/prompt headings, and removed the Frankenstein joke
 and branding keyword. The GitHub repository URL remains
 `transientclover-ui/frankenstein`; no repository rename was requested.
 Stable package/command identifiers and validation claims are unchanged.
+
+## 2026-09-23 — Reconcile restored GitHub repository name
+
+Confirmed GitHub now identifies the repository as
+`transientclover-ui/Omarchy-Desktop`. Updated the current README link and local
+origin to the canonical URL. Earlier journal names, artifact paths and package
+identifiers remain historical evidence. Published the pending documentation
+reconciliation without changing compatibility gates or host configuration.

@@ -31,13 +31,16 @@ frankenstein_restore_sddm_state() {
         return 1
       }
       parent=${state_file%/*}
-      sudo install -d -m 0755 "$parent"
-      temporary=$(sudo mktemp "$parent/.state.conf.frankenstein.XXXXXX")
+      sudo install -d -m 0755 "$parent" || return 1
+      temporary=$(sudo mktemp "$parent/.state.conf.frankenstein.XXXXXX") || return 1
       if ! sudo cp --preserve=all -- "$backup_dir/sddm-state.conf" "$temporary"; then
         sudo rm -f "$temporary"
         return 1
       fi
-      sudo mv -f -- "$temporary" "$state_file"
+      if ! sudo mv -f -- "$temporary" "$state_file"; then
+        sudo rm -f "$temporary"
+        return 1
+      fi
       ;;
     false)
       sudo rm -f -- "$state_file"

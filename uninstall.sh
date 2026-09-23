@@ -138,8 +138,11 @@ if ! sudo systemctl disable --now omarchy-desktop-manager-default.path ||
   exit 1
 fi
 if [[ ${SDDM_STATE_BACKED_UP:-false} == true ]]; then
-  frankenstein_restore_sddm_state \
-    "$sddm_state" "$state_dir/backups/$backup_id"
+  if ! frankenstein_restore_sddm_state \
+    "$sddm_state" "$state_dir/backups/$backup_id"; then
+    echo "Uninstall incomplete: could not restore SDDM state; installation record and backups retained at $state_dir/backups/$backup_id. Retry uninstall after resolving the restoration error." >&2
+    exit 1
+  fi
 fi
 if [[ $SDDM_OVERRIDE_CREATED == true ]]; then
   sudo rm -f /etc/sddm.conf.d/zzzz-frankenstein.conf

@@ -70,7 +70,8 @@ rollback_partial_install() {
   fi
   if [[ $sddm_state_backup_ready == true ]]; then
     if ! frankenstein_restore_sddm_state "$sddm_state" "$system_backup"; then
-      echo "Failed to restore the pre-install SDDM state." >&2
+      echo "Rollback incomplete: could not restore SDDM state; recovery data retained at $system_backup." >&2
+      exit "$status"
     fi
   fi
   if [[ $sddm_override_created == true ]]; then

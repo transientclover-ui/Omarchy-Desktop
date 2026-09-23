@@ -101,6 +101,14 @@ case "$1:$*" in
       exit 91
     fi;;
 esac
+case "${FAIL_RESTORE:-}:$1:$*" in
+  directory:install:*"-m 0755 /var/lib/sddm"|temporary:mktemp:*/var/lib/sddm/.state.conf.frankenstein.*)
+    echo 'INJECTED SDDM RESTORE FAILURE' >&2
+    exit 44;;
+  rename:mv:*sddm/state.conf*|remove:rm:*sddm/state.conf*|copy:cp:*--preserve=all*)
+    echo 'INJECTED SDDM RESTORE FAILURE' >&2
+    exit 44;;
+esac
 exec "$@"
 ''', True)
     put(root, 'mock/systemctl', '''#!/bin/bash
@@ -130,7 +138,7 @@ echo "$1" >/var/lib/omarchy-desktop-manager/default-session
         put(root, 'mock/' + name, '#!/bin/bash\nexit 93\n', True)
 
 
-def run(root, script, fail=False, fail_stop=""):
+def run(root, script, fail=False, fail_stop="", fail_restore=""):
     command = ['bwrap', '--ro-bind', '/', '/', '--unshare-all', '--die-with-parent',
                '--ro-bind', '/usr', '/mnt', '--bind', str(root / 'usr'), '/usr',
                '--bind', str(root / 'etc'), '/etc', '--bind', str(root / 'var'), '/var',
@@ -141,6 +149,7 @@ def run(root, script, fail=False, fail_stop=""):
                '--setenv', 'XDG_CURRENT_DESKTOP', 'KDE', '--setenv', 'DESKTOP_SESSION', 'plasma',
                '--setenv', 'FAIL_SETUP', str(int(fail)),
                '--setenv', 'FAIL_STOP', fail_stop,
+               '--setenv', 'FAIL_RESTORE', fail_restore,
                '/usr/bin/bash', '/usr/lib/frankenstein/' + script, '--yes']
     return subprocess.run(command, text=True, capture_output=True, timeout=30)
 
@@ -150,22 +159,52 @@ def check(condition, message, result):
         raise AssertionError(message + '\n' + result.stdout + result.stderr)
 
 
-def test(existed, failed_setup, fail_stop=""):
+def test(existed, failed_setup, fail_stop="", fail_restore=""):
     with tempfile.TemporaryDirectory(prefix='frankenstein-rollback-') as directory:
         root = Path(directory)
         fixture(root, existed)
         state = root / 'var/lib/sddm/state.conf'
         before = (state.read_bytes(), state.stat().st_mode, state.stat().st_mtime_ns,
                   state.stat().st_uid, state.stat().st_gid) if existed else None
-        result = run(root, 'install.sh', fail=failed_setup, fail_stop=fail_stop)
+        result = run(root, 'install.sh', fail=failed_setup, fail_stop=fail_stop,
+                     fail_restore=fail_restore if failed_setup else '')
         if failed_setup:
             check(result.returncode == 42, 'setup did not fail at the injected point', result)
         else:
             check(result.returncode == 0, 'setup failed', result)
             check('changed.desktop' in state.read_text(), 'setup did not mutate SDDM state', result)
-            result = run(root, 'uninstall.sh', fail_stop=fail_stop)
-            check(result.returncode == (1 if fail_stop else 0), 'unexpected uninstall status', result)
+            result = run(root, 'uninstall.sh', fail_stop=fail_stop, fail_restore=fail_restore)
+            check(result.returncode == (1 if fail_stop or fail_restore else 0), 'unexpected uninstall status', result)
         check('RESTORE WHILE' not in result.stderr, 'restoration raced synchronization', result)
+        if fail_restore:
+            check('INJECTED SDDM RESTORE FAILURE' in result.stderr, 'failure not injected', result)
+            check('could not restore SDDM state' in result.stderr,
+                  'missing restoration-failure diagnostic', result)
+            check('completed mutations were rolled back' not in result.stderr,
+                  'false rollback success', result)
+            check('integration removed' not in result.stdout, 'false uninstall success', result)
+            check('changed.desktop' in state.read_text(), 'mutated state unexpectedly lost', result)
+            check((root / 'var/lib/omarchy-desktop-manager/default-session').exists(),
+                  'default preference lost', result)
+            check((root / 'etc/sddm.conf.d/zzzz-frankenstein.conf').exists(), 'override lost', result)
+            backups = list((root / 'var/lib/frankenstein/backups').glob('*/sddm-state.existed'))
+            check(len(backups) == 1, 'recovery metadata lost', result)
+            if existed:
+                backup = backups[0].with_name('sddm-state.conf')
+                check(backup.read_bytes() == before[0], 'original backup corrupted', result)
+            check(not list(state.parent.glob('.state.conf.frankenstein.*')),
+                  'temporary restoration file leaked', result)
+            if not failed_setup:
+                check((root / 'var/lib/frankenstein/current').exists(), 'retry record lost', result)
+                retry = run(root, 'uninstall.sh')
+                check(retry.returncode == 0, 'uninstall retry failed', retry)
+                if existed:
+                    check(state.read_bytes() == before[0], 'retry did not restore original', retry)
+                else:
+                    check(not state.exists(), 'retry did not remove originally absent state', retry)
+            print(f'PASS: {"failed setup" if failed_setup else "uninstall"}, '
+                  f'{fail_restore} restoration failure preserves recovery data')
+            return
         if fail_stop:
             check('could not stop SDDM synchronization' in result.stderr,
                   'missing stop-failure diagnostic', result)
@@ -207,3 +246,5 @@ if __name__ == '__main__':
             test(existing, failed)
         for stop_unit in ('path', 'service'):
             test(True, failed, stop_unit)
+        for failure in ('directory', 'temporary', 'copy', 'rename', 'remove'):
+            test(failure != 'remove', failed, fail_restore=failure)

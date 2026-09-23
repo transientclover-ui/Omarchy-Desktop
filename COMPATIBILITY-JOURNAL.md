@@ -990,3 +990,40 @@ one bounded task; do not treat local regression passes as package, real-systemd,
 or VM validation. Package metadata/checksum/revision updates, broader partial
 implementation review, reproducible builds, and disposable-VM validation remain
 pending. No host installation is authorized by this checkpoint.
+
+## 2026-09-23: KDE-only continuation — restoration failures
+
+Resumed from `0cfd79f` with the public-project naming checkpoint kept separate.
+Current scope is a KDE proof of concept; other desktops and broader plugin
+support are not prerequisites for this milestone. The three pre-existing
+untracked ISO/boot reference files were left untouched.
+
+The isolated packaged-layout test reproduced setup rollback reporting success
+and removing recovery-related state after SDDM restoration failed. Setup now
+stops that cleanup, preserves recovery data, reports incomplete rollback with
+its backup location, and retains the original setup failure exit status.
+Uninstall now reports the restoration failure explicitly, retains its active
+installation record and backups, and tells the user to retry after resolving
+the error. The restoration helper explicitly handles directory/temporary-file
+creation errors and removes temporary copies after failed atomic replacement.
+
+Validation passed:
+
+- `python3 -W error tests/installer-rollback.py`: 18 isolated cases, including
+  failures creating the directory/temporary file, copying or replacing prior
+  state, and removing initially absent state, in both rollback paths.
+- Failure checks cover retained preference/override/backups, absence of false
+  success reports and temporary-file leaks, and successful uninstall retry.
+- `bash tests/installer-state.sh` and `bash tests/shell-profile.sh` (including
+  22 invalid overrides), Bash syntax checks, and `git diff --check`.
+
+These tests use read-only host mounts, writable temporary fixtures and simulated
+services. They do not validate real systemd/SDDM timing, standalone-install
+parity, every cleanup failure, or new graphical behavior. No VM, real service,
+package build/install, host configuration or trust changes were performed.
+
+Next KDE-only work: review remaining partial installer changes and standalone
+parity, then reconcile package metadata/checksums with a new revision and run
+reproducible builds and fresh disposable-VM lifecycle validation. Keep the
+menu-only KDE profile as the demonstrated baseline; non-menu profiles remain
+experimental/unvalidated. This checkpoint is not a newly validated release.

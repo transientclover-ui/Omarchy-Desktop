@@ -1,9 +1,10 @@
 # Omarchy Desktop
 
-**Pick a desktop. Give your AI a careful, specific task. Keep your way back.**
+**Choose your desktop. Keep Omarchy shell. Keep your way back.**
 
 A beginner-friendly, read-only desktop chooser and AI prompt generator inspired
-by switching between Hyprland and KDE on Omarchy. Includes SDDM diagnosis for the
+by switching between Hyprland and KDE on Omarchy. The goal is freedom to use
+another desktop while retaining the Omarchy shell experience. Includes SDDM diagnosis for the
 “it keeps opening the last desktop” problem.
 
 This is an independent community project, not an official Omarchy tool.
@@ -20,8 +21,9 @@ python3 -m omarchy_desktop
 ```
 
 The guided menu lists KDE Plasma, GNOME, Xfce, Cinnamon, COSMIC, LXQt, MATE and
-Hyprland. Choose a desktop, then choose **inspect**, **install**, **switch**, or
-**recover**. Choose **sddm** for login-screen diagnosis and a repair prompt.
+Hyprland, plus Budgie, Deepin, LXDE, Enlightenment, Sway, Niri, i3 and Openbox.
+These are candidates, not verified recommendations. Choose a desktop, then
+**inspect**, **verify**, **install**, **switch**, or **recover**. Choose **sddm** for login-screen diagnosis and a repair prompt.
 Copy the generated text into your preferred AI assistant.
 
 For a reusable command, install into an isolated environment:
@@ -36,17 +38,36 @@ Activate it with `source .venv/bin/activate` to use the short commands below.
 You can also replace `omarchy-desktop` with `python3 -m omarchy_desktop` when
 running from the project directory. No administrator access is required.
 
+## Omarchy shell stays on by default
+
+Validated installation/switch plans must keep Omarchy shell enabled and preserve
+its configuration. Users can choose to disable it later in a separate explicit
+task. The tool does not turn it off to work around compatibility problems.
+
+**No desktop combination has yet passed this project's full graphical integration
+checklist.** Install/switch requests therefore generate inspection-only prompts
+until an exact-version compatibility report is registered. This applies to every
+candidate, including KDE and Hyprland; a running shell or successful desktop login
+is not enough to certify all its features.
+
+Run `omarchy-desktop compatibility` to see evidence status and
+`omarchy-desktop verify kde` for a safe test-planning prompt. See the
+[compatibility matrix and process](compatibility/README.md). This restriction is
+intentional: the chooser should recommend combinations shown to work well.
+
 ## Commands
 
 | Command | What it does |
 | --- | --- |
 | `omarchy-desktop` / `choose` | Guided desktop and task chooser |
+| `omarchy-desktop compatibility` | Show version-specific shell compatibility status |
+| `omarchy-desktop verify kde` | Prepare a disposable-system integration test plan |
 | `omarchy-desktop list` | Show detected desktop entries |
 | `omarchy-desktop doctor` | Show session and SDDM evidence with findings |
 | `omarchy-desktop doctor --json` | Structured evidence for local troubleshooting |
 | `omarchy-desktop inspect kde` | Prompt requiring inspection only |
-| `omarchy-desktop install gnome` | Prompt to plan an installation, then await approval |
-| `omarchy-desktop switch kde` | Prompt for a test login and separately approved default choice |
+| `omarchy-desktop install gnome` | Inspection only unless shell compatibility is verified; then plan and await approval |
+| `omarchy-desktop switch kde` | Inspection only unless verified; then plan a test login and approved default choice |
 | `omarchy-desktop recover hyprland` | Prompt to inspect and plan a targeted recovery |
 | `omarchy-desktop repair-sddm` | Prompt to diagnose and repair the login screen after approval |
 
@@ -56,7 +77,8 @@ which desktop last worked and does not keep restore snapshots.
 
 For example, start with `omarchy-desktop inspect kde`, paste the prompt into
 Codex, Claude Code, Gemini CLI, OpenCode, Hermes or another agent, and review its
-findings. Generate an installation task only when you want a proposed install.
+findings. Installation planning becomes available only after a reviewed,
+version-matched shell compatibility report is registered.
 No agent-specific integrations or accounts are required.
 
 ## SDDM stuck on the last desktop?

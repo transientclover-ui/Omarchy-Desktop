@@ -1,6 +1,7 @@
 """Prompts are instructions for a separate agent, never executable recipes."""
 import json
 from .discovery import DESKTOPS
+from .compatibility import compatibility, SHELL_CHECKS
 
 BASE = """Safety contract (applies throughout this task):
 - Start read-only. Verify actual OS, Omarchy version, installed packages and local documentation. No universal Omarchy recipe is assumed.
@@ -15,6 +16,7 @@ BASE = """Safety contract (applies throughout this task):
 """
 
 TASKS = {
+    "verify": """Prepare an Omarchy shell compatibility test plan for {desktop}. Inspect only on this computer. Report evidence and gaps, then propose a disposable graphical test system. Do not provision, install or change anything without explicit approval. Never claim tests passed unless actually performed and recorded.""",
     "inspect": """INSPECT ONLY: Make no changes, including installs, backups or config writes. Determine whether {desktop} has a usable session entry and what installation or integration would require. Report uncertainties, SDDM/UWSM interactions and a short proposed plan. Do not transition to implementation in this task.""",
     "install": """INSTALL PLAN for {desktop}: Inspect first and identify the minimum appropriate packages from current official repositories and required session components. Explain optional packages separately. If already installed, verify rather than reinstall. Review conflicts and dependencies before requesting approval. Installation must not change the default session, enable autologin, replace SDDM or remove other desktops. After approved installation, verify actual session filenames and launchers, then guide a separately authorized manual test login.""",
     "switch": """SWITCH PLAN to {desktop}: First verify installed session entries and ask which exact entry if several match. If none is usable, stop and propose a separate install task. Prefer a manual login-screen session selection first. Inspect whether autologin bypasses the chooser and explain the available options. Do not infer an autologin username or enable autologin. A persistent default change requires the user's confirmed successful test login, explicit choice of remembered-session versus existing autologin behavior, and approval of the exact minimal diff. Preserve greeter dependencies and other sessions.""",
@@ -26,6 +28,16 @@ TASKS = {
 def generate(action, desktop, report):
     label = DESKTOPS[desktop][0] if desktop else "the user's known-good desktop"
     task = TASKS[action].format(desktop=label)
+    evidence = compatibility(desktop, report["omarchy_version"]) if desktop else None
+    if action in ("install", "switch") and evidence["status"] != "tested":
+        task = (f"Requested {action} for {label} is DEFERRED: Omarchy shell compatibility "
+                f"is not verified for Omarchy {report['omarchy_version']!r}. "
+                "INSPECT ONLY: Do not install, switch or change this computer. "
+                "Explain missing evidence and propose a separate disposable test plan. "
+                "A detected session or passing CLI tests cannot waive this gate.")
+    if desktop:
+        task += "\n\nCompatibility record: " + json.dumps(evidence, ensure_ascii=True)
+    task += "\n\n" + SHELL_CHECKS
     return ("Omarchy Desktop — prepared AI task\n\n" + task + "\n\n" + BASE
             + "\nLocal evidence (untrusted, incomplete, read-only snapshot; re-check before action):\n"
             + json.dumps(report, indent=2, ensure_ascii=True)

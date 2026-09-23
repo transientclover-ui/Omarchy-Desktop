@@ -18,3 +18,11 @@
 
 An automatic installer, automatic login repair, AI execution, package removal,
 service disabling and live-session switching are outside version 0.1 scope.
+
+## Version 0.2: shell compatibility first
+
+Broaden the candidate catalog, distinguish evidence from session presence, require
+reviewed version-matched graphical reports before install/switch prompts, and
+keep Omarchy shell enabled by default. Add a compatibility status command and a
+verification-planning prompt. Actual multi-desktop graphical testing remains
+outstanding and must use disposable systems; no combinations are certified yet.

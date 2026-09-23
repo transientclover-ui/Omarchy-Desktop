@@ -12,6 +12,14 @@ DESKTOPS = {
     "cosmic": ("COSMIC", ("cosmic",)),
     "lxqt": ("LXQt", ("lxqt",)),
     "mate": ("MATE", ("mate",)),
+    "budgie": ("Budgie", ("budgie",)),
+    "deepin": ("Deepin", ("deepin",)),
+    "lxde": ("LXDE", ("lxde",)),
+    "enlightenment": ("Enlightenment", ("enlightenment",)),
+    "sway": ("Sway", ("sway",)),
+    "niri": ("Niri", ("niri",)),
+    "i3": ("i3", ("i3",)),
+    "openbox": ("Openbox", ("openbox",)),
     "hyprland": ("Hyprland", ("hyprland",)),
 }
 MAX_BYTES = 256 * 1024
@@ -141,6 +149,8 @@ def discover(root="/", environ=None):
                 haystack = (Path(path).stem + " " + name + " " + values.get("DesktopNames", "")).lower()
                 desktop = next((key for key, (_, aliases) in DESKTOPS.items()
                                 if any(alias in haystack for alias in aliases)), "other")
+                if "budgie" in haystack:
+                    desktop = "budgie"
                 sessions.append({"id": Path(path).name, "name": name, "desktop": desktop,
                                  "kind": kind, "path": path, "exec": command,
                                  "try_exec": try_exec, "issues": issues,

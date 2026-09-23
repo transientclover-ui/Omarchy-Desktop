@@ -17,3 +17,10 @@ validation and prompt approval requirements.
 The GitHub Actions matrix is prepared but has not run remotely. No desktop
 installation, graphical login, default change or SDDM repair was performed.
 No cross-version or multi-desktop compatibility claim is made.
+
+## Version 0.2 validation
+
+21 local fixture/unit tests pass, including the compatibility gate, exact-version
+matching, broader candidate commands and shell-enabled-by-default prompts.
+No graphical desktop compatibility is certified. Version 0.1's GitHub matrix
+passed on Python 3.10, 3.12 and 3.14 after publication.

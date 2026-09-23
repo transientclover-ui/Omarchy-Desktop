@@ -1247,3 +1247,9 @@ the frozen revision 5 artifacts. Revision 6 is not built or VM-package-validated
 yet. The next implementation task is an explicit, reversible ownership policy
 for an existing shell service across KDE/Omarchy sessions, followed by repeated
 login and reboot testing. Do not silently rewrite the preserved service.
+
+Validation cleanup: copied the guest logs to the local evidence archive,
+removed temporary guest SSH authorization, sudoers allowance and firewall
+rule, and shut down the disposable VM. Final offline image check passed.
+The preserved baseline SHA-256 still matches
+`844be5c310a5750902c40d1ab95fb5144b6788b29cbfa7d3b96b29aaa253c4c0`.

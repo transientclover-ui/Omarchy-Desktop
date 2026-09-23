@@ -1,0 +1,173 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+readonly profile_dir=/etc/frankenstein/shell-profiles
+readonly shell_dir=/usr/local/share/frankenstein/omarchy-shell
+readonly disabled_file="${XDG_CONFIG_HOME:-$HOME/.config}/frankenstein/shell-disabled"
+readonly service=frankenstein-omarchy-shell.service
+
+desktop_environment() {
+  local desktop=${XDG_CURRENT_DESKTOP:-}
+  if [[ -z $desktop ]]; then
+    desktop=$(systemctl --user show-environment 2>/dev/null |
+      sed -n 's/^XDG_CURRENT_DESKTOP=//p' | tail -n 1)
+  fi
+  printf '%s\n' "$desktop"
+}
+
+profile_for_desktop() {
+  case "$(desktop_environment)" in
+    KDE|KDE:*) echo plasma ;;
+    *) return 1 ;;
+  esac
+}
+
+profile_value() {
+  jq -er "$2" "$profile_dir/$1.json"
+}
+
+run_shell() {
+  local profile=${1:-}
+  [[ -n $profile && -r $profile_dir/$profile.json ]] || {
+    echo "No supported Omarchy Shell profile for $(desktop_environment)." >&2
+    return 1
+  }
+  [[ ! -e $disabled_file ]] || {
+    echo "Frankenstein Omarchy Shell integration is disabled." >&2
+    return 1
+  }
+
+  local expected_desktop allow_plugins no_bar
+  expected_desktop=$(profile_value "$profile" '.desktop')
+  [[ $(desktop_environment) == "$expected_desktop" ]] || {
+    echo "Profile $profile requires $expected_desktop." >&2
+    return 1
+  }
+  allow_plugins=$(profile_value "$profile" '.shell.enabledPlugins | join(",")')
+  no_bar=$(profile_value "$profile" 'if .shell.panel == "native" then "1" else "0" end')
+
+  export OMARCHY_PATH=/usr/share/omarchy
+  export FRANKENSTEIN_SHELL_PROFILE=$profile
+  export FRANKENSTEIN_SHELL_ALLOW_PLUGINS=$allow_plugins
+  export FRANKENSTEIN_SHELL_NO_BAR=$no_bar
+  export QS_DISABLE_FILE_WATCHER=1
+  export QS_NO_RELOAD_POPUP=1
+
+  exec quickshell -n -p "$shell_dir"
+}
+
+ipc() {
+  local timeout=${FRANKENSTEIN_SHELL_IPC_TIMEOUT:-2s}
+  if [[ -z ${WAYLAND_DISPLAY:-} ]]; then
+    local socket
+    socket=$(find "${XDG_RUNTIME_DIR:-/run/user/$UID}" -maxdepth 1 -type s \
+      -name 'wayland-[0-9]*' -printf '%T@ %f\n' 2>/dev/null |
+      sort -n | tail -n 1 | cut -d' ' -f2-)
+    [[ -n $socket ]] && export WAYLAND_DISPLAY=$socket
+  fi
+  timeout --kill-after=1s "$timeout" qs ipc -n -p "$shell_dir" call -- "$@"
+}
+
+open_terminal() {
+  local command=${1:-}
+  [[ -n $command ]] || {
+    echo "A command is required." >&2
+    return 2
+  }
+  case "$(desktop_environment)" in
+    KDE|KDE:*)
+      setsid xdg-terminal-exec --app-id=org.omarchy.terminal --title=Omarchy \
+        -e bash -lc "$command" >/dev/null 2>&1 &
+      ;;
+    *)
+      exec omarchy-launch-floating-terminal-with-presentation "$command"
+      ;;
+  esac
+}
+
+open_settings() {
+  local page=${1:-}
+  case "$(desktop_environment):$page" in
+    KDE:displays|KDE:*:displays) systemsettings kcm_kscreen ;;
+    KDE:shortcuts|KDE:*:shortcuts) systemsettings kcm_keys ;;
+    KDE:input|KDE:*:input) systemsettings kcm_mouse ;;
+    *:displays) omarchy-launch-config-editor "$HOME/.config/hypr/monitors.lua" ;;
+    *:shortcuts) omarchy-launch-config-editor "$HOME/.config/hypr/bindings.lua" ;;
+    *:input) omarchy-launch-config-editor "$HOME/.config/hypr/input.lua" ;;
+    *) echo "Unknown settings page: $page" >&2; return 2 ;;
+  esac
+}
+
+check() {
+  local profile desktop expected state count ping active_plugins notification_owner polkit_count
+  profile=$(profile_for_desktop) || {
+    echo "unsupported desktop: $(desktop_environment)"
+    return 1
+  }
+  desktop=$(desktop_environment)
+  expected=$(profile_value "$profile" '.desktop')
+  state=disabled
+  [[ ! -e $disabled_file ]] && state=enabled
+  count=$(pgrep -fc "quickshell -n -p $shell_dir" || true)
+  ping=$(ipc shell ping 2>/dev/null || true)
+  active_plugins=$(ipc shell listPlugins 2>/dev/null |
+    jq -r '[.[] | select(.enabled == true) | .id] | join(",")' 2>/dev/null || true)
+  notification_owner=$(busctl --user --no-pager --list 2>/dev/null |
+    awk '$1 == "org.freedesktop.Notifications" { owner=$2 } END { print owner }')
+  polkit_count=$(pgrep -fc 'polkit.*agent|polkit-kde-authentication-agent' || true)
+
+  printf 'profile=%s\n' "$profile"
+  printf 'desktop=%s\n' "$desktop"
+  printf 'expected_desktop=%s\n' "$expected"
+  printf 'integration=%s\n' "$state"
+  printf 'service=%s\n' "$(systemctl --user is-active "$service" 2>/dev/null || true)"
+  printf 'shell_instances=%s\n' "$count"
+  printf 'shell_ipc=%s\n' "${ping:-unavailable}"
+  printf 'enabled_plugins=%s\n' "${active_plugins:-unavailable}"
+  printf 'native_components=%s\n' "$(profile_value "$profile" '.nativeComponents | join(",")')"
+  printf 'notification_owner=%s\n' "${notification_owner:-none}"
+  printf 'polkit_agent_processes=%s\n' "$polkit_count"
+
+  [[ $desktop == "$expected" && $state == enabled && $count -eq 1 &&
+    $ping == ok && $active_plugins == omarchy.menu ]]
+}
+
+case ${1:-} in
+  run)
+    run_shell "${2:-$(profile_for_desktop)}"
+    ;;
+  menu)
+    route=${2:-setup}
+    ipc shell summon omarchy.menu "{\"menu\":\"$route\"}" >/dev/null
+    ;;
+  terminal)
+    shift
+    open_terminal "$*"
+    ;;
+  settings)
+    open_settings "${2:-}"
+    ;;
+  enable)
+    rm -f "$disabled_file"
+    systemctl --user start "$service"
+    ;;
+  disable)
+    mkdir -p "$(dirname "$disabled_file")"
+    : > "$disabled_file"
+    systemctl --user stop "$service"
+    ;;
+  status)
+    if [[ -e $disabled_file ]]; then
+      echo disabled
+    else
+      systemctl --user is-active "$service"
+    fi
+    ;;
+  check)
+    check
+    ;;
+  *)
+    echo "Usage: frankenstein-shell-adapter {run [profile]|menu [route]|terminal <command>|settings <page>|enable|disable|status|check}" >&2
+    exit 2
+    ;;
+esac

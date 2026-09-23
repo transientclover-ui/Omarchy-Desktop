@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+readonly theme_dir=/usr/share/sddm/themes/omarchy-desktop-manager
+
+usage() {
+  echo "Usage: ${0##*/} wallpaper <image> | avatar <user> <image>" >&2
+  exit 2
+}
+
+valid_image() {
+  local image=$1 mime
+  [[ -f $image && -r $image ]] || return 1
+  mime=$(file --brief --mime-type "$image")
+  [[ $mime == image/* ]]
+}
+
+[[ $# -ge 2 ]] || usage
+operation=$1
+
+case "$operation" in
+  wallpaper)
+    [[ $# == 2 ]] || usage
+    image=$2
+    valid_image "$image" || {
+      echo "Wallpaper is not a readable image: $image" >&2
+      exit 1
+    }
+    install -m 0644 "$image" "$theme_dir/background.new"
+    mv -f "$theme_dir/background.new" "$theme_dir/background"
+    echo "Login wallpaper updated."
+    ;;
+  avatar)
+    [[ $# == 3 ]] || usage
+    user=$2
+    image=$3
+    uid=$(id -u "$user" 2>/dev/null) || {
+      echo "Unknown user: $user" >&2
+      exit 1
+    }
+    ((uid >= 1000)) || {
+      echo "Refusing to set an avatar for a system account." >&2
+      exit 1
+    }
+    valid_image "$image" || {
+      echo "Avatar is not a readable image: $image" >&2
+      exit 1
+    }
+    install -d -m 0755 /var/lib/AccountsService/icons /var/lib/AccountsService/users
+    install -m 0644 "$image" "/var/lib/AccountsService/icons/$user"
+    cat >"/var/lib/AccountsService/users/$user" <<EOF
+[User]
+Icon=/var/lib/AccountsService/icons/$user
+EOF
+    chmod 0644 "/var/lib/AccountsService/users/$user"
+    echo "Login avatar updated for $user."
+    ;;
+  *)
+    usage
+    ;;
+esac

@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+readonly helper=/usr/local/libexec/omarchy-desktop-manager-theme
+
+usage() {
+  echo "Usage: ${0##*/} wallpaper <image> | avatar <image>" >&2
+  exit 2
+}
+
+[[ $# == 2 ]] || usage
+operation=$1
+image=$(realpath -- "$2")
+
+case "$operation" in
+  wallpaper)
+    pkexec "$helper" wallpaper "$image"
+    ;;
+  avatar)
+    pkexec "$helper" avatar "$USER" "$image"
+    ;;
+  *)
+    usage
+    ;;
+esac

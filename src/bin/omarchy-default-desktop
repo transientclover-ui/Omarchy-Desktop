@@ -1,0 +1,190 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+readonly default_file=/var/lib/omarchy-desktop-manager/default-session
+readonly privileged_helper=/usr/local/libexec/omarchy-desktop-manager-set-default
+
+session_label() {
+  case "$1" in
+    omarchy.desktop) echo "Omarchy / Hyprland" ;;
+    plasma.desktop) echo "KDE Plasma" ;;
+    *) return 1 ;;
+  esac
+}
+
+desktop_value() {
+  local key=$1 file=$2
+  awk -F= -v wanted="$key" '
+    /^\[Desktop Entry\]$/ { in_entry=1; next }
+    /^\[/ { in_entry=0 }
+    in_entry && $1 == wanted {
+      sub(/^[^=]*=/, "")
+      print
+      exit
+    }
+  ' "$file"
+}
+
+valid_session_file() {
+  local file=$1 type try_exec
+  [[ -f $file && -r $file ]] || return 1
+  type=$(desktop_value Type "$file")
+  [[ -z $type || $type == Application ]] || return 1
+  [[ -n $(desktop_value Name "$file") && -n $(desktop_value Exec "$file") ]] || return 1
+  try_exec=$(desktop_value TryExec "$file")
+  if [[ -n $try_exec ]]; then
+    if [[ $try_exec == /* ]]; then
+      [[ -x $try_exec ]] || return 1
+    else
+      command -v "$try_exec" &>/dev/null || return 1
+    fi
+  fi
+}
+
+find_session() {
+  local id=$1 dir file
+  for dir in /usr/local/share/wayland-sessions /usr/share/wayland-sessions \
+             /usr/local/share/xsessions /usr/share/xsessions; do
+    file="$dir/$id"
+    if valid_session_file "$file"; then
+      printf '%s\n' "$file"
+      return 0
+    fi
+  done
+  return 1
+}
+
+installed_sessions() {
+  local id label path
+  for id in omarchy.desktop plasma.desktop; do
+    label=$(session_label "$id")
+    if path=$(find_session "$id"); then
+      printf '%s\t%s\t%s\n' "$id" "$label" "$path"
+    fi
+  done
+}
+
+current_id() {
+  if [[ -r $default_file ]]; then
+    head -n 1 "$default_file"
+  fi
+  return 0
+}
+
+current_label() {
+  local id
+  id=$(current_id)
+  if [[ -n $id ]]; then
+    session_label "$id" 2>/dev/null || printf '%s\n' "$id"
+  fi
+}
+
+set_default() {
+  local id=$1 label
+  label=$(session_label "$id") || {
+    echo "Unsupported desktop session: $id" >&2
+    return 1
+  }
+  find_session "$id" >/dev/null || {
+    echo "Desktop session is not installed or valid: $id" >&2
+    return 1
+  }
+  pkexec "$privileged_helper" "$id"
+  notify-send "Default desktop changed" "$label will be selected for subsequent logins." 2>/dev/null || true
+}
+
+logout_current_session() {
+  case ${XDG_CURRENT_DESKTOP:-}:${DESKTOP_SESSION:-} in
+    *Hyprland*:*|*:omarchy)
+      uwsm stop
+      ;;
+    *KDE*:*|*:plasma)
+      qdbus6 org.kde.Shutdown /Shutdown logout
+      ;;
+    *)
+      [[ -n ${XDG_SESSION_ID:-} ]] || {
+        echo "Unable to identify the current graphical session." >&2
+        return 1
+      }
+      loginctl terminate-session "$XDG_SESSION_ID"
+      ;;
+  esac
+}
+
+choose_default() {
+  local current choice id label
+  local -a choices=()
+  declare -A ids=()
+
+  current=$(current_id)
+  while IFS=$'\t' read -r id label _; do
+    [[ -n $id ]] || continue
+    if [[ $id == "$current" ]]; then
+      choice="$label (current)"
+    else
+      choice="$label"
+    fi
+    choices+=("$choice")
+    ids["$choice"]=$id
+  done < <(installed_sessions)
+
+  ((${#choices[@]} > 0)) || {
+    echo "No supported desktop sessions are installed." >&2
+    return 1
+  }
+
+  label=$(current_label)
+  choice=$(printf '%s\n' "${choices[@]}" | gum choose --header "Default desktop: ${label:-Not set}") || return 0
+  id=${ids["$choice"]}
+  set_default "$id"
+
+  if [[ ${1:-} == "--offer-switch" ]] && [[ $id != "$current" ]] &&
+     gum confirm --default=false "Log out and switch to $(session_label "$id") now?"; then
+    logout_current_session
+  fi
+}
+
+case ${1:-} in
+  "")
+    current_label
+    ;;
+  --list)
+    current=$(current_id)
+    while IFS=$'\t' read -r id label path; do
+      marker=" "
+      [[ $id == "$current" ]] && marker="*"
+      printf '%s\t%s\t%s\t%s\n' "$marker" "$id" "$label" "$path"
+    done < <(installed_sessions)
+    ;;
+  --count)
+    installed_sessions | awk 'END { print NR }'
+    ;;
+  --is-valid)
+    [[ $# == 2 ]] || exit 2
+    session_label "$2" >/dev/null && find_session "$2" >/dev/null
+    ;;
+  --is-default)
+    [[ $# == 2 ]] || exit 2
+    [[ $(current_id) == "$2" ]]
+    ;;
+  --choose)
+    choose_default
+    ;;
+  --choose-and-switch)
+    choose_default --offer-switch
+    ;;
+  --help|-h)
+    cat <<'EOF'
+Usage:
+  omarchy-default-desktop
+  omarchy-default-desktop --list
+  omarchy-default-desktop --choose
+  omarchy-default-desktop --choose-and-switch
+  omarchy-default-desktop <session.desktop>
+EOF
+    ;;
+  *)
+    [[ $# == 1 ]] || exit 2
+    set_default "$1"
+    ;;
+esac

@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+readonly state_dir=/var/lib/omarchy-desktop-manager
+readonly default_file="$state_dir/default-session"
+readonly sddm_state=/var/lib/sddm/state.conf
+
+usage() {
+  echo "Usage: ${0##*/} <session.desktop> | --sync" >&2
+  exit 2
+}
+
+session_label() {
+  case "$1" in
+    omarchy.desktop) echo "Omarchy / Hyprland" ;;
+    plasma.desktop) echo "KDE Plasma" ;;
+    *) return 1 ;;
+  esac
+}
+
+desktop_value() {
+  local key=$1 file=$2
+  awk -F= -v wanted="$key" '
+    /^\[Desktop Entry\]$/ { in_entry=1; next }
+    /^\[/ { in_entry=0 }
+    in_entry && $1 == wanted {
+      sub(/^[^=]*=/, "")
+      print
+      exit
+    }
+  ' "$file"
+}
+
+valid_session_file() {
+  local file=$1 type try_exec
+  [[ -f $file && -r $file ]] || return 1
+  type=$(desktop_value Type "$file")
+  [[ -z $type || $type == Application ]] || return 1
+  [[ -n $(desktop_value Name "$file") && -n $(desktop_value Exec "$file") ]] || return 1
+  try_exec=$(desktop_value TryExec "$file")
+  if [[ -n $try_exec ]]; then
+    if [[ $try_exec == /* ]]; then
+      [[ -x $try_exec ]] || return 1
+    else
+      command -v "$try_exec" &>/dev/null || return 1
+    fi
+  fi
+}
+
+find_session() {
+  local id=$1 dir file
+  for dir in /usr/local/share/wayland-sessions /usr/share/wayland-sessions \
+             /usr/local/share/xsessions /usr/share/xsessions; do
+    file="$dir/$id"
+    if valid_session_file "$file"; then
+      printf '%s\n' "$file"
+      return 0
+    fi
+  done
+  return 1
+}
+
+[[ $# == 1 ]] || usage
+sync_only=false
+if [[ $1 == --sync ]]; then
+  sync_only=true
+  [[ -r $default_file ]] || exit 0
+  session_id=$(head -n 1 "$default_file")
+else
+  session_id=$1
+fi
+[[ $session_id == "${session_id##*/}" && $session_id == *.desktop ]] || usage
+label=$(session_label "$session_id") || {
+  echo "Unsupported desktop session: $session_id" >&2
+  exit 1
+}
+session_path=$(find_session "$session_id") || {
+  echo "Desktop session is not installed or valid: $session_id" >&2
+  exit 1
+}
+
+install -d -m 0755 "$state_dir"
+
+default_tmp=
+state_tmp=$(mktemp /var/lib/sddm/.state.conf.XXXXXX)
+trap '[[ -z $default_tmp ]] || rm -f "$default_tmp"; [[ -z $state_tmp ]] || rm -f "$state_tmp"' EXIT
+
+if [[ $sync_only == false ]]; then
+  default_tmp=$(mktemp "$state_dir/.default-session.XXXXXX")
+  printf '%s\n' "$session_id" >"$default_tmp"
+  chmod 0644 "$default_tmp"
+  mv -f "$default_tmp" "$default_file"
+  default_tmp=
+fi
+
+current_session=$(awk -F= '$1 == "Session" { print $2; exit }' "$sddm_state" 2>/dev/null || true)
+current_session=${current_session% }
+if [[ $sync_only == true && $current_session == "$session_path" ]]; then
+  exit 0
+fi
+
+last_user=$(awk -F= '$1 == "User" { print $2; exit }' "$sddm_state" 2>/dev/null || true)
+{
+  echo "[Last]"
+  printf 'Session=%s \n' "$session_path"
+  printf 'User=%s\n' "$last_user"
+} >"$state_tmp"
+chown sddm:sddm "$state_tmp"
+chmod 0600 "$state_tmp"
+mv -f "$state_tmp" "$sddm_state"
+state_tmp=
+
+if [[ $sync_only == false ]]; then
+  echo "Default desktop set to $label."
+fi

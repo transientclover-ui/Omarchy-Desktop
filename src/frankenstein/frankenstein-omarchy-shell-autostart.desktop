@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Frankenstein Omarchy Shell
+Comment=Start the desktop-specific Omarchy Shell compatibility profile
+Exec=systemctl --user start frankenstein-omarchy-shell.service
+OnlyShowIn=KDE;
+NoDisplay=true
+X-KDE-autostart-phase=2

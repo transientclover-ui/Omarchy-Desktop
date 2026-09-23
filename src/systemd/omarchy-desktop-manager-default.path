@@ -1,0 +1,9 @@
+[Unit]
+Description=Watch SDDM session state for one-time overrides
+
+[Path]
+PathChanged=/var/lib/sddm/state.conf
+Unit=omarchy-desktop-manager-default.service
+
+[Install]
+WantedBy=multi-user.target

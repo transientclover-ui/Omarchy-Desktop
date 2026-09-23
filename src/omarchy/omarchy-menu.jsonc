@@ -1,0 +1,78 @@
+{
+  // Installed by Omarchy Desktop Manager. This supported user extension is
+  // watched by the Omarchy shell and survives package updates.
+  "setup.default.desktop": {
+    "icon": "󰍹",
+    "label": "Desktop",
+    "title": "Default Desktop",
+    "description": "Choose the desktop selected for subsequent logins",
+    "when": "[[ $(omarchy-default-desktop --count) -gt 1 ]]"
+  },
+  "setup.default.desktop.omarchy": {
+    "icon": "",
+    "label": "Omarchy / Hyprland",
+    "when": "omarchy-default-desktop --is-valid omarchy.desktop",
+    "checked": "omarchy-default-desktop --is-default omarchy.desktop",
+    "action": "omarchy-default-desktop omarchy.desktop"
+  },
+  "setup.default.desktop.plasma": {
+    "icon": "",
+    "label": "KDE Plasma",
+    "when": "omarchy-default-desktop --is-valid plasma.desktop",
+    "checked": "omarchy-default-desktop --is-default plasma.desktop",
+    "action": "omarchy-default-desktop plasma.desktop"
+  },
+  "setup.default.desktop.choose": {
+    "icon": "󰒓",
+    "label": "Choose or Switch Now…",
+    "description": "Detect installed sessions and optionally log out after confirmation",
+    "action": "frankenstein-shell-adapter terminal 'omarchy-default-desktop --choose-and-switch'"
+  },
+  "setup.monitors": {
+    "label": "Displays",
+    "description": "Open settings for the active desktop",
+    "action": "frankenstein-shell-adapter settings displays"
+  },
+  "setup.keybindings": {
+    "icon": "",
+    "label": "Keybindings",
+    "description": "Open shortcut settings for the active desktop",
+    "action": "frankenstein-shell-adapter settings shortcuts"
+  },
+  "setup.input": {
+    "icon": "",
+    "label": "Input",
+    "description": "Open input settings for the active desktop",
+    "action": "frankenstein-shell-adapter settings input"
+  },
+  "setup.plugin": {
+    "when": "[[ ${XDG_CURRENT_DESKTOP:-} == Hyprland ]]"
+  },
+  "setup.config.hyprland": {
+    "when": "[[ ${XDG_CURRENT_DESKTOP:-} == Hyprland ]]"
+  },
+  "setup.config.hyprsunset": {
+    "when": "[[ ${XDG_CURRENT_DESKTOP:-} == Hyprland ]]"
+  },
+  "setup.network.qr": {
+    "when": "[[ ${XDG_CURRENT_DESKTOP:-} == Hyprland ]] && [[ $(omarchy-network-status) == wifi* ]]"
+  },
+  "setup.frankenstein-shell": {
+    "icon": "󰆍",
+    "label": "Omarchy Shell Integration",
+    "title": "Omarchy Shell Integration",
+    "description": "Desktop-specific compatibility controls",
+    "when": "[[ ${XDG_CURRENT_DESKTOP:-} == KDE* ]]"
+  },
+  "setup.frankenstein-shell.check": {
+    "icon": "󰄬",
+    "label": "Compatibility Status",
+    "action": "frankenstein-shell-adapter terminal 'frankenstein-shell-adapter check; read -rp \"Press Enter to close\"'"
+  },
+  "setup.frankenstein-shell.disable": {
+    "icon": "󰅖",
+    "label": "Disable Plasma Integration",
+    "description": "Keep Plasma installed and stop the additional Omarchy menu service",
+    "action": "frankenstein-shell-adapter disable"
+  }
+}

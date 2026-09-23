@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Omarchy Setup Menu
+Comment=Open Omarchy setup and desktop defaults
+Exec=frankenstein-shell-adapter menu setup
+Icon=preferences-system
+OnlyShowIn=KDE;
+Categories=Settings;System;

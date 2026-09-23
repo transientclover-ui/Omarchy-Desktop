@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "id": "plasma",
+  "desktop": "KDE",
+  "shell": {
+    "enabledPlugins": [
+      "omarchy.menu"
+    ],
+    "panel": "native"
+  },
+  "nativeComponents": [
+    "panel",
+    "application-launcher",
+    "wallpaper",
+    "lock-screen",
+    "idle-management",
+    "notifications",
+    "polkit-agent",
+    "workspaces",
+    "osd"
+  ],
+  "unsupported": [
+    "Hyprland workspace widget",
+    "Hyprland lock integration",
+    "Hyprland monitor controls",
+    "Hyprland screenshot and screen-record actions",
+    "Omarchy bar widgets and panels not explicitly enabled"
+  ]
+}

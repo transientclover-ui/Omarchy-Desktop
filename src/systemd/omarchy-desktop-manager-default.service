@@ -1,0 +1,6 @@
+[Unit]
+Description=Restore the configured default SDDM desktop session
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/libexec/omarchy-desktop-manager-set-default --sync

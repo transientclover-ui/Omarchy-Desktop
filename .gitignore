@@ -1,0 +1,8 @@
+*.qcow2
+*.iso
+*.fd
+*.ppm
+*.png
+*.log
+control.sock
+

@@ -1,15 +1,23 @@
-# Omarchy Desktop
+# Frankenstein — Omarchy desktop compatibility
 
 **Choose your desktop. Keep Omarchy shell.**
 
-A beginner-friendly, read-only desktop chooser and AI prompt generator inspired
-by switching between Hyprland and KDE on Omarchy. The goal is freedom to use
-another desktop while retaining the Omarchy shell experience. Includes SDDM diagnosis for the
-“it keeps opening the last desktop” problem.
+Frankenstein is an independent Omarchy desktop compatibility/adoption project,
+not an official Omarchy tool. The goal is freedom to choose another desktop
+while retaining a desktop-appropriate Omarchy shell experience. It explores
+Omarchy desktop adoption, KDE Plasma integration and safe desktop switching.
 
-This is an independent community project, not an official Omarchy tool.
-Version 0.1 is a prompt generator, not an automatic installer or repair engine.
+*Frankenstein isn't the monster. It makes the monster.*
+
+This repository provides a beginner-friendly, read-only desktop chooser and AI
+prompt generator, including SDDM diagnosis for the “it keeps opening the last
+desktop” problem. The current Python CLI (0.2) is a prompt generator, not an
+automatic installer or repair engine.
 It never installs packages, edits settings, launches an AI, or changes sessions.
+
+The public repository is [transientclover-ui/frankenstein](https://github.com/transientclover-ui/frankenstein).
+The Python package/module `omarchy_desktop`, distribution name `omarchy-desktop`,
+and CLI command `omarchy-desktop` remain stable for compatibility.
 
 ## Try it without installing
 
@@ -44,11 +52,33 @@ Validated installation/switch plans must keep Omarchy shell enabled and preserve
 its configuration. Users can choose to disable it later in a separate explicit
 task. The tool does not turn it off to work around compatibility problems.
 
-**No desktop combination has yet passed this project's full graphical integration
-checklist.** Install/switch requests therefore generate inspection-only prompts
-until an exact-version compatibility report is registered. This applies to every
-candidate, including KDE and Hyprland; a running shell or successful desktop login
-is not enough to certify all its features.
+**The CLI has no registered exact-version compatibility reports.** Install/switch
+requests therefore still generate inspection-only prompts for every candidate,
+including KDE and Hyprland. The VM work below does not automatically satisfy
+this CLI's full shell checklist or change its compatibility gate.
+
+### Validation status
+
+The [compatibility journal](COMPATIBILITY-JOURNAL.md) records completed VM work
+on Omarchy 4.0.4 with KDE Plasma, including graphical logins and native logout
+cycles between Plasma and Omarchy, SDDM selection/default behavior, and a filtered
+Omarchy menu profile under Plasma. Plasma retained its native panel, lock/idle,
+notifications, Polkit agent, wallpaper, workspaces and OSD; this was not full
+stock-shell support under Plasma. Package upgrade, downgrade, uninstall/removal,
+reproducible builds, and a VM-only signed repository install/update were also
+validated at the recorded revisions (0.1.0-2 and signed update 0.1.0-4).
+
+That adoption implementation lives in the separate VM work checkout; it is not
+installed by this Python package. The journal is included here as an evidence
+snapshot, with its checkout and artifact provenance explained at the top.
+GNOME and other desktop profiles were not implemented or tested there.
+
+**Later partial host-adoption work remains unvalidated for release.** Local
+shell-profile and simulated-service rollback tests passed, but broader review,
+restoration-failure coverage, package metadata/checksum/revision updates,
+reproducible builds and fresh disposable-VM validation remain pending. Those
+local passes do not establish real-systemd/SDDM behavior, standalone-install
+parity, or non-menu shell compatibility. No host installation is authorized.
 
 Run `omarchy-desktop compatibility` to see evidence status and
 `omarchy-desktop verify kde` for a safe test-planning prompt. See the
@@ -156,8 +186,9 @@ wrapper arguments, dependencies and actual launch behavior are not validated.
 - Prompts contain local session names, paths, launch commands and selected SDDM
   settings. Review before sharing with a hosted AI. No network requests or
   telemetry are made, and no automatic clipboard or prompt uploads occur.
-- This release has fixture tests and a read-only local smoke test; installation,
-  switching and graphical recovery have not been tested across desktops or VMs.
+- This Python CLI has fixture tests and a read-only local smoke test. The
+  journal records separate, bounded KDE/Omarchy VM integration work; it does not
+  establish arbitrary desktop, version, hardware or graphical-recovery support.
 
 ## Development and safe tests
 

@@ -22,5 +22,17 @@ No cross-version or multi-desktop compatibility claim is made.
 
 21 local fixture/unit tests pass, including the compatibility gate, exact-version
 matching, broader candidate commands and shell-enabled-by-default prompts.
-No graphical desktop compatibility is certified. Version 0.1's GitHub matrix
+These CLI tests do not certify graphical compatibility. For separately completed
+KDE/Omarchy VM tests and the unvalidated later adoption changes, see
+[COMPATIBILITY-JOURNAL.md](COMPATIBILITY-JOURNAL.md). Version 0.1's GitHub matrix
 passed on Python 3.10, 3.12 and 3.14 after publication.
+
+## 2026-09-23 naming reconciliation
+
+- All 22 fixture/unit tests passed locally on Python 3.14.
+- Wheel build and installation in an isolated virtual environment passed.
+- Installed entry point passed version, fixture JSON, public branding and
+  inspection-only gate checks from outside the source tree.
+- Package keyword metadata, local Markdown links and whitespace checks passed.
+
+No new graphical, package-adoption or host integration validation was performed.

@@ -11,7 +11,8 @@
 
 ## Future work requiring separate validation
 
-- Disposable VM compatibility tests for named Omarchy/SDDM releases.
+- Further disposable VM compatibility tests beyond the KDE/Omarchy work recorded
+  in [COMPATIBILITY-JOURNAL.md](COMPATIBILITY-JOURNAL.md).
 - More complete desktop-entry escaping and alternate display-manager adapters.
 - Opt-in, privacy-reviewed runtime diagnostics with narrowly allowlisted readers.
 - Documentation translations and accessibility feedback for the menu.
@@ -24,5 +25,6 @@ service disabling and live-session switching are outside version 0.1 scope.
 Broaden the candidate catalog, distinguish evidence from session presence, require
 reviewed version-matched graphical reports before install/switch prompts, and
 keep Omarchy shell enabled by default. Add a compatibility status command and a
-verification-planning prompt. Actual multi-desktop graphical testing remains
-outstanding and must use disposable systems; no combinations are certified yet.
+verification-planning prompt. The journal records completed KDE/Omarchy graphical
+VM work in the separate adoption checkout. Full CLI checklist reports remain unregistered; later partial
+host-adoption changes still require review, packaging and disposable-VM validation.

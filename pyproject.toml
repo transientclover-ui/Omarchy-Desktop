@@ -5,8 +5,9 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "omarchy-desktop"
 version = "0.2.0"
-description = "Read-only Omarchy desktop chooser and safe AI task generator"
+description = "Frankenstein: read-only Omarchy desktop chooser and safe AI task generator"
 readme = "README.md"
+keywords = ["frankenstein", "omarchy", "desktop", "linux", "kde", "plasma", "hyprland", "sddm"]
 requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [{name = "transientclover-ui"}]

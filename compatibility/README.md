@@ -6,15 +6,21 @@ on Arch Linux is not the same as preserving the Omarchy shell experience.
 
 ## Current evidence
 
-There are currently **no project-verified combinations**. The original CLI tests
-validate this tool, not graphical desktop compatibility. Therefore install and
-switch requests now produce inspection-only prompts until a version-matched
-compatibility report is registered. Recovery and SDDM diagnosis remain available.
+There are currently **no registered exact-version reports in the CLI registry**.
+The [compatibility journal](../COMPATIBILITY-JOURNAL.md) records validated
+KDE/Omarchy VM integration with a filtered menu profile and native Plasma
+replacements, plus package lifecycle and signed repository tests. This bounded
+work does not certify the full checklist below. Later partial host-adoption
+changes still need package and disposable-VM validation.
+
+CLI unit tests validate the chooser, not graphical desktop compatibility.
+Install and switch requests remain inspection-only until a reviewed,
+version-matched report is registered. Recovery and SDDM diagnosis remain available.
 
 | Candidates | Current status |
 | --- | --- |
-| KDE Plasma | Awaiting full integration test report |
-| Hyprland | Omarchy's baseline desktop; awaiting this project's versioned test report |
+| KDE Plasma | Filtered menu profile validated in the recorded VM; full CLI checklist/report still pending |
+| Hyprland | Baseline and return sessions validated in the recorded VM; CLI report still pending |
 | GNOME, Xfce, Cinnamon, COSMIC | Awaiting integration testing |
 | LXQt, MATE, Budgie, Deepin, LXDE, Enlightenment | Awaiting integration testing |
 | Sway, Niri, i3, Openbox | Compositor/window-manager candidates; awaiting integration testing |

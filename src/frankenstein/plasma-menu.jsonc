@@ -1,4 +1,7 @@
 {
+  // SPDX-FileCopyrightText: 2026 Frankenstein contributors
+  // SPDX-License-Identifier: MIT
+  //
   // Installed by Omarchy Desktop Manager. This supported user extension is
   // watched by the Omarchy shell and survives package updates.
   "setup.default.desktop": {
@@ -76,5 +79,3 @@
     "action": "frankenstein-shell-adapter disable"
   }
 }
-// SPDX-FileCopyrightText: 2026 Frankenstein contributors
-// SPDX-License-Identifier: MIT

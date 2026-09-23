@@ -535,3 +535,105 @@ After final verification:
 
 The unrelated localhost port-8000 QEMU forward was left unchanged. The
 canonical `start-vm.sh` contains no SSH forwarding rule.
+
+## 2026-09-23: first-run package checkpoint (paused)
+
+### Package layout
+
+An uncommitted split-package implementation was completed and preserved for
+continued testing:
+
+- `frankenstein-core` owns the `frankenstein` CLI, setup and rollback logic,
+  default-desktop helper, privileged writer, systemd path/service units,
+  documentation, and licenses.
+- `frankenstein-kde` depends on the exact matching core package and owns the
+  Plasma adapter, profile, menu overlay, filtered Omarchy Shell files, user
+  unit/autostart/application templates, and the reversible Breeze SDDM
+  configuration template.
+- Pacman-owned files use `/usr/bin`, `/usr/lib/frankenstein`, and
+  `/usr/share/frankenstein`; no package owns `/usr/local`.
+- Package installation is inert. It neither enables services nor writes user
+  configuration; the user must explicitly run `frankenstein setup`.
+- All experimental files under `src/sddm/` are excluded from both packages.
+  The packaged SDDM override is an original MIT-licensed configuration file at
+  `src/frankenstein/zzzz-frankenstein.conf`; it selects installed Breeze and
+  disables autologin without bundling theme code or artwork.
+
+The packages were built twice with a fixed `SOURCE_DATE_EPOCH` before the final
+installer correction and produced identical SHA-256 hashes. After correcting
+the installer, source checks passed and both packages rebuilt successfully.
+A second reproducibility comparison of that corrected build remains pending.
+
+### Fresh baseline-overlay evidence
+
+Test VM files:
+
+- preserved baseline: `omarchy-kde.qcow2`
+- writable test overlay: `omarchy-frankenstein-installer-test.qcow2`
+- read-only package disk: `frankenstein-installer-payload.img`
+- writable evidence disk: `frankenstein-installer-results.img`
+- dedicated launcher: `start-installer-test-vm.sh`
+
+The test overlay is backed directly by `omarchy-kde.qcow2`. QEMU was stopped
+through QMP after it did not respond to an ACPI power-down request. There were
+no active block jobs, `qemu-img check` subsequently reported no errors, and
+the baseline SHA-256 matched the value recorded before boot. No VM process or
+control socket remained active at the pause point.
+
+Observed results:
+
+| Test | Result |
+|---|---|
+| Initial local package transaction | Expected failure: untouched baseline had no downloaded pacman databases |
+| Guest repository database refresh | Pass; core, extra, multilib, and Omarchy databases synchronized |
+| Split-package installation | Pass; Plasma dependencies plus `frankenstein-core` and `frankenstein-kde` installed |
+| Read-only packaged preflight | Pass; detected Omarchy 4.0.4-1, valid Omarchy and Plasma sessions, original SDDM theme, and pacman-owned payload |
+| Failure rollback | Pass for the observed backup-checksum failure; setup removed partial state and a second preflight was permitted |
+| Corrected first-run setup | Pass; backups created, Breeze override installed, default path unit enabled, and Omarchy remained the default |
+| Original Omarchy session after setup | Pass; Hyprland remained graphical and exactly one stock `/usr/share/omarchy/shell` process was present |
+| Breeze session list visibility | Pass; Omarchy, two Hyprland variants, and Plasma (Wayland) were visible |
+| Breeze session selection | Unresolved; wheel input highlighted Plasma, but click, Enter, and physical keyboard selection did not activate the highlighted entry |
+| Plasma session launch | Partial; setting `plasma.desktop` through the validated helper updated SDDM and authentication entered Plasma |
+| Plasma graphical readiness | Fail; the fresh-overlay Plasma session remained black, so Plasma is not yet verified |
+| Upgrade, downgrade, package removal | Not run |
+
+The first setup attempt exposed incorrect literal quoting in the system-backup
+checksum loop. Its failure trap ran, then the command was corrected and the
+packages were rebuilt. The corrected setup completed successfully. Evidence
+logs are retained on the results disk as `package-install*.log`,
+`preflight.log`, `setup.log`, `setup-fixed.log`,
+`omarchy-after-setup.log`, `session-attempts.log`, and
+`default-switch.log`.
+
+### Resume procedure
+
+1. Boot the preserved test overlay:
+
+   ```bash
+   ./start-installer-test-vm.sh
+   ```
+
+2. Unlock the encrypted VM disk directly in the QEMU window. SDDM now defaults
+   to Plasma because the final test set `plasma.desktop`.
+3. Reproduce the black screen, switch to a text console, and capture at least:
+
+   ```bash
+   systemctl --user --failed
+   systemctl --user status plasma-workspace.target frankenstein-omarchy-shell.service
+   journalctl --user -b --no-pager
+   journalctl -b -u sddm --no-pager
+   pgrep -af 'plasmashell|kwin_wayland|quickshell'
+   ```
+
+4. Mount the evidence disk at `/mnt/fr` and save diagnostics there. Determine
+   whether Plasma itself, the KDE autostart template, or the filtered shell is
+   responsible before changing code.
+5. Retest SDDM selector activation independently. A visible Plasma entry alone
+   does not satisfy the selector requirement.
+6. After fixing the root cause, verify Plasma, native logout back to SDDM,
+   Omarchy return, package upgrade, downgrade, `frankenstein uninstall`, and
+   package removal.
+7. Rebuild the corrected packages twice and compare their unsigned hashes.
+
+No host desktop configuration, host SDDM configuration, host package database,
+or host installed package was changed during this test.

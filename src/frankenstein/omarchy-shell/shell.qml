@@ -1,3 +1,9 @@
+// SPDX-FileCopyrightText: David Heinemeier Hansson
+// SPDX-FileCopyrightText: 2026 Frankenstein contributors
+// SPDX-License-Identifier: MIT
+//
+// Modified from Omarchy 4.0.4 to support profile-filtered bars and diagnostics.
+
 import QtQuick
 import QtQml.Models
 import Quickshell

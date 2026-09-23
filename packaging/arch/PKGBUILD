@@ -1,0 +1,145 @@
+# Maintainer: Frankenstein contributors
+
+pkgbase=frankenstein
+pkgname=(frankenstein-core frankenstein-kde)
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='Reversible Omarchy desktop compatibility manager'
+arch=(x86_64)
+license=(MIT)
+options=(!strip)
+
+_root=$startdir/../..
+source=(
+  "install.sh::file://$_root/install.sh"
+  "uninstall.sh::file://$_root/uninstall.sh"
+  "frankenstein::file://$_root/src/bin/frankenstein"
+  "omarchy-default-desktop::file://$_root/src/bin/omarchy-default-desktop"
+  "omarchy-desktop-manager-set-default::file://$_root/src/libexec/omarchy-desktop-manager-set-default"
+  "omarchy-desktop-manager-default.path::file://$_root/src/systemd/omarchy-desktop-manager-default.path"
+  "omarchy-desktop-manager-default.service::file://$_root/src/systemd/omarchy-desktop-manager-default.service"
+  "frankenstein-shell-adapter::file://$_root/src/bin/frankenstein-shell-adapter"
+  "plasma-shell-profile.json::file://$_root/src/frankenstein/plasma-shell-profile.json"
+  "plasma-shell-profile.json.license::file://$_root/src/frankenstein/plasma-shell-profile.json.license"
+  "plasma-menu.jsonc::file://$_root/src/frankenstein/plasma-menu.jsonc"
+  "shell.qml::file://$_root/src/frankenstein/omarchy-shell/shell.qml"
+  "PluginRegistry.qml::file://$_root/src/frankenstein/omarchy-shell/services/PluginRegistry.qml"
+  "Menu.qml::file://$_root/src/frankenstein/omarchy-shell/plugins/menu/Menu.qml"
+  "frankenstein-omarchy-shell.service::file://$_root/src/systemd/frankenstein-omarchy-shell.service"
+  "frankenstein-omarchy-shell-autostart.desktop::file://$_root/src/frankenstein/frankenstein-omarchy-shell-autostart.desktop"
+  "frankenstein-omarchy-menu.desktop::file://$_root/src/frankenstein/frankenstein-omarchy-menu.desktop"
+  "zzzz-frankenstein.conf::file://$_root/src/frankenstein/zzzz-frankenstein.conf"
+  "INSTALL.md::file://$_root/INSTALL.md"
+  "LICENSE::file://$_root/LICENSE"
+  "MIT.txt::file://$_root/LICENSES/MIT.txt"
+  "THIRD_PARTY_NOTICES.md::file://$_root/THIRD_PARTY_NOTICES.md"
+)
+
+sha256sums=('2898062cd32d4386b1a35ee8efd26842e82514720b11a064a76b8d01a0d7e838'
+            'd6801fb0e1bb54a41ba0e6a9c0ff3d847b20323df060497492a990cfef81dce8'
+            'a7842b112234be2a62d9b289c1409bdf372a8165a811f784d691d17d8a0c01b9'
+            'a027b97907dcfbecf655892208531468cc0b9fc2047cfffe17d75aa11614bb92'
+            '23d1181e1449fa1b2f1dd58868b0a84349d770b5ff950f9b8b3b023d010bde67'
+            '2548486b601283e05c6b65b993dd25181372786f6abb3b3b19ff7e6680eae44c'
+            'bbbe60b05867f23e8c6691ab42c51883ff26fe956e15914d96ac495828464823'
+            'f2799ecedbe6cce6c6ef77925e20e855bedaeba85eaa14d949eb33a039df5790'
+            'd9cd2cc551e409b0b827d38b60953d46803e0a6ef9da719c9223bef7feb3b7ab'
+            '82e50f4ea1a5e2b5eee093eb83e92e1137ef5f41281a1608d2cd310bb71caee4'
+            '3d0228bced73441f3286af63d2e233208b882ecb5eacab28233a3fdd714fc916'
+            '5dc713d0cbf54af961b347120ebcd761d5602503202c076a2a033e9b7e903bb2'
+            '289ec80da32f78c25466391afee067f5d7401f03dd6b99420c40165137abbde7'
+            'eee1e163f3dfe7505818ac11bcca4e986b96627c7e64ff35921df38d8b5c71a6'
+            'fc152c8e5efdc14ef37998d0f4409268aed9ce3cd1dd8810a68d2ac19a67e421'
+            '652700e339e22f3be83fdcf02d202ba98a1973c7a3e9005a8e224eb702c6caaf'
+            '49e9cb294beec3db540aa6d0e5c7609951f7ff3c71bba2d646212438ce776458'
+            'a48edade017ac1417e88d485cbc0d46ce0d907b6565730cee4520715e39890a2'
+            'bf2fa2255f031c1c38a5518c3899f59ffc15b3c7663beaafa2c9c9cae8410b50'
+            '9c6cab6fc2ed586d11cc4468235c35d927b9e8cd2fc434a017837b67360df0e9'
+            'f18861fdf84c2a227febb8d7152b0e29f720d6c59bc93517eac7d0fd8af3def9'
+            'ad4b83ac72bac56aece3388c1e27215b220cdc7d8931117917db3a883e4bff37')
+
+package_frankenstein-core() {
+  pkgdesc='Common CLI and default-session manager for Frankenstein'
+  depends=(
+    bash coreutils findutils gawk grep jq
+    'omarchy=4.0.4-1'
+    pacman polkit sed sudo systemd tar
+  )
+
+  install -Dm0755 "$srcdir/frankenstein" "$pkgdir/usr/bin/frankenstein"
+  install -Dm0755 "$srcdir/install.sh" "$pkgdir/usr/lib/frankenstein/setup"
+  install -Dm0755 "$srcdir/uninstall.sh" "$pkgdir/usr/lib/frankenstein/uninstall"
+  install -Dm0755 "$srcdir/omarchy-default-desktop" \
+    "$pkgdir/usr/bin/omarchy-default-desktop"
+  install -Dm0755 "$srcdir/omarchy-desktop-manager-set-default" \
+    "$pkgdir/usr/lib/frankenstein/set-default"
+  install -Dm0644 "$srcdir/omarchy-desktop-manager-default.path" \
+    "$pkgdir/usr/lib/systemd/system/omarchy-desktop-manager-default.path"
+  install -Dm0644 "$srcdir/omarchy-desktop-manager-default.service" \
+    "$pkgdir/usr/lib/systemd/system/omarchy-desktop-manager-default.service"
+
+  install -Dm0644 "$srcdir/INSTALL.md" \
+    "$pkgdir/usr/share/doc/frankenstein/INSTALL.md"
+  install -Dm0644 "$srcdir/THIRD_PARTY_NOTICES.md" \
+    "$pkgdir/usr/share/doc/frankenstein/THIRD_PARTY_NOTICES.md"
+  install -Dm0644 "$srcdir/LICENSE" \
+    "$pkgdir/usr/share/licenses/frankenstein-core/LICENSE"
+  install -Dm0644 "$srcdir/MIT.txt" \
+    "$pkgdir/usr/share/licenses/frankenstein-core/MIT-Omarchy.txt"
+}
+
+package_frankenstein-kde() {
+  pkgdesc='KDE Plasma adapter for Frankenstein'
+  depends=(
+    "frankenstein-core=$pkgver-$pkgrel"
+    breeze jq 'omarchy=4.0.4-1' plasma-workspace
+    qt6-tools quickshell sddm systemsettings xdg-terminal-exec
+  )
+
+  install -Dm0755 "$srcdir/frankenstein-shell-adapter" \
+    "$pkgdir/usr/bin/frankenstein-shell-adapter"
+  install -Dm0644 "$srcdir/plasma-shell-profile.json" \
+    "$pkgdir/usr/share/frankenstein/profiles/plasma.json"
+  install -Dm0644 "$srcdir/plasma-shell-profile.json.license" \
+    "$pkgdir/usr/share/frankenstein/profiles/plasma.json.license"
+  install -Dm0644 "$srcdir/plasma-menu.jsonc" \
+    "$pkgdir/usr/share/frankenstein/profiles/plasma-menu.jsonc"
+  install -Dm0644 "$srcdir/shell.qml" \
+    "$pkgdir/usr/share/frankenstein/omarchy-shell/shell.qml"
+  install -Dm0644 "$srcdir/PluginRegistry.qml" \
+    "$pkgdir/usr/share/frankenstein/omarchy-shell/services/PluginRegistry.qml"
+  install -Dm0644 "$srcdir/Menu.qml" \
+    "$pkgdir/usr/share/frankenstein/omarchy-shell/plugins/menu/Menu.qml"
+
+  ln -s /usr/share/omarchy/shell/Commons \
+    "$pkgdir/usr/share/frankenstein/omarchy-shell/Commons"
+  ln -s /usr/share/omarchy/shell/Ui \
+    "$pkgdir/usr/share/frankenstein/omarchy-shell/Ui"
+  local source name
+  for source in /usr/share/omarchy/shell/services/*; do
+    name=${source##*/}
+    [[ $name == PluginRegistry.qml ]] && continue
+    ln -s "$source" "$pkgdir/usr/share/frankenstein/omarchy-shell/services/$name"
+  done
+  for source in /usr/share/omarchy/shell/plugins/menu/*; do
+    name=${source##*/}
+    [[ $name == Menu.qml ]] && continue
+    ln -s "$source" "$pkgdir/usr/share/frankenstein/omarchy-shell/plugins/menu/$name"
+  done
+
+  install -Dm0644 "$srcdir/frankenstein-omarchy-shell.service" \
+    "$pkgdir/usr/share/frankenstein/templates/frankenstein-omarchy-shell.service"
+  install -Dm0644 "$srcdir/frankenstein-omarchy-shell-autostart.desktop" \
+    "$pkgdir/usr/share/frankenstein/templates/frankenstein-omarchy-shell.desktop"
+  install -Dm0644 "$srcdir/frankenstein-omarchy-menu.desktop" \
+    "$pkgdir/usr/share/frankenstein/templates/frankenstein-omarchy-menu.desktop"
+  install -Dm0644 "$srcdir/zzzz-frankenstein.conf" \
+    "$pkgdir/usr/share/frankenstein/templates/zzzz-omarchy-desktop-manager.conf"
+
+  install -Dm0644 "$srcdir/LICENSE" \
+    "$pkgdir/usr/share/licenses/frankenstein-kde/LICENSE"
+  install -Dm0644 "$srcdir/MIT.txt" \
+    "$pkgdir/usr/share/licenses/frankenstein-kde/MIT-Omarchy.txt"
+  install -Dm0644 "$srcdir/THIRD_PARTY_NOTICES.md" \
+    "$pkgdir/usr/share/licenses/frankenstein-kde/THIRD_PARTY_NOTICES.md"
+}

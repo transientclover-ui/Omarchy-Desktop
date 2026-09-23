@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 Frankenstein contributors
+# SPDX-License-Identifier: MIT
+
 set -euo pipefail
 
-readonly profile_dir=/etc/frankenstein/shell-profiles
-readonly shell_dir=/usr/local/share/frankenstein/omarchy-shell
+readonly profile_dir=/usr/share/frankenstein/profiles
+readonly shell_dir=/usr/share/frankenstein/omarchy-shell
 readonly disabled_file="${XDG_CONFIG_HOME:-$HOME/.config}/frankenstein/shell-disabled"
 readonly service=frankenstein-omarchy-shell.service
 
@@ -50,6 +53,8 @@ run_shell() {
   export FRANKENSTEIN_SHELL_PROFILE=$profile
   export FRANKENSTEIN_SHELL_ALLOW_PLUGINS=$allow_plugins
   export FRANKENSTEIN_SHELL_NO_BAR=$no_bar
+  export FRANKENSTEIN_SHELL_MENU_PLUGIN_DIR="$shell_dir/plugins/menu"
+  export FRANKENSTEIN_SHELL_MENU_PROFILE="$profile_dir/$profile-menu.jsonc"
   export QS_DISABLE_FILE_WATCHER=1
   export QS_NO_RELOAD_POPUP=1
 

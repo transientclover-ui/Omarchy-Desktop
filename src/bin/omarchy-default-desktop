@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 Frankenstein contributors
+# SPDX-License-Identifier: MIT
+
 set -euo pipefail
 
 readonly default_file=/var/lib/omarchy-desktop-manager/default-session
-readonly privileged_helper=/usr/local/libexec/omarchy-desktop-manager-set-default
+readonly privileged_helper=/usr/lib/frankenstein/set-default
 
 session_label() {
   case "$1" in

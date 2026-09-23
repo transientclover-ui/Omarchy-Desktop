@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Frankenstein contributors
+# SPDX-License-Identifier: MIT
+
 [Unit]
 Description=Frankenstein filtered Omarchy Shell integration
 PartOf=plasma-workspace.target
@@ -5,6 +8,6 @@ After=plasma-kwin_wayland.service
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/frankenstein-shell-adapter run plasma
+ExecStart=/usr/bin/frankenstein-shell-adapter run plasma
 Restart=on-failure
 RestartSec=2

@@ -5,4 +5,11 @@
 *.png
 *.log
 control.sock
-
+installer-test-control.sock
+frankenstein-installer-payload.img
+frankenstein-installer-results.img
+OVMF_VARS-installer-test.fd
+pkg/
+srcpkg/
+*.pkg.tar.*
+*.src.tar.*

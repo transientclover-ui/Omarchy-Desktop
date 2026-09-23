@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 Frankenstein contributors
+# SPDX-License-Identifier: MIT
+
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage: frankenstein COMMAND [OPTIONS]
+
+Commands:
+  preflight     Check compatibility and print the proposed KDE setup
+  setup         Configure the installed KDE adapter
+  uninstall     Remove configuration while preserving KDE and backups
+  check         Check the active KDE adapter
+  enable        Enable the KDE adapter
+  disable       Disable the KDE adapter
+  menu          Open the Omarchy setup menu under Plasma
+EOF
+}
+
+command_name=${1:-}
+[[ -z $command_name ]] || shift
+
+case $command_name in
+  preflight)
+    exec /usr/lib/frankenstein/setup --preflight "$@"
+    ;;
+  setup)
+    exec /usr/lib/frankenstein/setup "$@"
+    ;;
+  uninstall)
+    exec /usr/lib/frankenstein/uninstall "$@"
+    ;;
+  check|enable|disable|menu)
+    exec /usr/bin/frankenstein-shell-adapter "$command_name" "$@"
+    ;;
+  help|--help|-h|'')
+    usage
+    ;;
+  *)
+    echo "Unknown command: $command_name" >&2
+    usage >&2
+    exit 2
+    ;;
+esac

@@ -1,3 +1,10 @@
+// SPDX-FileCopyrightText: David Heinemeier Hansson
+// SPDX-FileCopyrightText: 2026 Frankenstein contributors
+// SPDX-License-Identifier: MIT
+//
+// Modified from Omarchy 4.0.4 to enforce a desktop-profile plugin allowlist
+// and redirect the menu entry point to a compatibility-owned implementation.
+
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -10,6 +17,7 @@ QtObject {
   property string home: Quickshell.env("HOME")
   property string pluginsDir: home + "/.config/omarchy/plugins"
   property string compatibilityAllowlist: Quickshell.env("FRANKENSTEIN_SHELL_ALLOW_PLUGINS")
+  property string compatibilityMenuDir: Quickshell.env("FRANKENSTEIN_SHELL_MENU_PLUGIN_DIR")
 
   // Set by shell.qml at startup so we can also scan bundled first-party plugins.
   property string firstPartyDir: ""
@@ -121,6 +129,8 @@ QtObject {
     var ep = manifest.entryPoints ? manifest.entryPoints[kind] : null
     if (!ep) return ""
     var dir = manifest.__sourceDir || ""
+    if (manifest.id === "omarchy.menu" && compatibilityMenuDir)
+      dir = compatibilityMenuDir
     if (!dir) return ""
     // Defense in depth: even after validateManifest, confirm the resolved
     // path stays inside the plugin's sourceDir.

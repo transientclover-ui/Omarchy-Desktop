@@ -16,6 +16,8 @@ source=(
   "frankenstein::file://$_root/src/bin/frankenstein"
   "omarchy-default-desktop::file://$_root/src/bin/omarchy-default-desktop"
   "omarchy-desktop-manager-set-default::file://$_root/src/libexec/omarchy-desktop-manager-set-default"
+  "installer-state.sh::file://$_root/src/lib/installer-state.sh"
+  "shell-profile.sh::file://$_root/src/lib/shell-profile.sh"
   "omarchy-desktop-manager-default.path::file://$_root/src/systemd/omarchy-desktop-manager-default.path"
   "omarchy-desktop-manager-default.service::file://$_root/src/systemd/omarchy-desktop-manager-default.service"
   "frankenstein-shell-adapter::file://$_root/src/bin/frankenstein-shell-adapter"
@@ -77,6 +79,10 @@ package_frankenstein-core() {
     "$pkgdir/usr/bin/omarchy-default-desktop"
   install -Dm0755 "$srcdir/omarchy-desktop-manager-set-default" \
     "$pkgdir/usr/lib/frankenstein/set-default"
+  install -Dm0644 "$srcdir/installer-state.sh" \
+    "$pkgdir/usr/lib/frankenstein/installer-state"
+  install -Dm0644 "$srcdir/shell-profile.sh" \
+    "$pkgdir/usr/lib/frankenstein/shell-profile"
   install -Dm0644 "$srcdir/omarchy-desktop-manager-default.path" \
     "$pkgdir/usr/lib/systemd/system/omarchy-desktop-manager-default.path"
   install -Dm0644 "$srcdir/omarchy-desktop-manager-default.service" \

@@ -4,6 +4,15 @@
 
 set -Eeuo pipefail
 
+readonly script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+if [[ -r $script_dir/installer-state ]]; then
+  # shellcheck source=src/lib/installer-state.sh
+  source "$script_dir/installer-state"
+else
+  # shellcheck source=src/lib/installer-state.sh
+  source "$script_dir/src/lib/installer-state.sh"
+fi
+
 force=false
 assume_yes=false
 
@@ -26,6 +35,7 @@ done
 }
 
 readonly state_dir=/var/lib/frankenstein
+readonly sddm_state=/var/lib/sddm/state.conf
 [[ -r $state_dir/current ]] || {
   echo "No active Frankenstein installation record was found." >&2
   exit 1
@@ -122,6 +132,10 @@ if [[ $EXISTING_SHELL_UNIT == true && $EXISTING_SHELL_ACTIVE == true ]]; then
 fi
 
 sudo systemctl disable --now omarchy-desktop-manager-default.path 2>/dev/null || true
+if [[ ${SDDM_STATE_BACKED_UP:-false} == true ]]; then
+  frankenstein_restore_sddm_state \
+    "$sddm_state" "$state_dir/backups/$backup_id"
+fi
 if [[ $SDDM_OVERRIDE_CREATED == true ]]; then
   sudo rm -f /etc/sddm.conf.d/zzzz-frankenstein.conf
 fi
@@ -134,6 +148,8 @@ if [[ ${PACKAGE_MANAGED:-false} != true ]]; then
     /usr/lib/systemd/system/omarchy-desktop-manager-default.service \
     /usr/bin/frankenstein-shell-adapter \
     /usr/bin/omarchy-default-desktop \
+    /usr/lib/frankenstein/installer-state \
+    /usr/lib/frankenstein/shell-profile \
     /usr/lib/frankenstein/set-default \
     /usr/share/frankenstein/profiles/plasma.json \
     /usr/share/frankenstein/profiles/plasma-menu.jsonc

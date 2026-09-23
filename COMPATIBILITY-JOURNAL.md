@@ -848,3 +848,47 @@ under `evidence/repository-workflow-20260923/`. Final recovery copies are:
 No VM process or control socket remained active. The repository was not
 published, and no host package, desktop, pacman configuration, signing-key
 trust, or Frankenstein installation was changed.
+
+## 2026-09-23: paused SDDM rollback and configurable-shell work
+
+Work was paused by explicit user request with a partial, unvalidated
+implementation in the tree. No corrected package was built or installed, and
+no disposable-VM validation was started.
+
+The checkpoint currently contains:
+
+- an initial helper for backing up and restoring `/var/lib/sddm/state.conf`
+  across existing-file, absent-file, failed-setup, and uninstall paths
+- initial `auto` default-session logic that prefers the active supported
+  desktop, allowing an existing Plasma session to remain the default
+- backup-only coverage for `kwinoutputconfig.json`, `ksmserverrc`,
+  `powermanagementprofilesrc`, and `Trolltech.conf`
+- initial shell-profile override support under
+  `~/.config/frankenstein/plasma.json`, separate from the stock Omarchy
+  `shell.json`
+- initial regression scripts for installer state and shell-profile merging
+- initial PKGBUILD source/install entries for the new helpers
+
+This state is not release-ready. A regression-test command was interrupted
+before completion, and the partial implementation has not received a complete
+review. Package checksums, `.SRCINFO`, and `pkgrel` have not been updated.
+
+Resume from this checkpoint by:
+
+1. Review the partial installer-state and shell-profile implementation for
+   syntax, rollback ordering, missing variables, and package/standalone parity.
+2. Complete the read-only classification of currently enabled Omarchy Shell
+   components and user plugins for Plasma.
+3. Run and fix the regression tests, then add any missing setup-failure and
+   uninstall integration cases.
+4. Update documentation, package checksums, `.SRCINFO`, and assign a new
+   package revision without reusing prior package bytes.
+5. Rebuild reproducibly and validate the corrected packages only in a fresh
+   disposable baseline-backed VM, including SDDM state restoration and
+   configurable non-menu profiles.
+6. Return to the real host only for a new read-only preflight and installation
+   plan after VM validation passes.
+
+The real host remained unchanged: Frankenstein was not installed, no package
+or repository trust was added, and no SDDM configuration or service state was
+modified.

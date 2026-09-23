@@ -7,7 +7,17 @@ set -euo pipefail
 readonly profile_dir=/usr/share/frankenstein/profiles
 readonly shell_dir=/usr/share/frankenstein/omarchy-shell
 readonly disabled_file="${XDG_CONFIG_HOME:-$HOME/.config}/frankenstein/shell-disabled"
+readonly profile_override="${XDG_CONFIG_HOME:-$HOME/.config}/frankenstein/plasma.json"
 readonly service=frankenstein-omarchy-shell.service
+
+if [[ -r /usr/lib/frankenstein/shell-profile ]]; then
+  # shellcheck source=src/lib/shell-profile.sh
+  source /usr/lib/frankenstein/shell-profile
+else
+  readonly script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+  # shellcheck source=src/lib/shell-profile.sh
+  source "$script_dir/../lib/shell-profile.sh"
+fi
 
 desktop_environment() {
   local desktop=${XDG_CURRENT_DESKTOP:-}
@@ -26,7 +36,13 @@ profile_for_desktop() {
 }
 
 profile_value() {
-  jq -er "$2" "$profile_dir/$1.json"
+  effective_profile "$1" | jq -er "$2"
+}
+
+effective_profile() {
+  local profile=$1 override=
+  [[ $profile == plasma && -e $profile_override ]] && override=$profile_override
+  frankenstein_effective_shell_profile "$profile_dir/$profile.json" "$override"
 }
 
 run_shell() {
@@ -116,7 +132,8 @@ check() {
   count=$(pgrep -fc "quickshell -n -p $shell_dir" || true)
   ping=$(ipc shell ping 2>/dev/null || true)
   active_plugins=$(ipc shell listPlugins 2>/dev/null |
-    jq -r '[.[] | select(.enabled == true) | .id] | join(",")' 2>/dev/null || true)
+    jq -r '[.[] | select(.enabled == true) | .id] | sort | join(",")' 2>/dev/null || true)
+  expected_plugins=$(profile_value "$profile" '.shell.enabledPlugins | sort | join(",")')
   notification_owner=$(busctl --user --no-pager --list 2>/dev/null |
     awk '$1 == "org.freedesktop.Notifications" { owner=$2 } END { print owner }')
   polkit_count=$(pgrep -fc 'polkit.*agent|polkit-kde-authentication-agent' || true)
@@ -129,12 +146,14 @@ check() {
   printf 'shell_instances=%s\n' "$count"
   printf 'shell_ipc=%s\n' "${ping:-unavailable}"
   printf 'enabled_plugins=%s\n' "${active_plugins:-unavailable}"
+  printf 'expected_plugins=%s\n' "$expected_plugins"
+  printf 'profile_override=%s\n' "$([[ -e $profile_override ]] && echo "$profile_override" || echo none)"
   printf 'native_components=%s\n' "$(profile_value "$profile" '.nativeComponents | join(",")')"
   printf 'notification_owner=%s\n' "${notification_owner:-none}"
   printf 'polkit_agent_processes=%s\n' "$polkit_count"
 
   [[ $desktop == "$expected" && $state == enabled && $count -eq 1 &&
-    $ping == ok && $active_plugins == omarchy.menu ]]
+    $ping == ok && $active_plugins == "$expected_plugins" ]]
 }
 
 case ${1:-} in
@@ -171,8 +190,21 @@ case ${1:-} in
   check)
     check
     ;;
+  profile)
+    effective_profile "${2:-plasma}"
+    ;;
+  profile-path)
+    echo "$profile_override"
+    ;;
+  profile-validate)
+    [[ $# == 2 ]] || {
+      echo "Usage: frankenstein-shell-adapter profile-validate <file>" >&2
+      exit 2
+    }
+    frankenstein_validate_shell_profile_override "$2"
+    ;;
   *)
-    echo "Usage: frankenstein-shell-adapter {run [profile]|menu [route]|terminal <command>|settings <page>|enable|disable|status|check}" >&2
+    echo "Usage: frankenstein-shell-adapter {run [profile]|menu [route]|terminal <command>|settings <page>|enable|disable|status|check|profile [profile]|profile-path|profile-validate <file>}" >&2
     exit 2
     ;;
 esac

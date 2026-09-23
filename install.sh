@@ -8,6 +8,15 @@ readonly project_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 readonly supported_omarchy_version=4.0.4-1
 readonly system_state_dir=/var/lib/frankenstein
 readonly installed_share=/usr/share/frankenstein
+readonly sddm_state=/var/lib/sddm/state.conf
+
+if [[ -r $project_dir/installer-state ]]; then
+  # shellcheck source=src/lib/installer-state.sh
+  source "$project_dir/installer-state"
+else
+  # shellcheck source=src/lib/installer-state.sh
+  source "$project_dir/src/lib/installer-state.sh"
+fi
 
 assume_yes=false
 preflight_only=false
@@ -19,8 +28,10 @@ default_path_enabled=false
 user_files_installed=false
 shell_unit_disabled=false
 filtered_shell_started=false
+sddm_state_backup_ready=false
 backup_id=
 user_backup=
+system_backup=
 
 rollback_partial_install() {
   local line=$1 status=$2
@@ -51,6 +62,11 @@ rollback_partial_install() {
   if [[ $default_path_enabled == true ]]; then
     sudo systemctl disable --now omarchy-desktop-manager-default.path
   fi
+  if [[ $sddm_state_backup_ready == true ]]; then
+    if ! frankenstein_restore_sddm_state "$sddm_state" "$system_backup"; then
+      echo "Failed to restore the pre-install SDDM state." >&2
+    fi
+  fi
   if [[ $sddm_override_created == true ]]; then
     sudo rm -f /etc/sddm.conf.d/zzzz-frankenstein.conf
   fi
@@ -61,6 +77,8 @@ rollback_partial_install() {
       /usr/bin/frankenstein-shell-adapter \
       /usr/bin/omarchy-default-desktop \
       /usr/lib/frankenstein/set-default \
+      /usr/lib/frankenstein/installer-state \
+      /usr/lib/frankenstein/shell-profile \
       /usr/lib/systemd/system/omarchy-desktop-manager-default.path \
       /usr/lib/systemd/system/omarchy-desktop-manager-default.service
     sudo rm -rf /usr/share/frankenstein/omarchy-shell
@@ -170,6 +188,8 @@ if [[ $package_managed == true ]]; then
     "$installed_share/omarchy-shell/plugins/menu/Menu.qml"
     "$installed_share/profiles/plasma.json"
     "$installed_share/profiles/plasma-menu.jsonc"
+    /usr/lib/frankenstein/installer-state
+    /usr/lib/frankenstein/shell-profile
     /usr/lib/systemd/system/omarchy-desktop-manager-default.path
     /usr/lib/systemd/system/omarchy-desktop-manager-default.service
     "$shell_service_source"
@@ -191,6 +211,8 @@ else
     "$project_dir/src/frankenstein/omarchy-shell/plugins/menu/Menu.qml"
     "$project_dir/src/frankenstein/plasma-shell-profile.json"
     "$project_dir/src/frankenstein/plasma-menu.jsonc"
+    "$project_dir/src/lib/installer-state.sh"
+    "$project_dir/src/lib/shell-profile.sh"
     "$shell_service_source"
     "$shell_autostart_source"
     "$menu_desktop_source"
@@ -349,12 +371,26 @@ for conflicting_path in "${user_conflicting_paths[@]}"; do
 done
 
 if [[ $requested_default == auto ]]; then
-  configured_session=$autologin_session
-  configured_session=${configured_session##*/}
-  case $configured_session in
-    omarchy.desktop|plasma.desktop) default_session=$configured_session ;;
-    *) default_session=omarchy.desktop ;;
-  esac
+  active_desktop=${XDG_CURRENT_DESKTOP:-}
+  active_session=${DESKTOP_SESSION:-}
+  if [[ -z $active_desktop || -z $active_session ]]; then
+    user_environment=$(systemctl --user show-environment 2>/dev/null || true)
+    [[ -n $active_desktop ]] ||
+      active_desktop=$(sed -n 's/^XDG_CURRENT_DESKTOP=//p' <<<"$user_environment" | tail -n 1)
+    [[ -n $active_session ]] ||
+      active_session=$(sed -n 's/^DESKTOP_SESSION=//p' <<<"$user_environment" | tail -n 1)
+  fi
+  remembered_session=
+  if [[ -r $sddm_state ]]; then
+    remembered_session=$(awk -F= '$1 == "Session" { print $2; exit }' "$sddm_state")
+  fi
+  default_session=$(frankenstein_choose_auto_default \
+    "$active_desktop" "$active_session" "$autologin_session" \
+    "$remembered_session" "$omarchy_session" "$plasma_session")
+  [[ -n $default_session ]] || {
+    echo "No supported default desktop session is available." >&2
+    exit 1
+  }
 else
   default_session=$requested_default.desktop
 fi
@@ -415,6 +451,9 @@ mkdir -p "$user_backup"
 sudo install -d -m 0700 "$system_backup"
 mutation_started=true
 
+frankenstein_backup_sddm_state "$sddm_state" "$system_backup"
+sddm_state_backup_ready=true
+
 user_paths=()
 for relative in \
   .config/omarchy \
@@ -426,6 +465,10 @@ for relative in \
   .config/plasmarc \
   .config/kcminputrc \
   .config/kscreenlockerrc \
+  .config/kwinoutputconfig.json \
+  .config/ksmserverrc \
+  .config/powermanagementprofilesrc \
+  .config/Trolltech.conf \
   .config/systemd/user/omarchy-shell.service \
   .config/autostart \
   .local/share/plasma \
@@ -493,6 +536,10 @@ if [[ $package_managed != true ]]; then
     /usr/bin/omarchy-default-desktop
   sudo install -m 0755 "$project_dir/src/libexec/omarchy-desktop-manager-set-default" \
     /usr/lib/frankenstein/set-default
+  sudo install -m 0644 "$project_dir/src/lib/installer-state.sh" \
+    /usr/lib/frankenstein/installer-state
+  sudo install -m 0644 "$project_dir/src/lib/shell-profile.sh" \
+    /usr/lib/frankenstein/shell-profile
   sudo install -m 0644 "$project_dir/src/frankenstein/plasma-shell-profile.json" \
     "$installed_share/profiles/plasma.json"
   sudo install -m 0644 "$project_dir/src/frankenstein/plasma-menu.jsonc" \
@@ -573,6 +620,7 @@ SDDM_OVERRIDE_CREATED=$sddm_override_created
 DEFAULT_SESSION=$default_session
 PLASMA_ACTION=$plasma_action
 PACKAGE_MANAGED=$package_managed
+SDDM_STATE_BACKED_UP=true
 EOF
 sudo install -m 0644 "$user_backup/install-state.env" \
   "$system_state_dir/installations/$backup_id.env"

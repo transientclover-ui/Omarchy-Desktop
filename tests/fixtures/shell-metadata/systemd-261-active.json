@@ -1,0 +1,18 @@
+{
+  "unit": {
+    "Id": "omarchy-shell.service",
+    "Names": "omarchy-shell.service",
+    "LoadState": "loaded",
+    "ActiveState": "active",
+    "SubState": "running",
+    "FragmentPath": "/home/test/.config/systemd/user/omarchy-shell.service",
+    "SourcePath": "",
+    "DropInPaths": "",
+    "UnitFileState": "enabled",
+    "NeedDaemonReload": "no",
+    "ExecStart": "{ path=/usr/bin/quickshell ; argv[]=/usr/bin/quickshell -n -p /usr/share/omarchy/shell ; ignore_errors=no ; start_time=[Wed 2026-09-23 00:00:00 EDT] ; stop_time=[n/a] ; pid=1234 ; code=(null) ; status=0/0 }"
+  },
+  "manager": {
+    "UnitPath": "/home/test/.config/systemd/user.control /run/user/1000/systemd/user.control /run/user/1000/systemd/transient /run/user/1000/systemd/generator.early /home/test/.config/systemd/user /home/test/.config/systemd/user.attached /etc/systemd/user /run/user/1000/systemd/user /run/user/1000/systemd/user.attached /run/systemd/user /run/user/1000/systemd/generator /home/test/.local/share/systemd/user /usr/local/share/systemd/user /usr/share/systemd/user /usr/local/lib/systemd/user /usr/lib/systemd/user /run/user/1000/systemd/generator.late"
+  }
+}

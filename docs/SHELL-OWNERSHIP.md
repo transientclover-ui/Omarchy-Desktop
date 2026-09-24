@@ -202,8 +202,10 @@ certified by a successful query, and the two observations are not atomic.
 
 Run `PYTHONDONTWRITEBYTECODE=1 python3 -W error
 tests/shell-ownership-metadata.py` for mocked tests that never contact host
-systemd. The collector has not yet been validated against a disposable VM's
-real user manager.
+systemd. The exact query properties and simple search-path serialization were checked
+against systemd 261 in a disposable VM; the sanitized active-service observation
+is retained under `tests/fixtures/shell-metadata/`. Full guest collector/capture
+execution and inactive-state observation remain pending.
 
 ## Guest-side evidence capture
 

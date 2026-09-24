@@ -1445,3 +1445,47 @@ run this capture tool for existing supported states, sanitize observations and
 retain replay fixtures. Guest access/unlock must be available for that session.
 Effective-unit integration, session/activation assessment, lifecycle ownership,
 the duplicate-launcher fix and package/VM release validation remain unfinished.
+
+## 2026-09-23 — Real user-manager property observation
+
+Resumed from `57c6677` with a clean tracked tree. Created a new disposable overlay
+backed by the prior revision-5 test image (itself baseline-backed), separate
+firmware variables and a small data disk. Networking was disabled; preserved
+images remained backing files. Disk unlock and desktop autologin succeeded.
+Serial account authentication did not; no guest credentials were changed.
+
+Executed the collector's exact two read-only `systemctl --user show --all`
+property queries from the guest desktop. Systemd identified itself as
+261 (261.2-1-arch). The existing service was enabled/active/running, with the
+expected identity, fragment, empty source/drop-in paths, no reload requirement
+and populated ExecStart metadata. UnitPath contained 17 ordered absolute paths.
+
+Retained a sanitized, explicitly transcribed observation at
+`tests/fixtures/shell-metadata/systemd-261-active.json`, with provenance and
+normalizations in its README. A replay regression confirms those observed
+properties parse successfully without implying migration readiness.
+
+Validation: metadata suite passed (30 existing scenarios plus the real-output
+fixture replay); all eight capture tests passed; `git diff --check` passed.
+These validate real query serialization plus local collector replay, not full
+collector/capture execution in the guest. A long console transfer was unreliable
+and was abandoned to keep the session bounded. The guest also displayed the
+known duplicate-bar limitation; no ownership fix was attempted.
+
+No host configuration, services, package trust, repositories or SDDM state were
+changed. No package was built or installed; optional shell components, custom
+settings and the conservative fresh default are unchanged. No password was
+saved in the repository or evidence files. The data-disk mount was dismissed
+when it requested guest authentication; no temporary remote access was enabled.
+
+Next smallest task: run the full capture runner in the disposable guest through
+a reliable file-transfer path and collect one inactive-state observation. Full
+capture validation, lifecycle ownership, the duplicate-launcher fix and package
+release validation remain pending. This session stops at query-format validation.
+
+Cleanup: desktop shutdown input and a virtual power-button request did not stop
+the guest promptly. Terminated only this disposable QEMU through QMP, then ran
+an offline `qemu-img check`, which passed. This is container-format integrity,
+not a clean guest-filesystem shutdown claim. Scratch overlay and console evidence
+are retained under ignored `evidence/metadata-261/session/`; no live VM remains.
+Do not use this forced-stop overlay as a release-validation baseline.

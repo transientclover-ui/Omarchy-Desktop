@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Mock all manager queries; never contact host systemd."""
+import json
 import importlib.util
 from pathlib import Path
 import subprocess
@@ -83,6 +84,15 @@ class MetadataTests(unittest.TestCase):
                 report = self.collect(manager=raw)
                 self.assertTrue(report['reasons'])
                 self.assertEqual(report['search_paths'], [])
+
+    def test_vm_observation(self):
+        fixture = json.loads((ROOT / 'tests/fixtures/shell-metadata/systemd-261-active.json').read_text())
+        report = self.collect(output(fixture['unit']), output(fixture['manager']))
+        self.assertTrue(report['metadata_collected'])
+        self.assertEqual(report['reasons'], [])
+        self.assertEqual(report['unit'], fixture['unit'])
+        self.assertEqual(report['manager'], fixture['manager'])
+        self.assertEqual(len(report['search_paths']), 17)
 
     def test_query_failures(self):
         for is_unit in (True, False):

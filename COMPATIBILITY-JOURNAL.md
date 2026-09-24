@@ -1407,3 +1407,41 @@ The collector is not yet real-manager validated or combined with filesystem
 assessment. Complete activation/session ownership analysis, lifecycle changes,
 the duplicate-launcher fix, reproducible builds and VM package validation remain
 unfinished. Do not infer migration readiness from successful metadata collection.
+
+## 2026-09-23 — Guest metadata capture preparation checkpoint
+
+Resumed from `9703880` with a clean tracked tree. The intended real-manager
+validation requires the encrypted disposable VM and restoration of temporary
+guest access removed during prior cleanup. This was not expanded into a VM
+access/boot session. Two brief bubblewrap probes, with private runtime paths
+and no host service access, confirmed that a real user manager could not start
+in that environment (missing systemd boot context, then cgroup hierarchy).
+No VM was booted and no real-manager validation is claimed.
+
+Stopped at a bounded preparation checkpoint: added the guest-side development
+runner `tools/capture-shell-ownership-metadata.py`. It executes the existing
+read-only collector and saves its report and exit status in a new mode-0600
+JSON file, refusing overwrite/symlink destinations. Evidence is explicitly
+marked unsanitized; no manufactured observation is presented as a VM fixture.
+The ownership document describes execution and the remaining validation limit.
+
+Validation:
+
+- Eight end-to-end capture cases passed with a fake systemctl on an isolated
+  PATH: active/inactive, drop-in, query failure, malformed output, existing
+  file, symlink and missing parent. Tests verify only the two allowed show
+  queries execute, statuses survive capture and file permissions are private.
+- Existing metadata suite: four methods / 30 scenarios passed.
+- `git diff --check`: passed.
+
+No setup or package payload changed. Optional bar/components, custom widgets,
+disabled choices and fresh menu-only defaults remain intact. Host configuration,
+services, package trust, pacman repositories and SDDM state were not modified.
+No package was built or installed. The original untracked reference files were
+left untouched. This checkpoint completes capture preparation only.
+
+Next smallest task remains real-manager validation: boot the disposable guest,
+run this capture tool for existing supported states, sanitize observations and
+retain replay fixtures. Guest access/unlock must be available for that session.
+Effective-unit integration, session/activation assessment, lifecycle ownership,
+the duplicate-launcher fix and package/VM release validation remain unfinished.

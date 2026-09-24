@@ -205,6 +205,27 @@ tests/shell-ownership-metadata.py` for mocked tests that never contact host
 systemd. The collector has not yet been validated against a disposable VM's
 real user manager.
 
+## Guest-side evidence capture
+
+A development-only capture runner is ready for the disposable guest:
+
+```bash
+python3 tools/capture-shell-ownership-metadata.py /private/guest-directory/metadata.json
+```
+
+Use an existing private directory and a new output filename. The runner invokes
+only the collector, stores its report and exit status in a mode-0600 JSON file,
+and refuses to overwrite an existing file or final symlink. Exit 0/1 preserves
+the collector result; exit 2 means capture failed. Capture success does not mean
+that the metadata is supported. Reports are explicitly marked unsanitized:
+review paths and launch arguments before retaining a public fixture. The runner
+does not change a unit to manufacture an enabled, inactive or override scenario.
+
+`tests/shell-ownership-metadata-capture.py` exercises the full runner/collector
+command path with a fake systemctl on an isolated PATH. Eight cases cover active
+and inactive observations, overrides, query/malformed-output failures and safe
+output creation. These are simulated manager responses, not VM evidence.
+
 ## Next bounded implementation step
 
 Validate the metadata collector against the disposable VM's real user manager,

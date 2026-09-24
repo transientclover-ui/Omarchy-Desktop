@@ -17,3 +17,7 @@ known limitations, and rollback instructions.
 
 See [`DISTRIBUTION.md`](DISTRIBUTION.md) for isolated signing-key handling,
 repository creation, and the public-key trust procedure.
+
+The proposed [cross-session shell ownership policy](docs/SHELL-OWNERSHIP.md)
+defines the remaining preserved-shell lifecycle work and acceptance cases.
+It is a design contract, not an implemented setup option.

@@ -1289,3 +1289,39 @@ task: document the explicit reversible ownership policy and its acceptance
 cases before implementing service lifecycle changes. Revision 6 still needs
 reproducible builds and disposable-VM validation; this diagnostic correction
 does not certify plugin compatibility or preserved-shell round trips.
+
+## 2026-09-23 — Reversible shell-ownership policy documented
+
+Resumed from `4268a81` with a clean tracked tree. Completed only the documented
+next task: define the ownership policy and acceptance cases before service
+lifecycle implementation. Added `docs/SHELL-OWNERSHIP.md`, linked from README.
+
+The proposed contract keeps auto/preserve behavior unchanged and requires a
+separate explicit opt-in for future managed ownership. Plasma would have one
+Plasma-scoped owner using the reviewed preserved configuration; Omarchy keeps
+its native launcher. Unknown units, competing activation paths and ambiguous
+sessions must be refused rather than guessed. Exact activation/recovery state,
+mutation ordering, concurrent edits, retryable failures and session-safe
+restoration are specified. Restoring enablement does not imply immediately
+starting a service alongside Hyprland's native shell.
+
+The contract retains customized top bars, plugins, widgets and disabled choices.
+Menu-only remains the fresh conservative default, not the only intended profile.
+It separates lifecycle health from plugin compatibility and lists local failure
+cases plus repeated real login/reboot acceptance cases. These requirements are
+proposed behavior, not new command-line options or claims of passing VM tests.
+
+Validation: all 16 isolated preservation cases and 17 preserved-shell health
+scenarios passed; local Markdown links and `git diff --check` passed. Reviewed
+the current installer, uninstaller, adapter, service and autostart definitions
+against the document's current-behavior description. No production code or
+package payload changed; revision 6 and its checksums remain unchanged. No VM
+was started and no host configuration, service, package trust, pacman repository
+or SDDM state was modified. The three unrelated untracked references remain.
+
+Next smallest task: implement a read-only ownership inventory for one narrowly
+recognized service shape, with disposable fixtures that reject alternate
+activation paths and unsupported overrides. Do not implement lifecycle mutation
+in that task. The dual-launcher race, managed ownership implementation,
+reproducible revision 6 builds and disposable-VM package validation remain
+unfinished. No host adoption is authorized by this design checkpoint.

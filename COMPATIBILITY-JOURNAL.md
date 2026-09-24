@@ -1325,3 +1325,44 @@ activation paths and unsupported overrides. Do not implement lifecycle mutation
 in that task. The dual-launcher race, managed ownership implementation,
 reproducible revision 6 builds and disposable-VM package validation remain
 unfinished. No host adoption is authorized by this design checkpoint.
+
+## 2026-09-23 — Offline shell-ownership inventory
+
+Resumed from `a53597a` with a clean tracked tree. Completed a bounded first
+implementation of the documented read-only inventory: the development-only
+`tools/shell-ownership-inventory.py` assesses explicit disposable directory
+snapshots. It recognizes the direct Quickshell service shape already used by
+`tests/preserve-shell.py`, with either its single known activation link or no
+link. It emits JSON file hashes/modes, link targets, observations and refusal
+reasons. It does not execute commands, use implicit host paths, follow discovered
+links, write configuration or authorize migration. `migration_ready` is always
+false; recognized shape refers only to the supplied snapshot.
+
+Additional units, autostarts, drop-ins, aliases, masks, wrappers, unknown links,
+missing inputs, special files and invalid text are rejected conservatively.
+This intentionally does not interpret general systemd syntax or assert that
+all real activation sources were captured. The ownership document describes
+usage, exit statuses, stable-snapshot requirements and these limitations.
+
+Validation:
+
+- `python3 -W error tests/shell-ownership-inventory.py`: all 18 disposable
+  fixture scenarios passed, including original input bytes/metadata retained,
+  reported hashes checked and embedded commands never executed.
+- `python3 -W error tests/preserved-shell-health.py`: all 17 existing health
+  scenarios passed.
+- `git diff --check`: passed.
+
+No existing setup behavior, shell settings, optional bar/plugin support or
+conservative fresh default changed. The assessor is not packaged or wired into
+setup; package revision 6 and payload checksums remain unchanged. No host
+configuration, services, package trust, pacman repositories or SDDM state were
+modified. No VM or package build/install was performed. The three existing
+untracked ISO/boot reference files remain untouched.
+
+Next smallest task: add a read-only effective-unit metadata/search-path
+collector with mocked systemctl responses, keeping assessment distinct from
+migration authorization. Live session/process ownership, activation sources
+outside snapshots, lifecycle changes, the cross-session race, reproducible
+builds and disposable-VM validation remain unfinished. Do not begin lifecycle
+mutation merely because this offline fixture shape is recognized.

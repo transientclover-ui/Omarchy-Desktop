@@ -131,9 +131,53 @@ both packaged and standalone rollback paths locally. Package checksums, a fresh
 revision when required, reproducible builds and validation of those exact
 packages remain separate release requirements.
 
+## Offline inventory implemented
+
+Run the development-only assessor on a stable, disposable directory snapshot:
+
+```bash
+python3 tools/shell-ownership-inventory.py SNAPSHOT
+```
+
+The snapshot must contain real `units/` and `autostart/` directories. It has no
+implicit host paths and does not invoke systemctl, execute unit/widget commands,
+write files or follow discovered symlinks. Use a private snapshot that is not
+being changed concurrently; this is not a race-safe filesystem security boundary.
+The tool is not packaged or connected to setup.
+
+The first recognized shape is deliberately the existing preservation-test fixture:
+
+```ini
+[Service]
+ExecStart=/usr/bin/quickshell -n -p /usr/share/omarchy/shell
+```
+
+Only blank lines and full-line comments may vary. The unit must be a regular
+`units/omarchy-shell.service` file. Its optional sole activation link is
+`units/graphical-session.target.wants/omarchy-shell.service`, targeting exactly
+`../omarchy-shell.service`. No link means only “no link in this snapshot,” not
+that the real service is disabled. The snapshot's autostart directory must be
+empty. Additional files/directories, drop-ins, aliases, masks, wrappers and
+alternate activation paths are conservatively reported as unsupported; even an
+unrelated unit is unassessed rather than assumed harmless.
+
+JSON output includes file hashes/modes, link targets, activation observations,
+reasons for refusal and unassessed areas. Exit 0 means only that the snapshot
+matches this narrow shape; exit 1 means unsupported or incomplete inventory.
+`migration_ready` is always false. The assessor does not establish effective
+systemd precedence, live enablement/active state, sessions, processes, or absence
+of launch paths outside those supplied directories. It does not inspect or
+change shell configuration, custom widgets or plugin choices.
+
+Validation uses `python3 -W error tests/shell-ownership-inventory.py` with
+disposable fixtures, including unchanged input bytes/metadata and commands that
+must never execute. These tests do not establish support for an actual live
+unit or resolve the cross-session race.
+
 ## Next bounded implementation step
 
-Add a read-only ownership inventory with disposable fixtures for one recognized
-service shape and rejection cases for alternate activation/overrides. It should
-produce a reviewable assessment only. Do not add lifecycle mutation or expose a
-managed setup option until that supported boundary is established.
+Add a read-only collector for effective unit metadata and systemd search paths,
+with mocked command responses for query failures, masks, aliases and drop-ins.
+Keep its result separate from migration authorization. Do not add lifecycle
+mutation or expose a managed setup option; live session/activation assessment
+and VM validation remain subsequent work.

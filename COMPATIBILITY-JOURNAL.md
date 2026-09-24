@@ -1366,3 +1366,44 @@ migration authorization. Live session/process ownership, activation sources
 outside snapshots, lifecycle changes, the cross-session race, reproducible
 builds and disposable-VM validation remain unfinished. Do not begin lifecycle
 mutation merely because this offline fixture shape is recognized.
+
+## 2026-09-23 — Read-only effective-unit metadata collector
+
+Resumed from `8f8048c` with a clean tracked tree. Completed the documented
+metadata/search-path collection step as a separate development-only tool,
+`tools/shell-ownership-metadata.py`. It performs only two bounded user-manager
+`systemctl show` queries and emits JSON observations. Neither setup nor the
+offline inventory invokes it automatically; it is not packaged.
+
+Collected fields include unit identity/names, load and unit-file states,
+fragment/source/drop-in paths, active/substate, reload requirement, raw launch
+metadata and manager search paths. Simple path lists preserve order; ambiguous
+serialization is retained raw and flagged. Missing/duplicate/malformed property
+sets and query failures fail conservatively. Aliases, masks, overrides,
+generated units, stale configuration and unsupported runtime states require
+review. Successful collection never authorizes migration: `migration_ready`
+remains false and no effective file shape or session ownership is certified.
+
+Validation:
+
+- Mocked metadata suite: four test methods covering 30 scenarios (two ordinary
+  states, 11 review findings, 11 malformed/unsupported serializations and six
+  query failures). Tests assert fixed read-only query arguments, timeouts,
+  preserved observations, refusal behavior and no leaked failure output.
+- Existing offline inventory: all 18 fixture scenarios passed.
+- Existing preserved-shell health matrix: all 17 scenarios passed.
+- `git diff --check`: passed.
+
+All manager calls in the new tests were mocked; no real host systemd query or
+service mutation was used. No host configuration, services, trust, pacman
+repositories or SDDM state changed. Customized shell choices and the menu-only
+fresh default are untouched. No VM or package build/install was performed;
+revision 6/checksums remain unchanged. The three pre-existing untracked
+ISO/boot references remain untouched.
+
+Next smallest task: validate these query properties/serialization against the
+disposable VM's real user manager and retain sanitized observations as fixtures.
+The collector is not yet real-manager validated or combined with filesystem
+assessment. Complete activation/session ownership analysis, lifecycle changes,
+the duplicate-launcher fix, reproducible builds and VM package validation remain
+unfinished. Do not infer migration readiness from successful metadata collection.

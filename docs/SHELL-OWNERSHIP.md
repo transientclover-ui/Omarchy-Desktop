@@ -174,10 +174,41 @@ disposable fixtures, including unchanged input bytes/metadata and commands that
 must never execute. These tests do not establish support for an actual live
 unit or resolve the cross-session race.
 
+## Read-only manager metadata collector
+
+The separate development tool `python3 tools/shell-ownership-metadata.py`
+queries the current user's systemd manager twice using only `systemctl --user
+show`: once for the named service and once for the manager's `UnitPath`.
+It has a five-second timeout per query. It does not load file contents, run
+launch commands, reload the manager or change service state. It is not invoked
+by setup, packaged, or automatically combined with the offline snapshot.
+
+JSON retains the reported unit identity/names, load and unit-file states,
+fragment/source/drop-in paths, active/substate, reload requirement, raw ExecStart
+metadata and raw manager search paths. Simple absolute search paths are also
+returned in order as an array; escaped/quoted or ambiguous serialization is
+reported for review rather than guessed. Search paths are observations, not
+proof that every activation path was inspected. Raw command metadata may contain
+private arguments; review before sharing the report.
+
+`metadata_collected` means both requested property sets were returned intact.
+Masks, aliases, drop-ins, generated units, stale manager configuration and
+unsupported states produce review reasons even when collection succeeds.
+Missing/duplicate/malformed properties, query failures and timeouts fail
+conservatively. Exit 0 means only collected metadata with no listed findings;
+exit 1 means collection failed or review is required. `migration_ready` is
+always false. No file shape, plugin compatibility or session ownership is
+certified by a successful query, and the two observations are not atomic.
+
+Run `PYTHONDONTWRITEBYTECODE=1 python3 -W error
+tests/shell-ownership-metadata.py` for mocked tests that never contact host
+systemd. The collector has not yet been validated against a disposable VM's
+real user manager.
+
 ## Next bounded implementation step
 
-Add a read-only collector for effective unit metadata and systemd search paths,
-with mocked command responses for query failures, masks, aliases and drop-ins.
-Keep its result separate from migration authorization. Do not add lifecycle
-mutation or expose a managed setup option; live session/activation assessment
-and VM validation remain subsequent work.
+Validate the metadata collector against the disposable VM's real user manager,
+including the property serialization and enabled/inactive cases. Retain sanitized
+observations as fixtures before connecting metadata to filesystem assessment.
+Do not add lifecycle mutation or expose a managed setup option; complete
+activation/session assessment and lifecycle VM testing remain subsequent work.

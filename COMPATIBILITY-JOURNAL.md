@@ -1253,3 +1253,39 @@ removed temporary guest SSH authorization, sudoers allowance and firewall
 rule, and shut down the disposable VM. Final offline image check passed.
 The preserved baseline SHA-256 still matches
 `844be5c310a5750902c40d1ab95fb5144b6788b29cbfa7d3b96b29aaa253c4c0`.
+
+## 2026-09-23 — Reject malformed preserved-shell instance records
+
+Resumed from `c8630c3` with a clean tracked tree. The public chooser checkout
+contains an older journal copy; this task changes only this adoption checkout.
+Completed one bounded follow-up to the existing preserved-shell health check:
+reject malformed instance records rather than reporting a healthy shell merely
+because the returned array contains one element. Six new cases first reproduced
+false passes. The parser now requires exactly one JSON document containing an
+array of objects with positive integer PIDs. Extra fields remain accepted;
+invalid/query-failure results report unknown instance count and unresolved
+ownership. Zero and multiple valid instances still fail the health check.
+
+Validation:
+
+- Preserved-shell health matrix: all 17 scenarios passed, including malformed
+  records, invalid/empty JSON, multiple documents and forward-compatible fields.
+- All 16 isolated preservation/selection installer cases passed after supplying
+  the missing instance-list response in their simulated Quickshell fixture.
+- Shell-profile suite passed, including all 22 invalid override cases.
+- Adapter Bash syntax and `git diff --check` passed.
+- A read-only instance listing confirmed the installed Quickshell reports a
+  numeric `pid`; no shell IPC action or service mutation was performed.
+
+Refreshed PKGBUILD checksums and `.SRCINFO`. Revision 6 remains the already
+reserved, unbuilt revision; no frozen package bytes were reused or published.
+No VM, package build/install, host configuration, services, trust, pacman
+repositories or SDDM state were changed. Existing custom settings, optional
+Omarchy bar/components and the conservative fresh menu-only default are intact.
+The three pre-existing untracked ISO/boot references were left untouched.
+
+The Hyprland dual-launcher ownership race remains unresolved. Next smallest
+task: document the explicit reversible ownership policy and its acceptance
+cases before implementing service lifecycle changes. Revision 6 still needs
+reproducible builds and disposable-VM validation; this diagnostic correction
+does not certify plugin compatibility or preserved-shell round trips.

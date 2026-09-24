@@ -46,6 +46,7 @@ def test(standalone, enabled=True, failed_setup=False, failed_restore=False):
         rollback.put(root, 'mock/qs', '''#!/bin/bash
 printf '%s\\n' "$*" >>/var/ipc-calls
 case "$*" in
+  'list --json -p /usr/share/omarchy/shell') echo '[{"pid":123}]';;
   'ipc -n -p /usr/share/omarchy/shell call -- shell ping') echo ok;;
   'ipc -n -p /usr/share/omarchy/shell call -- shell summon omarchy.menu '*) echo ok;;
   *) exit 93;;

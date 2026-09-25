@@ -12,6 +12,16 @@ import stat
 UNIT = 'omarchy-shell.service'
 LINK = 'graphical-session.target.wants/' + UNIT
 COMMAND = '/usr/bin/quickshell -n -p /usr/share/omarchy/shell'
+# Exact reviewed VM shape, not a template for arbitrary user units. Keep the
+# description literal too: generalizing syntax belongs to a separate review.
+VM_SHAPE = [
+    '[Unit]', 'Description=VM existing customized Omarchy shell',
+    'After=graphical-session.target', 'PartOf=graphical-session.target',
+    'ConditionEnvironment=WAYLAND_DISPLAY', '[Service]', 'Type=simple',
+    'Environment=QS_DISABLE_FILE_WATCHER=1', 'Environment=QS_NO_RELOAD_POPUP=1',
+    'ExecStart=' + COMMAND, 'Restart=on-failure', 'RestartSec=3',
+    '[Install]', 'WantedBy=graphical-session.target',
+]
 
 
 def inspect(snapshot):
@@ -67,11 +77,12 @@ def inspect(snapshot):
         if unit is None:
             reasons.append('Missing regular ' + UNIT)
         else:
-            # Recognize the existing test fixture only, not general systemd syntax.
+            # Recognize two exact reviewed shapes, not general systemd syntax.
             # Reject duplicates, continuations, wrappers and additional directives.
-            lines = [line.strip() for line in unit.splitlines()
-                     if line.strip() and not line.lstrip().startswith(('#', ';'))]
-            if lines != ['[Service]', 'ExecStart=' + COMMAND]:
+            lines = [line.strip(' \t\r') for line in unit.split('\n')
+                     if line.strip(' \t\r') and
+                     not line.lstrip(' \t').startswith(('#', ';'))]
+            if lines not in (['[Service]', 'ExecStart=' + COMMAND], VM_SHAPE):
                 reasons.append('Unit is outside the recognized direct-launch fixture shape')
             else:
                 result['launch_command'] = COMMAND

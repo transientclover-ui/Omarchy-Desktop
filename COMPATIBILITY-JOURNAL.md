@@ -1719,3 +1719,51 @@ bounded read-only recognition and adversarial refusal tests if justified. Do
 not implement lifecycle changes in that task. Broader activation/session
 assessment, reversible lifecycle ownership, the duplicate-launcher fix and
 package/release validation remain pending. Stop after this checkpoint.
+
+
+## 2026-09-25 — Recognize the exact retained shell-service shape
+
+The public chooser was clean at `db94981`; its historical journal points to
+this adoption implementation checkout. Resumed here at `f4f89fe` with no tracked
+changes and three unrelated untracked ISO/boot references, all left untouched.
+Selected only the documented real-unit classification task. Acceptance was
+bounded read-only recognition, adversarial refusals, preserved historical evidence
+and no migration authorization or lifecycle changes.
+
+The inventory now recognizes the exact retained 14-line VM service alongside
+the minimal fixture. Description, sections, directive order, two environment
+assignments, launch command, dependency/condition, restart and installation
+settings are fixed. Only comments, blank lines and ordinary edge whitespace vary.
+Unicode separators/whitespace are no longer treated as ordinary INI whitespace.
+The ownership document classifies each directive and its limits: neither generic
+graphical-session dependencies nor a manager environment condition identifies a
+current Plasma session. Recognition does not prove loaded manager properties.
+
+Historical VM reports and capture bytes remain unchanged. Current offline replay
+accepts the exact snapshot/capture pair, rejects comment-only byte mismatch, and
+always reports `migration_ready=false`. No installer, package payload, shell
+profile, optional bar/widget, disabled choice or configuration is changed.
+
+Validation passed:
+
+- Inventory: 18 existing cases plus 53 real-shape cases, covering enabled and
+  no-link snapshots, comments/CRLF, every missing/duplicate line, changed values,
+  unknown directives, wrappers, continuation, reordered directives and Unicode.
+  Inputs retain bytes/mode/mtime; real-shape tests run with an empty PATH.
+- Consistency: 38 existing comparison/option cases and two retained VM replays.
+- Fragment reader: 16 cases; full capture CLI: 12 cases; metadata: 30 synthetic
+  cases plus five observed-data replays.
+- Python warnings treated as errors; `git diff --check` passed.
+
+No failures remained. No new VM run was necessary for this offline recognition
+change: existing real systemd-261 capture and exact fragment bytes were replayed.
+This does not validate current loaded dependency/environment values, freshness,
+full activation inventory, Plasma graphical behavior or exclusive ownership.
+Revision 6 remains unbuilt; package/release validation remains pending. No host
+configuration, service, package trust, pacman repository or SDDM state changed.
+
+Next recommended medium-sized task: extend read-only capture/comparison to
+assess the recognized shape's effective manager dependency/environment/type/
+restart properties, with conservative serialization and disagreement tests.
+Broader activation/session assessment, reversible lifecycle ownership and the
+known duplicate launcher remain subsequent work. Stop after this checkpoint.

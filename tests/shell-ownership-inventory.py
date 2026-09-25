@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -22,6 +23,60 @@ def snapshot(root):
 
 
 class InventoryTests(unittest.TestCase):
+    def test_real_unit_shape(self):
+        original = (ROOT / 'tests/fixtures/shell-metadata/fragment-261' / UNIT).read_text()
+        lines = original.splitlines()
+        cases = {'enabled': original, 'disabled': original,
+                 'comments': '# snapshot\n\n' + original.replace('[Service]', '; note\n[Service]'),
+                 'crlf': original.replace('\n', '\r\n')}
+        # Every directive and section is mandatory, unique and order-sensitive.
+        for index, line in enumerate(lines):
+            cases['missing-' + str(index)] = '\n'.join(lines[:index] + lines[index + 1:])
+            cases['duplicate-' + str(index)] = '\n'.join(lines[:index] + [line] + lines[index:])
+        for key, replacement in {
+            'Description': 'Other shell', 'After': 'plasma-workspace.target',
+            'PartOf': 'default.target', 'ConditionEnvironment': '!WAYLAND_DISPLAY',
+            'Type': 'exec', 'ExecStart': '/bin/sh -c touch SHOULD_NOT_EXIST',
+            'Restart': 'always', 'RestartSec': '0', 'WantedBy': 'default.target',
+        }.items():
+            cases['changed-' + key] = '\n'.join(
+                key + '=' + replacement if line.startswith(key + '=') else line for line in lines)
+        for index, old in enumerate(('QS_DISABLE_FILE_WATCHER=1', 'QS_NO_RELOAD_POPUP=1')):
+            cases['environment-' + str(index)] = original.replace(old, old[:-1] + '0')
+        for directive in ('ExecStartPre=/bin/true', 'EnvironmentFile=/private/file',
+                          'Requires=other.service', 'Alias=other.service', 'ExecStart=',
+                          'Environment=UNREVIEWED=1'):
+            cases['extra-' + directive] = original + directive + '\n'
+        cases['continuation'] = original.replace('After=', 'After=\\\n')
+        cases['unicode-lines'] = original.replace('\n', '\u2028')
+        cases['unicode-space'] = original.replace('Type=', '\u00a0Type=')
+        cases['reordered'] = original.replace(
+            'After=graphical-session.target\nPartOf=graphical-session.target',
+            'PartOf=graphical-session.target\nAfter=graphical-session.target')
+        for name, text in cases.items():
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                units = root / 'units'
+                units.mkdir()
+                (root / 'autostart').mkdir()
+                (units / UNIT).write_bytes(text.encode())
+                if name != 'disabled':
+                    wants = units / 'graphical-session.target.wants'
+                    wants.mkdir()
+                    (wants / UNIT).symlink_to('../' + UNIT)
+                before = snapshot(root)
+                result = subprocess.run([sys.executable, str(TOOL), str(root)],
+                                        env=dict(os.environ, PATH='', PYTHONDONTWRITEBYTECODE='1'),
+                                        cwd=root, text=True, capture_output=True, timeout=5)
+                report = json.loads(result.stdout)
+                accepted = name in ('enabled', 'disabled', 'comments', 'crlf')
+                self.assertEqual(result.returncode, 0 if accepted else 1, result.stderr)
+                self.assertEqual(report['recognized_shape'], accepted)
+                self.assertEqual(bool(report['reasons']), not accepted)
+                self.assertFalse(report['migration_ready'])
+                self.assertEqual(before, snapshot(root))
+                self.assertFalse((root / 'SHOULD_NOT_EXIST').exists())
+
     def test_matrix(self):
         cases = ['enabled', 'disabled', 'comments', 'wrapper', 'duplicate',
                  'environment', 'drop-in', 'alias', 'mask', 'wrong-target',

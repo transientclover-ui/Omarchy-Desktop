@@ -80,9 +80,12 @@ schema. Service bytes, hashes, sizes, state and diagnostic reasons are unchanged
 The snapshot activation link was constructed for this bounded comparison, not
 collected as an exhaustive inventory of guest activation sources.
 
-Consistency tests replay both entire comparison reports with no PATH tools,
-verify unchanged inputs and assert that a hash match cannot override the shape
-refusal. Metadata tests replay the captured manager properties with mocked
+The original consistency tests replayed both reports with their shape refusals.
+After the exact-shape review, current tests replay the same inputs with no PATH
+tools and compare against these historical reports with only recognition and
+its dependent fields updated: matching bytes now pass observation consistency;
+changed bytes still fail. Historical JSON is never rewritten. Inputs stay unchanged
+and migration readiness remains false. Metadata tests replay the captured manager properties with mocked
 queries. The known duplicate bar was still visible; neither this evidence nor
 the capture's active state certifies exclusive shell ownership or Plasma health.
 

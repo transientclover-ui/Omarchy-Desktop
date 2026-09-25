@@ -152,7 +152,34 @@ The first recognized shape is deliberately the existing preservation-test fixtur
 ExecStart=/usr/bin/quickshell -n -p /usr/share/omarchy/shell
 ```
 
-Only blank lines and full-line comments may vary. The unit must be a regular
+The second recognized shape is the exact 14-line service retained in
+`tests/fixtures/shell-metadata/fragment-261/omarchy-shell.service`. Its literal
+description, directive order and values are fixed; this is not a general unit
+parser. Both shapes permit blank lines, full-line comments, surrounding ASCII
+space/tab and CRLF. Unicode line separators/whitespace are not normalized.
+
+Classification of the second shape (reviewed against the installed systemd
+unit/service/exec manuals):
+
+| Directive | Meaning and recognition limit |
+| --- | --- |
+| `Description` | Fixed descriptive label; no arbitrary descriptions accepted yet |
+| `After=graphical-session.target` | Ordering only; does not pull in a session or identify Plasma |
+| `PartOf=graphical-session.target` | Propagates target stop/restart to this service; does not establish exclusive ownership |
+| `ConditionEnvironment=WAYLAND_DISPLAY` | Tests presence in the manager environment; may be stale and is not session proof |
+| `Type=simple` | Direct process startup without a shell-readiness handshake |
+| Two `Environment` assignments | Passes exactly `QS_DISABLE_FILE_WATCHER=1` and `QS_NO_RELOAD_POPUP=1`; no inference about plugin compatibility |
+| `ExecStart` | Same fixed Quickshell command as the minimal fixture |
+| `Restart=on-failure`, `RestartSec=3` | Failure restart policy with a three-second delay; does not eliminate duplicate launchers |
+| `WantedBy=graphical-session.target` | Install-time activation intent; actual snapshot link and captured enablement are checked separately |
+
+Changed/missing/duplicate/reordered directives, wrappers, resets and additional
+settings are refused, even if a supplied fragment hash matches. Recognition does
+not establish the manager's loaded dependency/environment/restart values; the
+collector does not query those properties. A future lifecycle design must assess
+them independently before attempting equivalent behavior.
+
+ The unit must be a regular
 `units/omarchy-shell.service` file. Its optional sole activation link is
 `units/graphical-session.target.wants/omarchy-shell.service`, targeting exactly
 `../omarchy-shell.service`. No link means only “no link in this snapshot,” not
@@ -258,11 +285,11 @@ sharing. The flag does not change a service, unit or shell setting.
 `tests/shell-fragment-provenance.py` exercises disposable files and injected
 replacement, rewrite and I/O failures. The capture CLI and comparison suites
 also cover the optional fields. A systemd-261 disposable-VM capture now validates successful fragment hashing
-and comment-only snapshot mismatch detection. The actual VM unit has directives
-outside the recognized minimal shape: exact bytes yield a hash match but still
-refuse overall consistency. Both full reports and the exact unit are replayed
-in tests; see `tests/fixtures/shell-metadata/README.md`. This does not validate
-an accepted real-unit shape, Plasma behavior or exclusive ownership.
+and comment-only snapshot mismatch detection. At capture time the actual VM unit was outside the recognized minimal shape,
+so the historical reports refused overall consistency despite matching bytes.
+Those reports remain unchanged. The current offline replay recognizes the reviewed
+exact shape and accepts matching observations, while still refusing changed bytes; see `tests/fixtures/shell-metadata/README.md`. This does not validate
+fresh live-manager consistency, Plasma behavior or exclusive ownership.
 
 ## Offline capture/snapshot consistency
 
@@ -315,10 +342,9 @@ tests/shell-ownership-consistency.py` for disposable consistency/refusal fixture
 
 ## Next bounded implementation step
 
-Review and explicitly classify the retained real VM service's Unit, Service
-and Install directives. In one bounded follow-up, define and test whether that
-exact direct-launch shape can be safely recognized, with refusal cases for
-changed dependency, environment, restart and activation semantics. Do not add
-general systemd parsing or lifecycle mutation. A byte match alone must never
-approve unknown directives. Capture freshness, full activation/session
+Extend read-only capture and comparison to assess the effective manager-loaded
+dependency, environment, type and restart properties for the recognized real
+shape. Define a bounded serialization contract, retain unknown-value refusals,
+and test stale/disagreeing observations using fixtures before guest validation.
+Do not add lifecycle mutation. Capture freshness, full activation/session
 assessment and the launcher-conflict fix remain subsequent work.

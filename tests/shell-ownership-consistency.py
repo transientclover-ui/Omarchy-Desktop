@@ -172,13 +172,20 @@ class ConsistencyTests(unittest.TestCase):
                      '--source-unit-directory', SOURCE],
                     env=dict(os.environ, PATH='', PYTHONDONTWRITEBYTECODE='1'),
                     text=True, capture_output=True, timeout=5)
-                self.assertEqual(result.returncode, 1, result.stderr)
+                self.assertEqual(result.returncode, 0 if name == 'match' else 1, result.stderr)
                 report = json.loads(result.stdout)
-                self.assertEqual(report, json.loads((fixtures / (name + '.json')).read_text()))
-                # Hash agreement must not bypass unsupported real-unit directives.
+                # Retain the earlier VM reports unchanged; only shape recognition
+                # and its dependent fields differ in the current offline replay.
+                expected = json.loads((fixtures / (name + '.json')).read_text())
+                expected['reasons'].remove('Unit is outside the recognized direct-launch fixture shape')
+                expected['recognized_shape'] = True
+                expected['consistent_observations'] = name == 'match'
+                expected['launch_command'] = '/usr/bin/quickshell -n -p /usr/share/omarchy/shell'
+                self.assertEqual(report, expected)
+                # Shape recognition must not bypass mismatched fragment bytes.
                 self.assertEqual(report['fragment_bytes_match'], name == 'match')
-                self.assertFalse(report['recognized_shape'])
-                self.assertFalse(report['consistent_observations'])
+                self.assertTrue(report['recognized_shape'])
+                self.assertEqual(report['consistent_observations'], name == 'match')
                 self.assertFalse(report['migration_ready'])
                 self.assertEqual(contents(snap), before)
                 self.assertEqual(contents(fixtures), fixture_before)

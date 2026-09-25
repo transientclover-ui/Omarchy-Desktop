@@ -1,4 +1,4 @@
-# Omarchy Desktop — Omarchy desktop compatibility
+# Omarchy Desktop
 
 **Choose your desktop. Keep Omarchy shell.**
 
@@ -19,10 +19,11 @@ and CLI command `omarchy-desktop` remain stable for compatibility.
 
 ## Try it without installing
 
-Requires Linux and Python 3.10 or newer. No runtime dependencies.
-From this project directory:
+Requires Linux, Git and Python 3.10 or newer. No runtime dependencies.
 
 ```sh
+git clone https://github.com/transientclover-ui/Omarchy-Desktop.git
+cd Omarchy-Desktop
 python3 -m omarchy_desktop
 ```
 

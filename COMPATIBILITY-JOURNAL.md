@@ -6,6 +6,9 @@ commit IDs, evidence and recovery-image paths below refer to that checkout,
 not to files shipped in this Python chooser repository. Historical results
 apply only to the recorded revisions and profiles; the later partial work is
 not release-ready. This copy preserves the original entries as evidence.
+**Omarchy Desktop** is the public project name. `Frankenstein` is retained
+below only where it was an internal development codename or a literal historical
+package, command, service, path, image, or repository identifier.
 
 ## 2026-09-22 — Clean Omarchy baseline established
 

@@ -30,7 +30,7 @@ def query(properties, unit=None):
     return values
 
 
-def collect():
+def collect(query_fn=query):
     report = {'schema': 1, 'scope': 'user-systemd-metadata',
               'metadata_collected': False, 'migration_ready': False,
               'unit': {}, 'manager': {}, 'search_paths': [], 'reasons': [],
@@ -41,7 +41,7 @@ def collect():
     for key, properties, unit in [('unit', PROPERTIES, UNIT),
                                   ('manager', ('UnitPath',), None)]:
         try:
-            report[key] = query(properties, unit)
+            report[key] = query_fn(properties, unit)
         except (OSError, UnicodeError, subprocess.SubprocessError, ValueError) as error:
             # Do not include command output: it may contain private unit values.
             report['reasons'].append(key + ' query failed: ' + type(error).__name__)

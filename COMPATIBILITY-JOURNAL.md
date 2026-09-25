@@ -1543,3 +1543,50 @@ filesystem assessment with explicit source-path mapping and mismatch/refusal
 fixtures. Keep it read-only and do not infer migration readiness. Complete
 activation/session assessment, lifecycle ownership, the duplicate-launcher fix,
 reproducible package builds and graphical package validation remain unfinished.
+
+## 2026-09-24 — Offline captured-metadata consistency check
+
+Resumed from `74458c1` with a clean tracked tree. Completed the documented
+bounded task connecting the existing capture and snapshot assessments. The
+inventory now accepts paired `--capture` and `--source-unit-directory` options.
+The explicit original-directory mapping is compared as data and never opened.
+Snapshot-only operation remains unchanged.
+
+Saved raw properties are reassessed through the collector's existing rules,
+using an injected offline query source instead of systemctl. Captured derived
+fields must agree with that assessment. The comparison checks the exact mapped
+fragment path, inclusion in the captured search path, recognized single-command
+ExecStart serialization and enabled/disabled activation-link consistency.
+Malformed/unsuccessful captures, duplicate keys, unsupported types, overrides,
+stale-manager findings, wrappers and extra commands fail conservatively.
+
+`consistent_observations=true` is explicitly not migration authorization.
+`migration_ready` remains false. An enabled but inactive service can have
+consistent metadata; this does not imply a healthy shell. Snapshot origin,
+content correlation, freshness, other search-path contents, activation sources
+and live session ownership remain unassessed. Updated the ownership document
+with usage, output semantics and these limitations.
+
+Validation:
+
+- New consistency suite: 28 snapshot/capture scenarios and two missing-option
+  cases passed. Includes all three real VM capture fixtures, disabled/no-link
+  agreement, mismatches, refusal cases, unchanged input bytes/metadata and no
+  execution of embedded commands. An empty PATH prevents host tool invocation.
+- Existing inventory: all 18 fixture scenarios passed.
+- Existing metadata: 30 synthetic scenarios and four observed-data replays passed.
+- Existing capture: all eight end-to-end mocked cases passed.
+- `git diff --check` passed.
+
+No VM or real manager was contacted. No host configuration, services, trust,
+pacman repositories or SDDM state changed. Customized components, optional top
+bar/widgets, disabled choices and the conservative fresh menu-only default are
+unchanged. No package payload changed; revision 6/checksums remain unchanged.
+The three unrelated untracked references remain untouched.
+
+Next smallest task: add fragment-byte provenance (hash and read outcome) to
+metadata capture, with replacement/symlink/refusal tests. This would let the
+comparison distinguish a captured unit copy from a supplied matching shape;
+it must still not authorize migration. Broader activation/session assessment,
+lifecycle ownership, the duplicate-launcher fix, reproducible builds and
+package/graphical VM validation remain unfinished.

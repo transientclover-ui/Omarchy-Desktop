@@ -4,7 +4,9 @@ import argparse
 import hashlib
 import json
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
+import re
+import runpy
 import stat
 
 UNIT = 'omarchy-shell.service'
@@ -80,14 +82,90 @@ def inspect(snapshot):
     return result
 
 
+
+def compare_capture(result, capture_path, source_directory):
+    """Compare supplied observations only; source paths are never opened."""
+    result['consistent_observations'] = False
+    result['source_unit_directory'] = source_directory
+    result['unassessed'].append('snapshot origin, capture freshness and byte correlation')
+    reasons = result['reasons']
+    try:
+        source = PurePosixPath(source_directory)
+        if (not source.is_absolute() or str(source) != source_directory or
+                '..' in source.parts):
+            raise ValueError('Source unit directory must be a canonical absolute POSIX path')
+        if capture_path.is_symlink() or not capture_path.is_file():
+            raise ValueError('Capture must be a regular, unlinked JSON file')
+        def unique_fields(pairs):
+            fields = {}
+            for key, value in pairs:
+                if key in fields:
+                    raise ValueError('Duplicate JSON field: ' + key)
+                fields[key] = value
+            return fields
+        capture = json.loads(capture_path.read_text(), object_pairs_hook=unique_fields)
+        if (not isinstance(capture, dict) or type(capture.get('schema')) is not int or
+                capture['schema'] != 1 or type(capture.get('collector_exit_status')) is not int or
+                capture['collector_exit_status'] != 0 or
+                type(capture.get('sanitized')) is not bool):
+            raise ValueError('Unsupported or unsuccessful capture envelope')
+        report = capture.get('report')
+        if (not isinstance(report, dict) or type(report.get('schema')) is not int or
+                type(report.get('metadata_collected')) is not bool or
+                type(report.get('migration_ready')) is not bool):
+            raise ValueError('Capture report must be an object')
+        # Reassess the raw properties using the collector's existing rules.
+        # run_path loads definitions only, without executing its CLI or writing pyc.
+        metadata = runpy.run_path(str(Path(__file__).with_name('shell-ownership-metadata.py')))
+        for name, fields in [('unit', metadata['PROPERTIES']), ('manager', ('UnitPath',))]:
+            values = report.get(name)
+            if (not isinstance(values, dict) or set(values) != set(fields) or
+                    any(not isinstance(value, str) for value in values.values())):
+                raise ValueError('Incomplete or invalid captured ' + name + ' properties')
+        assessed = metadata['collect'](
+            query_fn=lambda properties, unit=None: report['unit' if unit else 'manager'])
+        if report != assessed:
+            raise ValueError('Capture derived fields disagree with its raw properties')
+        if assessed['reasons']:
+            reasons.extend('Captured metadata: ' + reason for reason in assessed['reasons'])
+        unit = report['unit']
+        if unit['FragmentPath'] != str(source / UNIT):
+            reasons.append('Captured fragment does not match the explicit source mapping')
+        if source_directory not in report['search_paths']:
+            reasons.append('Mapped source directory is absent from captured search paths')
+        # Intentionally recognize only the observed single-command serialization.
+        # Never evaluate argv[] or accept extra command records after the first one.
+        launch = (r'\{ path=/usr/bin/quickshell ; argv\[\]=' + re.escape(COMMAND) +
+                  r' ; ignore_errors=no ; start_time=\[[^\]\r\n]*\] ; '
+                  r'stop_time=\[[^\]\r\n]*\] ; pid=[0-9]+ ; '
+                  r'code=[^;{}\r\n]+ ; status=[^;{}\r\n]+ \}')
+        if not re.fullmatch(launch, unit['ExecStart']):
+            reasons.append('Captured launch command differs or has unsupported serialization')
+        expected_activation = {'enabled': 'graphical-session.target',
+                               'disabled': 'no-link-in-snapshot'}.get(unit['UnitFileState'])
+        if result['activation'] != expected_activation:
+            reasons.append('Snapshot activation disagrees with captured enablement')
+        result['consistent_observations'] = result['recognized_shape'] and not reasons
+    except (OSError, UnicodeError, ValueError) as error:
+        reasons.append('Capture comparison refused: ' + str(error))
+    return result
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('snapshot', type=Path,
                         help='offline directory containing units/ and autostart/')
+    parser.add_argument('--capture', type=Path, help='saved metadata capture JSON')
+    parser.add_argument('--source-unit-directory',
+                        help='original absolute path represented by snapshot units/')
     args = parser.parse_args()
+    if (args.capture is None) != (args.source_unit_directory is None):
+        parser.error('--capture and --source-unit-directory must be supplied together')
     result = inspect(args.snapshot)
+    if args.capture is not None:
+        result = compare_capture(result, args.capture, args.source_unit_directory)
     print(json.dumps(result, indent=2, sort_keys=True))
-    return 0 if result['recognized_shape'] else 1
+    return 0 if result.get('consistent_observations', result['recognized_shape']) else 1
 
 
 if __name__ == '__main__':

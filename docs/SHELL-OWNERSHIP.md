@@ -232,10 +232,54 @@ VM captures cover active, stopped and attempted-restart observations. The last
 remained inactive despite an exit-0 start; it is not a restoration success.
 See the fixture README for provenance, sanitization and validation limits.
 
+## Offline capture/snapshot consistency
+
+The existing inventory can optionally compare a saved capture against its
+recognized snapshot shape:
+
+```bash
+python3 tools/shell-ownership-inventory.py SNAPSHOT \
+  --capture CAPTURE.json \
+  --source-unit-directory /home/test/.config/systemd/user
+```
+
+Both options are required together. The source directory is an explicit mapping
+for `SNAPSHOT/units/`, not a path the tool opens. Use the captured original
+absolute directory (or the same normalized path when replaying sanitized
+fixtures); do not substitute the snapshot's current location.
+
+The comparison reuses the collector's assessment rules on the saved raw
+properties without querying systemd. It refuses unsuccessful, malformed or
+internally inconsistent captures, duplicate JSON fields and unsupported property
+types. It checks that the mapped fragment is exactly `omarchy-shell.service`,
+that the mapped directory occurs in the captured search path, and that the
+single observed ExecStart serialization matches the snapshot's direct launch
+command. Wrappers, additional commands and unknown serialization are refused.
+Captured enabled/disabled state must match the snapshot's known activation link
+or lack of that link. Inactive runtime state can be consistent with enabled
+state; it is not converted into a shell-health pass.
+
+With these options, exit 0 and `consistent_observations=true` mean only that the
+supplied observations agree within these checks. `recognized_shape` continues
+to describe the filesystem snapshot alone; any comparison refusal produces exit
+1 and diagnostic reasons. Invalid option pairing produces exit 2. The existing
+snapshot-only interface is unchanged. `migration_ready` always remains false.
+
+This does not prove capture freshness, snapshot origin or byte identity with the
+manager's loaded unit: current captures do not contain a unit-content hash.
+It does not enumerate higher-precedence files, additional activation paths or
+live sessions. Stable private snapshots are still required. Neither input is
+modified, source paths are never followed, and captured commands are never run.
+This development-only path remains outside setup and packaging.
+
+Run `PYTHONDONTWRITEBYTECODE=1 python3 -W error
+tests/shell-ownership-consistency.py` for disposable consistency/refusal fixtures.
+
 ## Next bounded implementation step
 
-Connect captured effective-unit metadata to the offline filesystem assessment
-with explicit source-path mapping and mismatch/refusal tests. Keep this a
-read-only consistency check, not migration authorization. Do not add lifecycle
-mutation or expose a managed setup option; complete activation/session assessment
-and the existing launcher-conflict fix remain subsequent work.
+Add captured fragment-byte provenance (hash and explicit read outcome) with
+replacement/symlink/refusal tests, so the comparison can distinguish an observed
+unit copy from a caller-supplied matching shape. Keep capture freshness and full
+activation/session assessment explicitly unresolved. Do not add lifecycle
+mutation or expose a managed setup option; the launcher-conflict fix remains
+subsequent work.

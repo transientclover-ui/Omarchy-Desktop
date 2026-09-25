@@ -204,8 +204,9 @@ Run `PYTHONDONTWRITEBYTECODE=1 python3 -W error
 tests/shell-ownership-metadata.py` for mocked tests that never contact host
 systemd. The exact query properties and simple search-path serialization were checked
 against systemd 261 in a disposable VM; the sanitized active-service observation
-is retained under `tests/fixtures/shell-metadata/`. Full guest collector/capture
-execution and inactive-state observation remain pending.
+is retained under `tests/fixtures/shell-metadata/`. On 2026-09-24 the full guest
+collector/capture path also passed for enabled active and enabled inactive
+states. Sanitized captured reports and replay tests are retained there.
 
 ## Guest-side evidence capture
 
@@ -226,12 +227,15 @@ does not change a unit to manufacture an enabled, inactive or override scenario.
 `tests/shell-ownership-metadata-capture.py` exercises the full runner/collector
 command path with a fake systemctl on an isolated PATH. Eight cases cover active
 and inactive observations, overrides, query/malformed-output failures and safe
-output creation. These are simulated manager responses, not VM evidence.
+output creation. Those cases use simulated manager responses. Separate real
+VM captures cover active, stopped and attempted-restart observations. The last
+remained inactive despite an exit-0 start; it is not a restoration success.
+See the fixture README for provenance, sanitization and validation limits.
 
 ## Next bounded implementation step
 
-Validate the metadata collector against the disposable VM's real user manager,
-including the property serialization and enabled/inactive cases. Retain sanitized
-observations as fixtures before connecting metadata to filesystem assessment.
-Do not add lifecycle mutation or expose a managed setup option; complete
-activation/session assessment and lifecycle VM testing remain subsequent work.
+Connect captured effective-unit metadata to the offline filesystem assessment
+with explicit source-path mapping and mismatch/refusal tests. Keep this a
+read-only consistency check, not migration authorization. Do not add lifecycle
+mutation or expose a managed setup option; complete activation/session assessment
+and the existing launcher-conflict fix remain subsequent work.

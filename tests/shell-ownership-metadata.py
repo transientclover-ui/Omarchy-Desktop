@@ -94,6 +94,20 @@ class MetadataTests(unittest.TestCase):
         self.assertEqual(report['manager'], fixture['manager'])
         self.assertEqual(len(report['search_paths']), 17)
 
+    def test_vm_captures(self):
+        for name, state in [('active', 'active'), ('inactive', 'inactive'),
+                            ('restart-attempt', 'inactive')]:
+            with self.subTest(name=name):
+                fixture = json.loads((ROOT / 'tests/fixtures/shell-metadata' /
+                                      ('systemd-261-capture-' + name + '.json')).read_text())
+                expected = fixture['report']
+                report = self.collect(output(expected['unit']), output(expected['manager']))
+                self.assertEqual(report, expected)
+                self.assertEqual(fixture['collector_exit_status'], 0)
+                self.assertTrue(fixture['sanitized'])
+                self.assertEqual(report['unit']['ActiveState'], state)
+                self.assertEqual(report['unit']['UnitFileState'], 'enabled')
+
     def test_query_failures(self):
         for is_unit in (True, False):
             for error in (FileNotFoundError(), subprocess.TimeoutExpired('systemctl', 5),

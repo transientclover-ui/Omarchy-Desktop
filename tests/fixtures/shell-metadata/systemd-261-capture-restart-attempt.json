@@ -1,0 +1,53 @@
+{
+  "collector_exit_status": 0,
+  "report": {
+    "manager": {
+      "UnitPath": "/home/test/.config/systemd/user.control /run/user/1000/systemd/user.control /run/user/1000/systemd/transient /run/user/1000/systemd/generator.early /home/test/.config/systemd/user /home/test/.config/systemd/user.attached /etc/systemd/user /run/user/1000/systemd/user /run/user/1000/systemd/user.attached /run/systemd/user /run/user/1000/systemd/generator /home/test/.local/share/systemd/user /usr/local/share/systemd/user /usr/share/systemd/user /usr/local/lib/systemd/user /usr/lib/systemd/user /run/user/1000/systemd/generator.late"
+    },
+    "metadata_collected": true,
+    "migration_ready": false,
+    "reasons": [],
+    "schema": 1,
+    "scope": "user-systemd-metadata",
+    "search_paths": [
+      "/home/test/.config/systemd/user.control",
+      "/run/user/1000/systemd/user.control",
+      "/run/user/1000/systemd/transient",
+      "/run/user/1000/systemd/generator.early",
+      "/home/test/.config/systemd/user",
+      "/home/test/.config/systemd/user.attached",
+      "/etc/systemd/user",
+      "/run/user/1000/systemd/user",
+      "/run/user/1000/systemd/user.attached",
+      "/run/systemd/user",
+      "/run/user/1000/systemd/generator",
+      "/home/test/.local/share/systemd/user",
+      "/usr/local/share/systemd/user",
+      "/usr/share/systemd/user",
+      "/usr/local/lib/systemd/user",
+      "/usr/lib/systemd/user",
+      "/run/user/1000/systemd/generator.late"
+    ],
+    "unassessed": [
+      "unit contents and dependency semantics",
+      "activation files within and outside search paths",
+      "live session and process ownership",
+      "concurrent changes between queries"
+    ],
+    "unit": {
+      "ActiveState": "inactive",
+      "DropInPaths": "",
+      "ExecStart": "{ path=/usr/bin/quickshell ; argv[]=/usr/bin/quickshell -n -p /usr/share/omarchy/shell ; ignore_errors=no ; start_time=[Thu 2026-09-24 00:02:00 EDT] ; stop_time=[Thu 2026-09-24 00:02:00 EDT] ; pid=1235 ; code=exited ; status=0 }",
+      "FragmentPath": "/home/test/.config/systemd/user/omarchy-shell.service",
+      "Id": "omarchy-shell.service",
+      "LoadState": "loaded",
+      "Names": "omarchy-shell.service",
+      "NeedDaemonReload": "no",
+      "SourcePath": "",
+      "SubState": "dead",
+      "UnitFileState": "enabled"
+    }
+  },
+  "sanitized": true,
+  "schema": 1
+}

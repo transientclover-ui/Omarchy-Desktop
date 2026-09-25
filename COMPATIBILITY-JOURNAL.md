@@ -1489,3 +1489,57 @@ an offline `qemu-img check`, which passed. This is container-format integrity,
 not a clean guest-filesystem shutdown claim. Scratch overlay and console evidence
 are retained under ignored `evidence/metadata-261/session/`; no live VM remains.
 Do not use this forced-stop overlay as a release-validation baseline.
+
+## 2026-09-24 — Full guest metadata capture validated
+
+Resumed from `ec1cc6d` with a clean tracked tree. Completed the remaining full
+capture-runner validation in a new disposable overlay backed by the preserved
+revision-5 image, not the prior forced-stop overlay. Used separate firmware
+variables and an automounted removable test disk containing the unchanged
+collector and capture runner. No network device or remote access was enabled.
+Disk unlock and graphical autologin provided access; no credentials were saved.
+
+On systemd 261 (261.2-1-arch), the complete capture runner produced mode-0600
+reports for the existing enabled service in active/running and, after a
+guest-only stop, inactive/dead states. Both collected all requested metadata,
+returned exit status 0 and kept `migration_ready=false`. Enablement was never
+changed. SHA-256 verification confirmed unchanged guest shell.json and original
+service-unit bytes.
+
+A guest-only restart attempt was also captured: the service remained enabled
+but was inactive/dead, with its command reporting exit status 0. Do not describe
+this as successful active-state restoration. Its cause was not investigated in
+this bounded task; the existing duplicate-launcher limitation remains unresolved.
+Successful metadata collection does not mean shell health or migration readiness.
+
+Retained three sanitized full capture fixtures and their provenance under
+`tests/fixtures/shell-metadata/`. These are machine-produced reports, separate
+from the earlier console transcription. Sanitization changes home paths, PIDs
+and times only, and marks each retained copy sanitized. Added replay assertions
+for all three reports, including enabled-but-inactive behavior, and updated the
+ownership document's validation status and remaining work.
+
+Validation:
+
+- Metadata suite: six methods covering 30 synthetic scenarios, the previous
+  transcribed observation and three real capture replays; all passed.
+- All eight end-to-end mocked capture cases passed.
+- Guest configuration hash checks passed; capture reports retained mode 0600.
+- Guest unmounted its test disk and completed native systemctl poweroff. No
+  QEMU process remains. Offline qemu-img check and read-only e2fsck passed.
+- Preserved baseline SHA-256 remains
+  `844be5c310a5750902c40d1ab95fb5144b6788b29cbfa7d3b96b29aaa253c4c0`.
+- `git diff --check` passed.
+
+Private evidence is under ignored `evidence/metadata-capture-20260924/`.
+No production implementation or package payload changed; revision 6 remains
+unbuilt. No host configuration, services, trust, pacman repositories or SDDM
+state changed. Optional Omarchy components, custom widgets, disabled choices
+and the conservative fresh menu-only default remain intact. The three unrelated
+untracked references were untouched.
+
+Next smallest task: connect captured effective-unit metadata to the offline
+filesystem assessment with explicit source-path mapping and mismatch/refusal
+fixtures. Keep it read-only and do not infer migration readiness. Complete
+activation/session assessment, lifecycle ownership, the duplicate-launcher fix,
+reproducible package builds and graphical package validation remain unfinished.

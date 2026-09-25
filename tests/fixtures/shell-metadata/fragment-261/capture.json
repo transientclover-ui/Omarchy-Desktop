@@ -1,0 +1,60 @@
+{
+  "capture_exit_status": 0,
+  "collector_exit_status": 0,
+  "fragment": {
+    "outcome": "ok",
+    "path": "/home/test/.config/systemd/user/omarchy-shell.service",
+    "sha256": "e7ed27417635e1347352cfe571a947e707f59e0cdb28dcaf8519e765a90a8703",
+    "size_bytes": 386
+  },
+  "report": {
+    "manager": {
+      "UnitPath": "/home/test/.config/systemd/user.control /run/user/1000/systemd/user.control /run/user/1000/systemd/transient /run/user/1000/systemd/generator.early /home/test/.config/systemd/user /home/test/.config/systemd/user.attached /etc/systemd/user /run/user/1000/systemd/user /run/user/1000/systemd/user.attached /run/systemd/user /run/user/1000/systemd/generator /home/test/.local/share/systemd/user /usr/local/share/systemd/user /usr/share/systemd/user /usr/local/lib/systemd/user /usr/lib/systemd/user /run/user/1000/systemd/generator.late"
+    },
+    "metadata_collected": true,
+    "migration_ready": false,
+    "reasons": [],
+    "schema": 1,
+    "scope": "user-systemd-metadata",
+    "search_paths": [
+      "/home/test/.config/systemd/user.control",
+      "/run/user/1000/systemd/user.control",
+      "/run/user/1000/systemd/transient",
+      "/run/user/1000/systemd/generator.early",
+      "/home/test/.config/systemd/user",
+      "/home/test/.config/systemd/user.attached",
+      "/etc/systemd/user",
+      "/run/user/1000/systemd/user",
+      "/run/user/1000/systemd/user.attached",
+      "/run/systemd/user",
+      "/run/user/1000/systemd/generator",
+      "/home/test/.local/share/systemd/user",
+      "/usr/local/share/systemd/user",
+      "/usr/share/systemd/user",
+      "/usr/local/lib/systemd/user",
+      "/usr/lib/systemd/user",
+      "/run/user/1000/systemd/generator.late"
+    ],
+    "unassessed": [
+      "unit contents and dependency semantics",
+      "activation files within and outside search paths",
+      "live session and process ownership",
+      "concurrent changes between queries"
+    ],
+    "unit": {
+      "ActiveState": "active",
+      "DropInPaths": "",
+      "ExecStart": "{ path=/usr/bin/quickshell ; argv[]=/usr/bin/quickshell -n -p /usr/share/omarchy/shell ; ignore_errors=no ; start_time=[Fri 2026-09-25 00:00:00 EDT] ; stop_time=[n/a] ; pid=1234 ; code=(null) ; status=0/0 }",
+      "FragmentPath": "/home/test/.config/systemd/user/omarchy-shell.service",
+      "Id": "omarchy-shell.service",
+      "LoadState": "loaded",
+      "Names": "omarchy-shell.service",
+      "NeedDaemonReload": "no",
+      "SourcePath": "",
+      "SubState": "running",
+      "UnitFileState": "enabled"
+    }
+  },
+  "sanitized": true,
+  "schema": 1
+}

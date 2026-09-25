@@ -257,8 +257,12 @@ sharing. The flag does not change a service, unit or shell setting.
 
 `tests/shell-fragment-provenance.py` exercises disposable files and injected
 replacement, rewrite and I/O failures. The capture CLI and comparison suites
-also cover the optional fields. Existing VM fixtures predate this flag; real-VM
-validation of fragment capture is still pending.
+also cover the optional fields. A systemd-261 disposable-VM capture now validates successful fragment hashing
+and comment-only snapshot mismatch detection. The actual VM unit has directives
+outside the recognized minimal shape: exact bytes yield a hash match but still
+refuse overall consistency. Both full reports and the exact unit are replayed
+in tests; see `tests/fixtures/shell-metadata/README.md`. This does not validate
+an accepted real-unit shape, Plasma behavior or exclusive ownership.
 
 ## Offline capture/snapshot consistency
 
@@ -311,8 +315,10 @@ tests/shell-ownership-consistency.py` for disposable consistency/refusal fixture
 
 ## Next bounded implementation step
 
-Validate `--hash-fragment` in the disposable VM against an actual service file,
-including successful capture and a same-shape/different-byte comparison refusal.
-Do not broaden the recognized unit shape or add lifecycle mutation in that task.
-Capture freshness, full activation/session assessment and the launcher-conflict
-fix remain subsequent work.
+Review and explicitly classify the retained real VM service's Unit, Service
+and Install directives. In one bounded follow-up, define and test whether that
+exact direct-launch shape can be safely recognized, with refusal cases for
+changed dependency, environment, restart and activation semantics. Do not add
+general systemd parsing or lifecycle mutation. A byte match alone must never
+approve unknown directives. Capture freshness, full activation/session
+assessment and the launcher-conflict fix remain subsequent work.

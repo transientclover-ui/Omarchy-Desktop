@@ -1,0 +1,40 @@
+{
+  "activation": "graphical-session.target",
+  "consistent_observations": false,
+  "entries": [
+    {
+      "kind": "directory",
+      "mode": 493,
+      "path": "units/graphical-session.target.wants"
+    },
+    {
+      "kind": "symlink",
+      "mode": 511,
+      "path": "units/graphical-session.target.wants/omarchy-shell.service",
+      "target": "../omarchy-shell.service"
+    },
+    {
+      "kind": "file",
+      "mode": 420,
+      "path": "units/omarchy-shell.service",
+      "sha256": "dcc6629b52eed32ffa9778de6beea33f9b40250517e985fad3332a275af27b17",
+      "size_bytes": 412
+    }
+  ],
+  "fragment_bytes_match": false,
+  "migration_ready": false,
+  "reasons": [
+    "Unit is outside the recognized direct-launch fixture shape",
+    "Fragment provenance is refused, invalid or differs from snapshot bytes"
+  ],
+  "recognized_shape": false,
+  "schema": 1,
+  "scope": "offline-directory-snapshot",
+  "source_unit_directory": "/home/test/.config/systemd/user",
+  "unassessed": [
+    "effective systemd unit and search paths",
+    "live session and process ownership",
+    "activation outside supplied directories",
+    "snapshot origin, capture freshness and manager-loaded bytes"
+  ]
+}

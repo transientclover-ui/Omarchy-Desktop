@@ -1636,3 +1636,86 @@ Do not expand recognized unit shapes or implement lifecycle changes in that task
 Real-VM hash validation, freshness, broader activation/session assessment,
 lifecycle ownership, the duplicate-launcher fix and release validation remain
 unfinished.
+
+## 2026-09-25 — Disposable-VM fragment hashing and refusal replay
+
+Located the public Python chooser at `d85d677`; its journal identifies this
+separate adoption checkout as the implementation/evidence source. Resumed here
+from `f8aec0d` (`Capture and compare shell fragment byte provenance`), with no
+tracked changes. The three unrelated untracked ISO/boot references remain
+untouched. This session completed only the documented fragment-hashing guest
+validation task; no lifecycle or supported-shape expansion was attempted.
+
+Acceptance: execute the unchanged full capture runner with `--hash-fragment`
+in a fresh disposable guest, independently verify exact unit bytes and private
+output mode, exercise comment-only byte mismatch refusal, retain sanitized
+replay evidence, and verify unchanged guest configuration plus safe shutdown.
+The initial expectation of an accepted exact-snapshot comparison was corrected
+after observing the real unit's unsupported directives, rather than loosening
+the checker to make the validation pass.
+
+A new overlay used the preserved revision-5 image as its backing file (itself
+backed by the clean Omarchy baseline), with separate firmware and a removable
+test disk. No network device, host block device or host filesystem share was
+attached. The user unlocked the guest through its window; no credential was
+saved. The tools copied from `f8aec0d` ran under systemd 261 (261.2-1-arch).
+
+Results:
+
+- Capture and collector returned 0; evidence mode was 0600. The existing unit
+  was enabled, active/running, and its 386 bytes hashed to
+  `e7ed27417635e1347352cfe571a947e707f59e0cdb28dcaf8519e765a90a8703`.
+- The first exact-snapshot acceptance assertion failed: the actual service
+  contains Unit/Install sections, environment and restart directives outside
+  the minimal recognized fixture shape. Hash comparison itself succeeded.
+- Rerunning with explicit conservative-refusal expectations passed. Exact
+  snapshot bytes produce `fragment_bytes_match=true`, but exit 1 and overall
+  consistency false because the shape remains unrecognized.
+- Prepending only `# Comparison-only comment\n` to the disposable snapshot
+  produces `fragment_bytes_match=false` and an additional provenance mismatch
+  reason. No service-unit or shell settings were edited; their independently
+  computed before/after SHA-256 values matched. No service was stopped, started
+  or reconfigured for this test.
+- Both cases retain `migration_ready=false`. The activation link was a
+  constructed comparison fixture, not a complete guest activation inventory.
+
+Retained sanitized full capture, exact service bytes and both comparison
+reports under `tests/fixtures/shell-metadata/fragment-261/`. The fixture README
+records provenance and path/PID/time sanitization. New regressions replay both
+full comparison reports with an empty PATH, assert byte-match versus shape
+refusal independently, and verify unchanged inputs. A metadata regression
+replays this capture through mocked queries. Updated the ownership document
+with the real-unit limitation and next bounded task. Production implementation,
+package payload and supported profiles did not change.
+
+Validation passed:
+
+- Fragment-reader suite: 16 cases.
+- Full capture CLI suite: 12 mocked cases.
+- Consistency suite: 38 existing cases plus two real guest report replays.
+- Inventory suite: 18 cases.
+- Metadata suite: 30 synthetic cases plus five observed-data replays.
+- `git diff --check`.
+- Guest test-disk unmount and native poweroff completed; QEMU exited with 0.
+  Offline `qemu-img check` and read-only `e2fsck -fn` passed.
+- Preserved baseline SHA-256 remains
+  `844be5c310a5750902c40d1ab95fb5144b6788b29cbfa7d3b96b29aaa253c4c0`.
+
+Private runner, raw results, initial failed expectation and disposable images
+remain in ignored `evidence/fragment-capture-20260925/`. No VM remains running.
+No host configuration, service, package trust, pacman repository or SDDM state
+changed. Existing optional bar/widgets, customizations, disabled choices,
+Plasma support and conservative menu-only defaults remain unchanged.
+
+Limits: this validates real fragment hashing and mismatch detection, not an
+accepted real-unit comparison, freshness, manager-loaded bytes, exhaustive
+activation sources or exclusive ownership. The known duplicate bar was visible
+under the guest's Hyprland session. No Plasma graphical test, package build or
+release validation occurred; revision 6 remains unbuilt.
+
+Next recommended medium-sized task: review and classify the retained real
+service's exact dependency/environment/restart/activation directives, then add
+bounded read-only recognition and adversarial refusal tests if justified. Do
+not implement lifecycle changes in that task. Broader activation/session
+assessment, reversible lifecycle ownership, the duplicate-launcher fix and
+package/release validation remain pending. Stop after this checkpoint.

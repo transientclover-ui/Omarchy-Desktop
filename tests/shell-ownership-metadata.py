@@ -108,6 +108,14 @@ class MetadataTests(unittest.TestCase):
                 self.assertEqual(report['unit']['ActiveState'], state)
                 self.assertEqual(report['unit']['UnitFileState'], 'enabled')
 
+    def test_vm_fragment_capture(self):
+        fixture = json.loads((ROOT / 'tests/fixtures/shell-metadata/fragment-261/capture.json').read_text())
+        expected = fixture['report']
+        self.assertEqual(self.collect(output(expected['unit']), output(expected['manager'])), expected)
+        self.assertEqual(fixture['collector_exit_status'], 0)
+        self.assertEqual(fixture['capture_exit_status'], 0)
+        self.assertEqual(fixture['fragment']['outcome'], 'ok')
+
     def test_query_failures(self):
         for is_unit in (True, False):
             for error in (FileNotFoundError(), subprocess.TimeoutExpired('systemctl', 5),

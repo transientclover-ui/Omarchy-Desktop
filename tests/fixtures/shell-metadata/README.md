@@ -46,3 +46,47 @@ to true after these changes. Other reported values and search-path order are
 preserved. The earlier transcribed fixture remains separate historical evidence.
 These tests do not certify Plasma behavior, exclusive shell ownership or the
 resolution of the already documented cross-session launcher conflict.
+
+## Fragment hashing on systemd 261 (2026-09-25)
+
+`fragment-261/` contains a full `--hash-fragment` capture, the exact 386-byte
+VM service unit, and two machine-produced comparison reports. The unchanged
+tools at `f8aec0d` ran in a fresh, networkless disposable overlay backed by the
+preserved revision-5 image. No service or shell settings were changed.
+
+The capture returned 0, saved mode-0600 evidence, and reported SHA-256
+`e7ed27417635e1347352cfe571a947e707f59e0cdb28dcaf8519e765a90a8703`.
+Independent before/after hashes of the service and shell.json were unchanged.
+The service was enabled, active/running; migration readiness stayed false.
+
+Unlike earlier synthetic comparison snapshots, the actual service includes
+Unit, Install, environment and restart directives beyond the recognized minimal
+fixture. The first guest assertion expecting an accepted comparison failed.
+Inspection established the scope mismatch; acceptance was corrected to require
+hash agreement while retaining the unsupported-shape refusal. Production tools
+and accepted shapes were not changed.
+
+- `match.json`: exact copied unit, `fragment_bytes_match=true`, but exit 1 and
+  `recognized_shape=false` / `consistent_observations=false`.
+- `different-bytes.json`: only `# Comparison-only comment\n` was prepended to
+  the disposable copy. Exit 1, `fragment_bytes_match=false`, and an additional
+  provenance mismatch reason. The original unsupported unit shape remains
+  unsupported; this is not a successful recognized-shape guest comparison.
+
+Sanitization replaces `/home/omarchytest` with `/home/test`, the observed PID
+with 1234 and its start time with midnight on the same date. Only the capture
+has the `sanitized=true` envelope field; comparison reports retain their normal
+schema. Service bytes, hashes, sizes, state and diagnostic reasons are unchanged.
+The snapshot activation link was constructed for this bounded comparison, not
+collected as an exhaustive inventory of guest activation sources.
+
+Consistency tests replay both entire comparison reports with no PATH tools,
+verify unchanged inputs and assert that a hash match cannot override the shape
+refusal. Metadata tests replay the captured manager properties with mocked
+queries. The known duplicate bar was still visible; neither this evidence nor
+the capture's active state certifies exclusive shell ownership or Plasma health.
+
+The guest unmounted the test disk and shut down normally. Offline QCOW2 and
+read-only data-filesystem checks passed. Private raw capture, first-attempt
+failure, runner and disk evidence remain under ignored
+`evidence/fragment-capture-20260925/`.

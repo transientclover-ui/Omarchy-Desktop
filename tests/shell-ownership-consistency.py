@@ -144,6 +144,45 @@ class ConsistencyTests(unittest.TestCase):
                 self.assertEqual(contents(root), before)
                 self.assertFalse((root / 'SHOULD_NOT_EXIST').exists())
 
+    def test_vm_fragment_observations(self):
+        fixtures = FIXTURES / 'fragment-261'
+        capture = fixtures / 'capture.json'
+        evidence = json.loads(capture.read_text())
+        original = (fixtures / UNIT).read_bytes()
+        self.assertEqual(evidence['fragment']['sha256'], hashlib.sha256(original).hexdigest())
+        self.assertEqual(evidence['fragment']['size_bytes'], len(original))
+        self.assertEqual(evidence['capture_exit_status'], 0)
+        self.assertTrue(evidence['sanitized'])
+        for name in ('match', 'different-bytes'):
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as tmp:
+                snap = Path(tmp)
+                units = snap / 'units'
+                wants = units / 'graphical-session.target.wants'
+                wants.mkdir(parents=True)
+                wants.chmod(0o755)
+                (snap / 'autostart').mkdir()
+                data = original if name == 'match' else b'# Comparison-only comment\n' + original
+                (units / UNIT).write_bytes(data)
+                (units / UNIT).chmod(0o644)
+                (wants / UNIT).symlink_to('../' + UNIT)
+                before = contents(snap)
+                fixture_before = contents(fixtures)
+                result = subprocess.run(
+                    [sys.executable, str(TOOL), str(snap), '--capture', str(capture),
+                     '--source-unit-directory', SOURCE],
+                    env=dict(os.environ, PATH='', PYTHONDONTWRITEBYTECODE='1'),
+                    text=True, capture_output=True, timeout=5)
+                self.assertEqual(result.returncode, 1, result.stderr)
+                report = json.loads(result.stdout)
+                self.assertEqual(report, json.loads((fixtures / (name + '.json')).read_text()))
+                # Hash agreement must not bypass unsupported real-unit directives.
+                self.assertEqual(report['fragment_bytes_match'], name == 'match')
+                self.assertFalse(report['recognized_shape'])
+                self.assertFalse(report['consistent_observations'])
+                self.assertFalse(report['migration_ready'])
+                self.assertEqual(contents(snap), before)
+                self.assertEqual(contents(fixtures), fixture_before)
+
     def test_options_must_be_paired(self):
         for args in (['--capture', '/absent'], ['--source-unit-directory', SOURCE]):
             result = subprocess.run([sys.executable, str(TOOL), '/absent', *args],

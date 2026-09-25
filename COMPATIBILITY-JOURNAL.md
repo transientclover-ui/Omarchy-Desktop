@@ -1853,3 +1853,66 @@ retain sanitized replies, explain any refusal against real defaults/dependency
 origins, and add successful-or-refused observation plus deliberate mismatch
 replays. Do not broaden recognition merely to force a pass. Stop before lifecycle
 ownership, migration, duplicate-launcher resolution or release validation.
+
+## 2026-09-25 — User-requested stop before effective-property VM capture
+
+Resumed from `db7cd35` with no tracked changes and the same three unrelated
+untracked ISO/boot references. The public chooser remained at `db94981`.
+Selected only the documented effective-property guest-validation task. It is
+unfinished: no guest capture runner was executed and no effective-property
+observations or comparison results were retained.
+
+Prepared ignored local infrastructure in `evidence/effective-properties-20260925/`:
+
+- Fresh `test.qcow2` overlay backed by preserved
+  `evidence/kde-0.1.0-5/fresh.qcow2`, itself backed by `omarchy-kde.qcow2`.
+- Separate `vars.fd`, no network device, no host block devices or filesystem
+  shares. The user unlocked the guest directly; no credential was saved.
+- `payload/` contains unchanged tools from `db7cd35` and `run.py`, a prepared
+  read-only capture/diagnostic/comparison runner. `data.img` contains that payload.
+- Guest mounting of the virtio test disk requested authentication. A separate
+  `usb-data.img` copy was attached as removable USB storage to use the guest's
+  normal removable-drive policy. No authentication policy was modified.
+- The user first paused work, then explicitly requested that this VM be killed
+  and the work checkpointed. QMP `quit` stopped only this VM, reporting
+  `host-qmp-quit`; QEMU exited with status 0. No QEMU process remains, and this
+  run's QMP socket was removed. This was not a clean guest shutdown.
+
+Saved `tests/shell-effective-vm-replay.py` as an unfinished replay scaffold. It
+will mock typed-query replies and compare retained observed/mismatched reports
+without manager access. The expected fixture directory is
+`tests/fixtures/shell-effective/systemd-261/`, which does not exist yet. Both
+cases explicitly skip until capture evidence exists; this is not a validation
+pass. Expected files are `capture.json`, `Unit-raw.jsonl`, `Service-raw.jsonl`,
+`omarchy-shell.service`, `observed.json`, and `changed-restart.json`. Do not fill
+these with synthetic data or loosen the comparison to obtain a pass.
+
+Validation at this stop:
+
+- Replay scaffold syntax passed; execution reported two explicit pending-evidence
+  skips. No new guest/graphical/property validation passed or failed because the
+  runner never ran.
+- Offline `qemu-img check` on the new overlay: no errors.
+- Read-only `e2fsck -fn` on original data.img: completed without findings.
+- USB copy check skipped journal recovery and reported orphan_present with a
+  clean orphan file. It was not repaired. Treat that copy as interrupted-use
+  evidence; create a fresh payload disk on resume rather than claiming it clean.
+- The baseline hash checked during preparation remained
+  `844be5c310a5750902c40d1ab95fb5144b6788b29cbfa7d3b96b29aaa253c4c0`.
+- `git diff --check` passed. Existing suites were not rerun for this stop-only
+  checkpoint; their last results remain those recorded under `db7cd35`.
+
+No production implementation, package payload, shell ownership/profile or host
+configuration, services, trust, repositories or SDDM state changed. The known
+extra guest bar remained visible and was not investigated. No service lifecycle
+fix, migration or release work was begun. The three unrelated untracked reference
+files remain untouched; ignored disk images and prepared runner remain local.
+
+Resume with one task: read the latest history and this entry, create fresh
+throwaway overlay/firmware/payload media from the preserved sources, and complete
+read-only typed capture without changing service state. Prefer removable payload
+media from startup. Retain sanitized actual replies and exact fragment bytes,
+explain refusals, finish observed/mismatch replays, and verify native guest
+shutdown plus offline checks. Guest property serialization/defaults, ownership,
+duplicate-launcher resolution and release validation remain unfinished. Stop here
+as requested; do not restart the VM automatically.

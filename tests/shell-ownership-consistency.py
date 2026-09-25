@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Offline cross-checks with disposable snapshots and captured-property fixtures."""
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -32,7 +33,9 @@ class ConsistencyTests(unittest.TestCase):
                  'forged-derived', 'missing-property', 'wrong-type', 'list-report',
                  'null-envelope', 'failed-capture', 'malformed-json', 'linked-capture',
                  'relative-source', 'traversal-source', 'unnormalized-source',
-                 'duplicate-json', 'numeric-flag']
+                 'duplicate-json', 'numeric-flag', 'hash-match', 'hash-mismatch',
+                 'hash-comment', 'hash-refused', 'hash-path', 'hash-size',
+                 'hash-type', 'hash-exit']
         for case in cases:
             with self.subTest(case=case), tempfile.TemporaryDirectory() as tmp:
                 root = Path(tmp)
@@ -97,6 +100,26 @@ class ConsistencyTests(unittest.TestCase):
                     source = '/home/test/../test/.config/systemd/user'
                 elif case == 'unnormalized-source':
                     source = SOURCE + '/'
+                if case.startswith('hash-'):
+                    data = (units / UNIT).read_bytes()
+                    capture['capture_exit_status'] = 0
+                    capture['fragment'] = {'path': unit['FragmentPath'], 'outcome': 'ok',
+                                           'sha256': hashlib.sha256(data).hexdigest(),
+                                           'size_bytes': len(data)}
+                    if case == 'hash-mismatch':
+                        capture['fragment']['sha256'] = '0' * 64
+                    elif case == 'hash-comment':
+                        (units / UNIT).write_bytes(b'# valid shape, different bytes\n' + data)
+                    elif case == 'hash-refused':
+                        capture['fragment'] = {'outcome': 'refused', 'reason': 'changed-during-read'}
+                    elif case == 'hash-path':
+                        capture['fragment']['path'] = '/other/unit'
+                    elif case == 'hash-size':
+                        capture['fragment']['size_bytes'] += 1
+                    elif case == 'hash-type':
+                        capture['fragment']['size_bytes'] = str(len(data))
+                    elif case == 'hash-exit':
+                        capture['capture_exit_status'] = 1
                 path = root / 'capture.json'
                 path.write_text('{' if case == 'malformed-json' else json.dumps(capture))
                 if case == 'duplicate-json':
@@ -111,10 +134,12 @@ class ConsistencyTests(unittest.TestCase):
                                         env=dict(os.environ, PATH='', PYTHONDONTWRITEBYTECODE='1'),
                                         cwd=root, text=True, capture_output=True, timeout=5)
                 report = json.loads(result.stdout)
-                expected = case in ('active', 'inactive', 'restart-attempt', 'disabled')
+                expected = case in ('active', 'inactive', 'restart-attempt', 'disabled', 'hash-match')
                 self.assertEqual(result.returncode, 0 if expected else 1, result.stderr)
                 self.assertEqual(report['consistent_observations'], expected)
                 self.assertFalse(report['migration_ready'])
+                self.assertEqual(report['fragment_bytes_match'],
+                                 case == 'hash-match' if case.startswith('hash-') else None)
                 self.assertEqual(bool(report['reasons']), not expected)
                 self.assertEqual(contents(root), before)
                 self.assertFalse((root / 'SHOULD_NOT_EXIST').exists())

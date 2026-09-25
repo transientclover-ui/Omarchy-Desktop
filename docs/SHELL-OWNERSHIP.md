@@ -232,6 +232,34 @@ VM captures cover active, stopped and attempted-restart observations. The last
 remained inactive despite an exit-0 start; it is not a restoration success.
 See the fixture README for provenance, sanitization and validation limits.
 
+## Optional fragment-byte capture
+
+Add `--hash-fragment` to the capture runner to record the file currently at the
+reported FragmentPath. Default capture remains metadata-only. The new optional
+`fragment` field records the path, an explicit `ok`/`refused` outcome and, only
+on success, SHA-256 and byte count. No unit contents are included in the report.
+
+This Linux-specific reader refuses noncanonical paths, symlinks in any path
+component, non-regular files and files larger than 1 MiB. It uses nonblocking
+opens, bounds the read, compares descriptor identity/metadata before and after,
+and securely reopens the original path to detect replacement. Detected changes
+or read failures emit a refusal with no hash. This is a bounded observation;
+it cannot prove freshness after the read or the bytes already loaded by systemd.
+Concurrent changes that are not observable in these checks remain outside its
+claim. Like other file reads, access-time accounting may be updated by the OS.
+
+If metadata collection is incomplete, no fragment is opened. With the flag, the
+saved `capture_exit_status` and command exit status are 1 on a refused fragment,
+while `collector_exit_status` retains the separate metadata result. Output
+creation failures still return 2. Even refused observations are saved as private
+evidence. The path/hash may identify private configuration; sanitize before
+sharing. The flag does not change a service, unit or shell setting.
+
+`tests/shell-fragment-provenance.py` exercises disposable files and injected
+replacement, rewrite and I/O failures. The capture CLI and comparison suites
+also cover the optional fields. Existing VM fixtures predate this flag; real-VM
+validation of fragment capture is still pending.
+
 ## Offline capture/snapshot consistency
 
 The existing inventory can optionally compare a saved capture against its
@@ -265,8 +293,14 @@ to describe the filesystem snapshot alone; any comparison refusal produces exit
 1 and diagnostic reasons. Invalid option pairing produces exit 2. The existing
 snapshot-only interface is unchanged. `migration_ready` always remains false.
 
+When optional fragment provenance is supplied, its successful read outcome,
+source path, hash and byte count must match the snapshot's unit bytes. A refused,
+malformed or mismatched record makes the comparison fail. `fragment_bytes_match`
+is true for a match, false for refused/mismatched provenance, and null for legacy
+metadata-only captures. An absent hash never implies a byte match.
+
 This does not prove capture freshness, snapshot origin or byte identity with the
-manager's loaded unit: current captures do not contain a unit-content hash.
+manager's loaded unit. A supplied hash is evidence, not authentication of origin.
 It does not enumerate higher-precedence files, additional activation paths or
 live sessions. Stable private snapshots are still required. Neither input is
 modified, source paths are never followed, and captured commands are never run.
@@ -277,9 +311,8 @@ tests/shell-ownership-consistency.py` for disposable consistency/refusal fixture
 
 ## Next bounded implementation step
 
-Add captured fragment-byte provenance (hash and explicit read outcome) with
-replacement/symlink/refusal tests, so the comparison can distinguish an observed
-unit copy from a caller-supplied matching shape. Keep capture freshness and full
-activation/session assessment explicitly unresolved. Do not add lifecycle
-mutation or expose a managed setup option; the launcher-conflict fix remains
-subsequent work.
+Validate `--hash-fragment` in the disposable VM against an actual service file,
+including successful capture and a same-shape/different-byte comparison refusal.
+Do not broaden the recognized unit shape or add lifecycle mutation in that task.
+Capture freshness, full activation/session assessment and the launcher-conflict
+fix remain subsequent work.

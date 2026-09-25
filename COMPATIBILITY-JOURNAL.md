@@ -1590,3 +1590,49 @@ comparison distinguish a captured unit copy from a supplied matching shape;
 it must still not authorize migration. Broader activation/session assessment,
 lifecycle ownership, the duplicate-launcher fix, reproducible builds and
 package/graphical VM validation remain unfinished.
+
+## 2026-09-24 — Fragment-byte provenance and comparison
+
+Resumed from `c2d1853` with a clean tracked tree. Completed the documented
+fragment-provenance task by adding opt-in `--hash-fragment` to the capture
+runner. Default metadata-only capture remains unchanged. The optional record
+contains the reported path and explicit read outcome; only successful reads
+include a SHA-256 hash and byte count. No file contents are emitted.
+
+The bounded reader rejects noncanonical paths, symlinks in every path component,
+non-regular files, files over 1 MiB and read errors. It checks file identity and
+metadata before/after reading and after reopening the original path. Detected
+rewrites or replacements produce refusal without a hash. Incomplete metadata
+skips the read. A refused fragment yields capture status 1 while retaining the
+independent collector result and private evidence file.
+
+The offline comparison now checks optional provenance against snapshot bytes,
+path and size. Same recognized syntax with different bytes is refused. Legacy
+captures report `fragment_bytes_match=null`; provided matching/refused provenance
+reports true/false. This is observation consistency, not proof of freshness,
+authenticity or manager-loaded bytes; migration readiness stays false. Updated
+the ownership document with the opt-in behavior and these limits.
+
+Validation passed using only disposable files and simulated queries:
+
+- 16 fragment-reader cases, including file/parent replacement, same-file rewrite,
+  symlink and special-file refusal, missing/oversized inputs and injected errors.
+- 12 full capture CLI cases, including hash success/refusal and incomplete
+  metadata, private output permissions and distinct capture/collector statuses.
+- 38 comparison/option cases, including matching hashes, changed comments with
+  otherwise valid unit syntax, mismatched hash/path/size/type and refused reads.
+- Existing inventory (18 cases) and metadata (34 scenarios/replays) suites.
+- `git diff --check`.
+
+No VM, real manager or host fragment was accessed. No host configuration,
+services, package trust, pacman repositories or SDDM state changed. Existing
+customization, optional Omarchy components and the conservative fresh default
+remain unchanged. No package payload changed and no package was built/installed.
+The three pre-existing untracked reference files were left untouched.
+
+Next smallest task: validate opt-in fragment hashing in the disposable VM and
+retain a successful observation plus a same-shape/different-byte refusal case.
+Do not expand recognized unit shapes or implement lifecycle changes in that task.
+Real-VM hash validation, freshness, broader activation/session assessment,
+lifecycle ownership, the duplicate-launcher fix and release validation remain
+unfinished.

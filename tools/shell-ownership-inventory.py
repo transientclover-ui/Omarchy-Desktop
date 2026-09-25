@@ -46,6 +46,7 @@ def inspect(snapshot):
                 entry['kind'] = 'file'
                 data = item.read_bytes()
                 entry['sha256'] = hashlib.sha256(data).hexdigest()
+                entry['size_bytes'] = len(data)
                 if relative == 'units/' + UNIT:
                     contents[UNIT] = data.decode('utf-8')
                 else:
@@ -86,8 +87,9 @@ def inspect(snapshot):
 def compare_capture(result, capture_path, source_directory):
     """Compare supplied observations only; source paths are never opened."""
     result['consistent_observations'] = False
+    result['fragment_bytes_match'] = None
     result['source_unit_directory'] = source_directory
-    result['unassessed'].append('snapshot origin, capture freshness and byte correlation')
+    result['unassessed'].append('snapshot origin, capture freshness and manager-loaded bytes')
     reasons = result['reasons']
     try:
         source = PurePosixPath(source_directory)
@@ -145,6 +147,23 @@ def compare_capture(result, capture_path, source_directory):
                                'disabled': 'no-link-in-snapshot'}.get(unit['UnitFileState'])
         if result['activation'] != expected_activation:
             reasons.append('Snapshot activation disagrees with captured enablement')
+        if 'fragment' in capture:
+            result['fragment_bytes_match'] = False
+            fragment = capture['fragment']
+            entry = next((item for item in result['entries']
+                          if item['path'] == 'units/' + UNIT and item['kind'] == 'file'), {})
+            if (type(capture.get('capture_exit_status')) is not int or
+                    capture['capture_exit_status'] != 0 or not isinstance(fragment, dict) or
+                    fragment.get('outcome') != 'ok' or
+                    fragment.get('path') != unit['FragmentPath'] or
+                    not isinstance(fragment.get('sha256'), str) or
+                    not re.fullmatch('[0-9a-f]{64}', fragment['sha256']) or
+                    type(fragment.get('size_bytes')) is not int or
+                    fragment['size_bytes'] != entry.get('size_bytes') or
+                    fragment['sha256'] != entry.get('sha256')):
+                reasons.append('Fragment provenance is refused, invalid or differs from snapshot bytes')
+            else:
+                result['fragment_bytes_match'] = True
         result['consistent_observations'] = result['recognized_shape'] and not reasons
     except (OSError, UnicodeError, ValueError) as error:
         reasons.append('Capture comparison refused: ' + str(error))

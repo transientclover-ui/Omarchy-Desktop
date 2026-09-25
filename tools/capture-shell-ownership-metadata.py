@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path, PurePosixPath
 import stat
+import runpy
 import subprocess
 import sys
 
@@ -87,6 +88,8 @@ def main():
     parser.add_argument('output', type=Path, help='new evidence JSON file (never overwritten)')
     parser.add_argument('--hash-fragment', action='store_true',
                         help='also read/hash the captured on-disk fragment (no symlinks)')
+    parser.add_argument('--effective-properties', action='store_true',
+                        help='also collect typed read-only properties for offline comparison')
     args = parser.parse_args()
     collector = Path(__file__).with_name('shell-ownership-metadata.py')
     try:
@@ -107,6 +110,12 @@ def main():
             else:
                 evidence['fragment'] = fragment_provenance(report.get('unit', {}).get('FragmentPath'))
             if evidence['fragment']['outcome'] != 'ok':
+                capture_status = 1
+            evidence['capture_exit_status'] = capture_status
+        if args.effective_properties:
+            effective = runpy.run_path(str(Path(__file__).with_name('shell-effective-properties.py')))
+            evidence['effective'] = effective['collect']()
+            if not evidence['effective']['collected']:
                 capture_status = 1
             evidence['capture_exit_status'] = capture_status
         # Exclusive creation prevents clobbering files or following a final symlink.

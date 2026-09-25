@@ -86,6 +86,8 @@ def inspect(snapshot):
                 reasons.append('Unit is outside the recognized direct-launch fixture shape')
             else:
                 result['launch_command'] = COMMAND
+                if lines == VM_SHAPE:
+                    result['unit_shape'] = 'retained-vm-v1'
         if result['activation'] == 'unknown' and not reasons:
             result['activation'] = 'no-link-in-snapshot'
         result['recognized_shape'] = not reasons
@@ -95,11 +97,13 @@ def inspect(snapshot):
 
 
 
-def compare_capture(result, capture_path, source_directory):
+def compare_capture(result, capture_path, source_directory, require_effective=False):
     """Compare supplied observations only; source paths are never opened."""
     result['consistent_observations'] = False
     result['fragment_bytes_match'] = None
     result['source_unit_directory'] = source_directory
+    if require_effective:
+        result['effective_properties_match'] = False
     result['unassessed'].append('snapshot origin, capture freshness and manager-loaded bytes')
     reasons = result['reasons']
     try:
@@ -122,6 +126,8 @@ def compare_capture(result, capture_path, source_directory):
                 capture['collector_exit_status'] != 0 or
                 type(capture.get('sanitized')) is not bool):
             raise ValueError('Unsupported or unsuccessful capture envelope')
+        if require_effective or 'effective' in capture:
+            result['effective_properties_match'] = False
         report = capture.get('report')
         if (not isinstance(report, dict) or type(report.get('schema')) is not int or
                 type(report.get('metadata_collected')) is not bool or
@@ -175,6 +181,18 @@ def compare_capture(result, capture_path, source_directory):
                 reasons.append('Fragment provenance is refused, invalid or differs from snapshot bytes')
             else:
                 result['fragment_bytes_match'] = True
+        if require_effective or 'effective' in capture:
+            result['unassessed'].append(
+                'inherited process environment, unqueried properties and changes between property reads')
+            if result.get('unit_shape') != 'retained-vm-v1':
+                reasons.append('Effective comparison requires the retained-vm-v1 snapshot shape')
+            if result['fragment_bytes_match'] is not True:
+                reasons.append('Effective comparison requires matching fragment-byte evidence')
+            if type(capture.get('capture_exit_status')) is not int or capture['capture_exit_status'] != 0:
+                reasons.append('Effective comparison requires successful full capture')
+            effective = runpy.run_path(str(Path(__file__).with_name('shell-effective-properties.py')))
+            reasons.extend(effective['assess'](capture.get('effective'), unit))
+            result['effective_properties_match'] = result['recognized_shape'] and not reasons
         result['consistent_observations'] = result['recognized_shape'] and not reasons
     except (OSError, UnicodeError, ValueError) as error:
         reasons.append('Capture comparison refused: ' + str(error))
@@ -188,12 +206,16 @@ def main():
     parser.add_argument('--capture', type=Path, help='saved metadata capture JSON')
     parser.add_argument('--source-unit-directory',
                         help='original absolute path represented by snapshot units/')
+    parser.add_argument('--require-effective', action='store_true',
+                        help='require matching typed effective properties and fragment provenance')
     args = parser.parse_args()
     if (args.capture is None) != (args.source_unit_directory is None):
         parser.error('--capture and --source-unit-directory must be supplied together')
+    if args.require_effective and args.capture is None:
+        parser.error('--require-effective requires --capture and --source-unit-directory')
     result = inspect(args.snapshot)
     if args.capture is not None:
-        result = compare_capture(result, args.capture, args.source_unit_directory)
+        result = compare_capture(result, args.capture, args.source_unit_directory, args.require_effective)
     print(json.dumps(result, indent=2, sort_keys=True))
     return 0 if result.get('consistent_observations', result['recognized_shape']) else 1
 

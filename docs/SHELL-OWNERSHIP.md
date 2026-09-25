@@ -176,10 +176,10 @@ unit/service/exec manuals):
 Changed/missing/duplicate/reordered directives, wrappers, resets and additional
 settings are refused, even if a supplied fragment hash matches. Recognition does
 not establish the manager's loaded dependency/environment/restart values; the
-collector does not query those properties. A future lifecycle design must assess
-them independently before attempting equivalent behavior.
+default collector does not query those properties. The opt-in typed comparison
+below assesses a bounded subset; it still does not authorize lifecycle changes.
 
- The unit must be a regular
+The unit must be a regular
 `units/omarchy-shell.service` file. Its optional sole activation link is
 `units/graphical-session.target.wants/omarchy-shell.service`, targeting exactly
 `../omarchy-shell.service`. No link means only “no link in this snapshot,” not
@@ -340,11 +340,104 @@ This development-only path remains outside setup and packaging.
 Run `PYTHONDONTWRITEBYTECODE=1 python3 -W error
 tests/shell-ownership-consistency.py` for disposable consistency/refusal fixtures.
 
+## Opt-in effective-property comparison
+
+Capture on a disposable guest using the existing runner:
+
+```bash
+python3 tools/capture-shell-ownership-metadata.py /private/guest-directory/effective.json \
+  --hash-fragment --effective-properties
+```
+
+Then compare a stable snapshot offline:
+
+```bash
+python3 tools/shell-ownership-inventory.py SNAPSHOT \
+  --capture /private/guest-directory/effective.json \
+  --source-unit-directory /home/test/.config/systemd/user --require-effective
+```
+
+Use the actual source directory (or consistently sanitized mapping), as above.
+The source path is never opened during comparison. The original capture and
+snapshot-only interfaces remain unchanged. Recognizing the full unit adds
+`unit_shape=retained-vm-v1` to inventory output.
+
+`--effective-properties` adds an `effective` record to the private capture. The
+new helper issues two bounded `busctl --user --json=short get-property` commands,
+for explicitly allowlisted Unit and Service fields on the fixed encoded
+`omarchy-shell.service` object. Each command has a five-second total timeout;
+individual properties are separate D-Bus Get calls, **not an atomic snapshot**.
+There is no GetAll, LoadUnit, environment-file read, command execution, manager
+reload or service lifecycle call. Existing systemctl metadata queries still run.
+
+Typed reads avoid inferring empty values from omitted `systemctl show` output:
+in systemd 261, empty structured arrays such as EnvironmentFiles can be omitted
+by its printer. Typed empty arrays are distinct from missing replies. The
+collector rejects missing/extra rows, duplicate JSON keys, wrong signatures and
+invalid primitive data. Unknown properties, missing busctl, denied queries and
+timeouts produce incomplete evidence and capture exit 1. The original
+`collector_exit_status` stays independent; `capture_exit_status` covers either
+optional collection failure. Exit 0 means collected, not matched. The assessor
+checks structured values and semantics offline. Nothing reads environment-file
+contents, including optional or missing files.
+
+The comparison requires the exact retained VM shape, successful full capture,
+matching fragment hash/size/path, and all original metadata/snapshot checks.
+Identity and fragment path must agree across observations; generated sources,
+transient units, drop-ins and NeedDaemonReload are refused. A supplied effective
+record is always checked even without `--require-effective`. With that flag,
+legacy captures refuse rather than imply effective-property validation. Without
+it, legacy captures retain their previous limited behavior and have no
+`effective_properties_match` field.
+
+The bounded `retained-vm-v1` contract checks:
+
+| Group | Required effective values |
+| --- | --- |
+| Dependencies | DefaultDependencies true; After app.slice/basic.target/graphical-session.target; Requires app.slice/basic.target; Before and Conflicts shutdown.target; PartOf graphical-session.target |
+| Other relationships | Empty Wants, Requisite, BindsTo, Upholds, OnFailure, OnSuccess, stop/reload propagation and JoinsNamespaceOf |
+| Conditions | Exactly the positive, non-trigger WAYLAND_DISPLAY presence condition; no asserts. Its runtime result may be untested, passed or failed; none is a health or session-identity claim |
+| Environment | Exactly the two reviewed assignments, order-independent and unique; empty EnvironmentFiles, PassEnvironment and UnsetEnvironment |
+| Execution | Type simple, ExitType main, no RemainAfterExit, PIDFile or BusName; app.slice; one exact ExecStartEx path/argv with no execution flags; no condition/pre/post/reload/reload-post/stop commands |
+| Restart | on-failure, normal mode, 3,000,000 microseconds; zero backoff steps, infinite maximum delay; no custom success/prevent/force exit-status sets |
+| Related defaults | Start limit 5 per 10 seconds with no action; no failure/success action; 90-second start/stop timeouts, unlimited runtime, no watchdog; control-group kill mode, SIGTERM for stop/restart, final SIGKILL enabled |
+
+Unordered string sets may reorder, but duplicates or extra values refuse.
+Durations are typed integer microseconds; infinity is unsigned 64-bit maximum.
+No shell quoting or human time formatting is guessed. Command runtime timestamps,
+PID and exit results are type/range checked, not interpreted as proof of health.
+
+Explicit values come from the retained unit. **Implicit dependencies and related
+defaults are a source-reviewed candidate contract, not new VM observations.**
+Different legitimate manager defaults or reverse dependencies can conservatively
+refuse; do not silently broaden the contract to obtain a pass. Reference points:
+[systemd 261 user-service defaults](https://github.com/systemd/systemd/blob/v261/src/core/service.c),
+[slice dependencies](https://github.com/systemd/systemd/blob/v261/src/core/unit.c),
+[Unit properties](https://github.com/systemd/systemd/blob/v261/src/core/dbus-unit.c),
+[Service properties](https://github.com/systemd/systemd/blob/v261/src/core/dbus-service.c),
+[environment properties](https://github.com/systemd/systemd/blob/v261/src/core/dbus-execute.c),
+and [show serialization](https://github.com/systemd/systemd/blob/v261/src/systemctl/systemctl-show.c).
+
+`effective_properties_match=true` and exit 0 mean all these supplied observations
+agree within this contract. `migration_ready` remains false. This is not a full
+unit-equivalence proof, a current-process configuration check, or authority to
+transfer ownership. Inherited manager/process environment, resource/sandbox
+settings outside the allowlist, freshness, dependency origins, complete search
+paths/activation sources, overlapping sessions and duplicate launchers remain
+unassessed. Hashing does not authenticate evidence or reveal loaded unit bytes.
+
+Validation: `PYTHONDONTWRITEBYTECODE=1 python3 -W error
+tests/shell-effective-properties.py`. The typed fixture is explicitly synthetic;
+it is combined with copies of historical metadata and fragment evidence only
+inside disposable tests. Existing VM fixtures are unchanged. A private temporary
+D-Bus session verified basic busctl JSON framing; no real systemd manager was
+queried. Full property capture still requires disposable-VM validation.
+
 ## Next bounded implementation step
 
-Extend read-only capture and comparison to assess the effective manager-loaded
-dependency, environment, type and restart properties for the recognized real
-shape. Define a bounded serialization contract, retain unknown-value refusals,
-and test stale/disagreeing observations using fixtures before guest validation.
-Do not add lifecycle mutation. Capture freshness, full activation/session
-assessment and the launcher-conflict fix remain subsequent work.
+Run the new read-only typed capture on the retained service in a fresh disposable
+VM, without changing any service state. Retain sanitized typed replies and compare
+them against exact fragment bytes. Investigate any refusal against systemd's
+actual defaults/dependency origins; do not weaken the checker to force a pass.
+Replay the captured result and a deliberate property mismatch offline. Stop before
+lifecycle ownership, duplicate-launcher resolution or release validation.

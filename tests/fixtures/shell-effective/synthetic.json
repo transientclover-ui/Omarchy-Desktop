@@ -1,0 +1,322 @@
+{
+  "collected": true,
+  "errors": [],
+  "properties": {
+    "Service": {
+      "BusName": {
+        "data": "",
+        "type": "s"
+      },
+      "Environment": {
+        "data": [
+          "QS_DISABLE_FILE_WATCHER=1",
+          "QS_NO_RELOAD_POPUP=1"
+        ],
+        "type": "as"
+      },
+      "EnvironmentFiles": {
+        "data": [],
+        "type": "a(sb)"
+      },
+      "ExecCondition": {
+        "data": [],
+        "type": "a(sasbttttuii)"
+      },
+      "ExecReload": {
+        "data": [],
+        "type": "a(sasbttttuii)"
+      },
+      "ExecReloadPost": {
+        "data": [],
+        "type": "a(sasbttttuii)"
+      },
+      "ExecStartEx": {
+        "data": [
+          [
+            "/usr/bin/quickshell",
+            [
+              "/usr/bin/quickshell",
+              "-n",
+              "-p",
+              "/usr/share/omarchy/shell"
+            ],
+            [],
+            0,
+            0,
+            0,
+            0,
+            1234,
+            0,
+            0
+          ]
+        ],
+        "type": "a(sasasttttuii)"
+      },
+      "ExecStartPost": {
+        "data": [],
+        "type": "a(sasbttttuii)"
+      },
+      "ExecStartPre": {
+        "data": [],
+        "type": "a(sasbttttuii)"
+      },
+      "ExecStop": {
+        "data": [],
+        "type": "a(sasbttttuii)"
+      },
+      "ExecStopPost": {
+        "data": [],
+        "type": "a(sasbttttuii)"
+      },
+      "ExitType": {
+        "data": "main",
+        "type": "s"
+      },
+      "FinalKillSignal": {
+        "data": 9,
+        "type": "i"
+      },
+      "KillMode": {
+        "data": "control-group",
+        "type": "s"
+      },
+      "KillSignal": {
+        "data": 15,
+        "type": "i"
+      },
+      "PIDFile": {
+        "data": "",
+        "type": "s"
+      },
+      "PassEnvironment": {
+        "data": [],
+        "type": "as"
+      },
+      "RemainAfterExit": {
+        "data": false,
+        "type": "b"
+      },
+      "Restart": {
+        "data": "on-failure",
+        "type": "s"
+      },
+      "RestartForceExitStatus": {
+        "data": [
+          [],
+          []
+        ],
+        "type": "(aiai)"
+      },
+      "RestartKillSignal": {
+        "data": 15,
+        "type": "i"
+      },
+      "RestartMaxDelayUSec": {
+        "data": 18446744073709551615,
+        "type": "t"
+      },
+      "RestartMode": {
+        "data": "normal",
+        "type": "s"
+      },
+      "RestartPreventExitStatus": {
+        "data": [
+          [],
+          []
+        ],
+        "type": "(aiai)"
+      },
+      "RestartSteps": {
+        "data": 0,
+        "type": "u"
+      },
+      "RestartUSec": {
+        "data": 3000000,
+        "type": "t"
+      },
+      "RuntimeMaxUSec": {
+        "data": 18446744073709551615,
+        "type": "t"
+      },
+      "SendSIGKILL": {
+        "data": true,
+        "type": "b"
+      },
+      "Slice": {
+        "data": "app.slice",
+        "type": "s"
+      },
+      "SuccessExitStatus": {
+        "data": [
+          [],
+          []
+        ],
+        "type": "(aiai)"
+      },
+      "TimeoutStartUSec": {
+        "data": 90000000,
+        "type": "t"
+      },
+      "TimeoutStopUSec": {
+        "data": 90000000,
+        "type": "t"
+      },
+      "Type": {
+        "data": "simple",
+        "type": "s"
+      },
+      "UnsetEnvironment": {
+        "data": [],
+        "type": "as"
+      },
+      "WatchdogUSec": {
+        "data": 0,
+        "type": "t"
+      }
+    },
+    "Unit": {
+      "After": {
+        "data": [
+          "app.slice",
+          "basic.target",
+          "graphical-session.target"
+        ],
+        "type": "as"
+      },
+      "Asserts": {
+        "data": [],
+        "type": "a(sbbsi)"
+      },
+      "Before": {
+        "data": [
+          "shutdown.target"
+        ],
+        "type": "as"
+      },
+      "BindsTo": {
+        "data": [],
+        "type": "as"
+      },
+      "Conditions": {
+        "data": [
+          [
+            "ConditionEnvironment",
+            false,
+            false,
+            "WAYLAND_DISPLAY",
+            1
+          ]
+        ],
+        "type": "a(sbbsi)"
+      },
+      "Conflicts": {
+        "data": [
+          "shutdown.target"
+        ],
+        "type": "as"
+      },
+      "DefaultDependencies": {
+        "data": true,
+        "type": "b"
+      },
+      "DropInPaths": {
+        "data": [],
+        "type": "as"
+      },
+      "FailureAction": {
+        "data": "none",
+        "type": "s"
+      },
+      "FragmentPath": {
+        "data": "/home/test/.config/systemd/user/omarchy-shell.service",
+        "type": "s"
+      },
+      "Id": {
+        "data": "omarchy-shell.service",
+        "type": "s"
+      },
+      "JoinsNamespaceOf": {
+        "data": [],
+        "type": "as"
+      },
+      "NeedDaemonReload": {
+        "data": false,
+        "type": "b"
+      },
+      "OnFailure": {
+        "data": [],
+        "type": "as"
+      },
+      "OnSuccess": {
+        "data": [],
+        "type": "as"
+      },
+      "PartOf": {
+        "data": [
+          "graphical-session.target"
+        ],
+        "type": "as"
+      },
+      "PropagatesReloadTo": {
+        "data": [],
+        "type": "as"
+      },
+      "PropagatesStopTo": {
+        "data": [],
+        "type": "as"
+      },
+      "ReloadPropagatedFrom": {
+        "data": [],
+        "type": "as"
+      },
+      "Requires": {
+        "data": [
+          "app.slice",
+          "basic.target"
+        ],
+        "type": "as"
+      },
+      "Requisite": {
+        "data": [],
+        "type": "as"
+      },
+      "SourcePath": {
+        "data": "",
+        "type": "s"
+      },
+      "StartLimitAction": {
+        "data": "none",
+        "type": "s"
+      },
+      "StartLimitBurst": {
+        "data": 5,
+        "type": "u"
+      },
+      "StartLimitIntervalUSec": {
+        "data": 10000000,
+        "type": "t"
+      },
+      "StopPropagatedFrom": {
+        "data": [],
+        "type": "as"
+      },
+      "SuccessAction": {
+        "data": "none",
+        "type": "s"
+      },
+      "Transient": {
+        "data": false,
+        "type": "b"
+      },
+      "Upholds": {
+        "data": [],
+        "type": "as"
+      },
+      "Wants": {
+        "data": [],
+        "type": "as"
+      }
+    }
+  },
+  "schema": 1
+}

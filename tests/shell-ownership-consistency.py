@@ -179,6 +179,7 @@ class ConsistencyTests(unittest.TestCase):
                 expected = json.loads((fixtures / (name + '.json')).read_text())
                 expected['reasons'].remove('Unit is outside the recognized direct-launch fixture shape')
                 expected['recognized_shape'] = True
+                expected['unit_shape'] = 'retained-vm-v1'
                 expected['consistent_observations'] = name == 'match'
                 expected['launch_command'] = '/usr/bin/quickshell -n -p /usr/share/omarchy/shell'
                 self.assertEqual(report, expected)

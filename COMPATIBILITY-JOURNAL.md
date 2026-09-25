@@ -1767,3 +1767,89 @@ assess the recognized shape's effective manager dependency/environment/type/
 restart properties, with conservative serialization and disagreement tests.
 Broader activation/session assessment, reversible lifecycle ownership and the
 known duplicate launcher remain subsequent work. Stop after this checkpoint.
+
+## 2026-09-25 — Bounded effective manager-property comparison
+
+Confirmed `d37de92` (`Recognize reviewed VM shell service without authorizing
+migration`) was still HEAD before editing. Read this journal, the ownership
+contract and current tools/tests. The tracked tree was clean; the three unrelated
+untracked ISO/boot references remain untouched. Work stayed in this adoption
+checkout, which has no configured remote; no repository rename or publication
+was attempted.
+
+Completed one implementation task: add opt-in typed effective-property capture
+and conservative offline comparison for the exact retained VM service. Acceptance
+was a successful synthetic match with exact fragment provenance, meaningful
+property disagreements and malformed/missing evidence refusing, unchanged legacy
+behavior, and no service lifecycle operations or migration authorization.
+
+Changes:
+
+- `capture-shell-ownership-metadata.py --effective-properties` records 65
+  allowlisted typed properties (30 Unit, 35 Service) through two bounded busctl
+  get-property invocations. Identity, fragment/source/drop-in paths and reload
+  state are correlated with existing metadata. Individual reads are not atomic.
+- Typed JSON avoids a discovered systemctl-show limitation: empty structured
+  arrays such as EnvironmentFiles may produce no line. Missing replies must not
+  be inferred to mean an empty list. The collector distinguishes typed emptiness,
+  missing/extra replies, invalid signatures/data, query failure and timeout.
+- Inventory `--require-effective` requires this evidence, the retained VM shape,
+  successful capture and matching fragment hash/size/path. Supplied effective
+  records are checked even without the flag. Legacy captures retain their prior
+  limited behavior without it; with it they refuse. The shape now has the explicit
+  `unit_shape=retained-vm-v1` label.
+- Checks cover expected explicit/implicit dependency and ordering sets, conditions,
+  environment assignments and absence of environment files, service type, exact
+  extended launch argv/flags, absent execution hooks, restart/backoff/exit-status
+  policy, stop behavior, timeouts and start limits. Unknown values, duplicates,
+  extra directives/drop-ins, stale observations and changed semantics refuse.
+- `effective_properties_match` reflects all required comparison checks, never
+  migration authorization. `migration_ready` stays false. No environment file,
+  embedded command or mapped source directory is read/executed by comparison.
+
+Validation passed:
+
+- New suite: five acceptance cases (including reordered sets, untested/failed
+  condition observations and an inactive disabled service); 260 per-property
+  missing/changed/mistyped/invalid-data refusals; 24 additional adversarial cases;
+  automatic checking of supplied evidence and legacy behavior; 16 typed-query
+  protocol cases; six full capture CLI cases, including combined fragment hashing
+  and typed capture; required-option validation. Inputs remain unchanged and
+  offline comparisons use an empty PATH. Capture audit permits only the specified
+  fake systemctl show and busctl get-property commands; evidence mode is 0600.
+- Existing inventory (18 plus 53 cases), consistency (38 cases/options plus two
+  historical VM replays), fragment reader (16), capture (12), and metadata (30
+  synthetic plus five historical replays) suites passed with warnings as errors.
+- A temporary private D-Bus session exercised actual busctl JSON framing for
+  multiple string-array property replies. It did not access a systemd manager.
+- CLI help/documentation flag checks, local Markdown links in the updated ownership
+  document, Python syntax parsing and `git diff --check` passed.
+
+There were no remaining test failures. Historical VM capture/fragment/report
+files are unchanged; the new typed fixture is explicitly synthetic. Explicit
+values derive from the retained service. Implicit user-service dependencies and
+related defaults were reviewed against systemd 261 source and local manuals,
+not measured in the guest. The candidate contract pins app.slice/basic.target,
+shutdown ordering, 90-second start/stop timeouts and 5 starts per 10 seconds;
+legitimate different defaults or graph edges conservatively refuse pending review.
+
+No real service was queried, enabled, disabled, started, stopped, restarted or
+migrated. No VM was started. No host configuration, service state, package trust,
+pacman repository or SDDM state changed. Plasma Wayland, optional bar/widgets,
+customizations, disabled choices and conservative menu-only defaults are unchanged.
+No package payload changed; revision 6 remains unbuilt.
+
+Remaining limits: the new property set/structured serialization and actual guest
+defaults still need a read-only disposable-VM capture. This checkpoint does not
+establish that the real retained service passes. Inherited manager/process
+environment, unqueried resource/sandbox properties, freshness, manager-loaded
+bytes, graph origins, exhaustive activation paths, session ownership and the
+known duplicate-launcher race remain unassessed. Passing conditions or active
+metadata are not required for configuration agreement and are not health claims.
+
+Next recommended medium-sized task: collect these typed properties and exact
+fragment provenance in a fresh disposable VM without changing service state;
+retain sanitized replies, explain any refusal against real defaults/dependency
+origins, and add successful-or-refused observation plus deliberate mismatch
+replays. Do not broaden recognition merely to force a pass. Stop before lifecycle
+ownership, migration, duplicate-launcher resolution or release validation.

@@ -1916,3 +1916,92 @@ explain refusals, finish observed/mismatch replays, and verify native guest
 shutdown plus offline checks. Guest property serialization/defaults, ownership,
 duplicate-launcher resolution and release validation remain unfinished. Stop here
 as requested; do not restart the VM automatically.
+
+## 2026-09-25 — Effective-property capture validated in disposable guest
+
+Resumed from `63503b5`, the user-requested interrupted-run checkpoint. Tracked
+files were clean; the same three unrelated ISO/boot references remain untouched.
+The public chooser remains clean at `db94981`. Completed only the documented
+read-only effective-property guest-validation task: actual replies, exact unit
+provenance, explained refusal, offline mutation replay and clean shutdown.
+
+Created fresh overlay, firmware and payload media under ignored
+`evidence/effective-properties-resume-20260925/`, backed by the preserved revision-5
+image and clean Omarchy baseline. The interrupted previous images were not reused
+or repaired. No network device, host block device or host filesystem share was
+attached. The user unlocked the guest directly; no credential was saved. Presenting
+the payload as removable USB from startup allowed normal guest automount. An
+explicit mount attempt reported it was already mounted; no authentication or
+policy workaround was needed.
+
+The unchanged tools from `63503b5` ran under systemd 261 (261.2-1-arch):
+
+- Capture and metadata collector both returned 0. All 65 typed fields were
+  collected, including real structured arrays and duration/infinity values;
+  evidence mode was 0600. A second pair of read-only typed queries agreed with
+  the captured configuration/runtime values after identical sanitization.
+- Unit bytes were 386 bytes with SHA-256
+  `e7ed27417635e1347352cfe571a947e707f59e0cdb28dcaf8519e765a90a8703`.
+  Independent before/after hashes of this file and shell.json agreed.
+- Comparison returned 1, with recognized shape and fragment-byte match true,
+  effective/overall consistency false, and only one refusal: `After`.
+- Actual After was `app.slice basic.target home.mount graphical-session.target
+  -.mount`. The candidate contract lacks home.mount and -.mount. All other
+  compared settings matched. No drop-ins or NeedDaemonReload were reported.
+- The service was enabled but inactive/dead, with its prior command exited at
+  status 0. The desktop still displayed the known extra bar. Neither condition
+  success nor capture success is a shell-health or exclusive-ownership pass.
+
+Read-only follow-up diagnostics reported `WorkingDirectory=!/home/omarchytest`,
+`WantsMountsFor=/home/omarchytest`, empty RequiresMountsFor/RootDirectory, and loaded
+home/root mounts with empty fragment paths. The home mount source was
+/proc/self/mountinfo. These observations are consistent with systemd's default
+user working-directory and synthesized mount-ordering behavior. The fixture README
+links the source review. Complete dependency-origin proof is still outside the
+current evidence contract, so no comparison rule or accepted set was broadened.
+
+Retained actual sanitized capture, separately queried typed replies, exact unit,
+guest-produced comparison, runner validation and dependency diagnostics under
+`tests/fixtures/shell-effective/systemd-261/`. Sanitization changes home paths,
+PID and runtime timestamps only (plus the envelope's sanitized flag). An initial
+path-redaction check caught a guest home path in validation hash-map keys; key
+sanitization was corrected, the private conversion script made rerunnable, and a
+regression now checks those keys and all retained data files. Original private
+results remain unchanged.
+
+Completed the formerly skipped replay scaffold. Three tests now run: provenance
+and sanitization, typed query replay, and full comparisons for the original
+observation plus an offline-only Restart=always mutation. The latter retains
+After refusal and adds Restart refusal despite matching fragment bytes. Fixture
+files remain unchanged; comparison uses an empty PATH and queries are mocked.
+Both cases retain `migration_ready=false`. No synthetic observation is presented
+as guest evidence, and no live service setting was altered to create a mismatch.
+
+Validation passed:
+
+- New actual-VM replay suite: all three tests, including both full comparison cases.
+- Existing effective-property acceptance/refusal/protocol/capture suite.
+- Existing inventory, consistency, fragment-reader, metadata-capture and metadata
+  suites, with Python warnings treated as errors.
+- Syntax, retained JSON, local documentation links, sanitization checks and
+  `git diff --check`.
+- Guest payload unmount and native poweroff; QEMU exited with 0. No QEMU process
+  remains. Offline `qemu-img check` and read-only `e2fsck -fn` passed without findings.
+- Baseline hash before and after the run remained
+  `844be5c310a5750902c40d1ab95fb5144b6788b29cbfa7d3b96b29aaa253c4c0`.
+
+The actual comparison refusal is intentional and preserved, not an unresolved
+test failure. Capture serialization and refusal detection are validated, but an
+accepted real-unit effective comparison is not. No production/package payload,
+profile or lifecycle behavior changed; revision 6 remains unbuilt. No host
+configuration, services, package trust, pacman repositories or SDDM state changed.
+Plasma support, optional bar/widgets, customized/disabled components and the
+conservative menu-only default remain unchanged.
+
+Next recommended medium-sized task: extend bounded read-only evidence for
+working-directory and mount-dependency origins, with adversarial tests separating
+implicit home ordering from explicit/unrelated mount dependencies and overrides.
+Only consider a narrowly justified recognition change after that evidence exists;
+do not blanket-allow mount units. Freshness, inherited process environment, full
+activation/session assessment, reversible ownership, the duplicate-launcher fix
+and release validation remain subsequent work. Stop after this checkpoint.

@@ -429,15 +429,24 @@ unassessed. Hashing does not authenticate evidence or reveal loaded unit bytes.
 Validation: `PYTHONDONTWRITEBYTECODE=1 python3 -W error
 tests/shell-effective-properties.py`. The typed fixture is explicitly synthetic;
 it is combined with copies of historical metadata and fragment evidence only
-inside disposable tests. Existing VM fixtures are unchanged. A private temporary
-D-Bus session verified basic busctl JSON framing; no real systemd manager was
-queried. Full property capture still requires disposable-VM validation.
+inside disposable tests. A separate real systemd-261 capture now validates all
+65 typed replies and full fragment capture. Its exact service is conservatively
+refused because After also includes `home.mount` and `-.mount`; all other compared
+properties match. The candidate contract remains unchanged. See the
+[guest evidence and dependency investigation](../tests/fixtures/shell-effective/systemd-261/README.md).
+
+`tests/shell-effective-vm-replay.py` now runs without pending-evidence skips. It
+replays typed replies, the guest-produced refusal, and an offline Restart mutation
+that adds a second refusal despite matching fragment bytes. The guest service was
+enabled but inactive; neither capture success nor the other matching properties
+establish shell health. Earlier VM fixtures remain unchanged.
 
 ## Next bounded implementation step
 
-Run the new read-only typed capture on the retained service in a fresh disposable
-VM, without changing any service state. Retain sanitized typed replies and compare
-them against exact fragment bytes. Investigate any refusal against systemd's
-actual defaults/dependency origins; do not weaken the checker to force a pass.
-Replay the captured result and a deliberate property mismatch offline. Stop before
-lifecycle ownership, duplicate-launcher resolution or release validation.
+Extend bounded read-only evidence to assess working-directory and mount-dependency
+origins, using the retained guest diagnostics as a starting point. Define tests
+for implicit user-home ordering versus explicit or unrelated mount dependencies,
+missing mount metadata and overrides before considering any narrowly justified
+recognition change. Do not simply add arbitrary `.mount` names to the allowlist.
+Keep migration readiness false and stop before live ownership, duplicate-launcher
+resolution or release validation.

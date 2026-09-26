@@ -1,0 +1,15 @@
+RequiresMountsFor=
+WantsMountsFor=/home/test
+WorkingDirectory=!/home/test
+RootDirectory=
+Id=home.mount
+LoadState=loaded
+FragmentPath=
+SourcePath=/proc/self/mountinfo
+Where=/home
+
+Id=-.mount
+LoadState=loaded
+FragmentPath=
+SourcePath=
+Where=/

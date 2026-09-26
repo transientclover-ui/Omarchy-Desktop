@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Replay sanitized guest observations; no systemd manager or source paths opened."""
 import copy
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -24,11 +25,26 @@ def contents(root):
             for p in root.rglob('*') if p.is_symlink() or p.is_file()}
 
 
-@unittest.skipUnless((FIXTURE / 'capture.json').is_file(),
-                     'Pending disposable-VM capture; no guest evidence retained yet')
 class GuestReplayTests(unittest.TestCase):
+    def test_provenance_and_sanitization(self):
+        validation = json.loads((FIXTURE / 'validation.json').read_text())
+        self.assertEqual(validation['capture_exit'], 0)
+        self.assertEqual(validation['comparison_exit'], 1)
+        self.assertEqual(validation['evidence_mode'], '0o600')
+        self.assertEqual(validation['systemd'], 'systemd 261 (261.2-1-arch)')
+        digest = hashlib.sha256((FIXTURE / UNIT).read_bytes()).hexdigest()
+        self.assertEqual(validation['unchanged_hashes'][SOURCE + '/' + UNIT], digest)
+        for path in FIXTURE.iterdir():
+            if path.suffix in ('.json', '.jsonl', '.txt'):
+                self.assertNotIn('/home/omarchytest', path.read_text(), str(path))
+
     def test_typed_reply_replay(self):
         capture = json.loads((FIXTURE / 'capture.json').read_text())
+        self.assertTrue(capture['sanitized'])
+        self.assertEqual(capture['capture_exit_status'], 0)
+        data = (FIXTURE / UNIT).read_bytes()
+        self.assertEqual(capture['fragment']['sha256'], hashlib.sha256(data).hexdigest())
+        self.assertEqual(capture['fragment']['size_bytes'], len(data))
         before = contents(FIXTURE)
         calls = []
         def run(command, **kwargs):
@@ -74,8 +90,12 @@ class GuestReplayTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 0 if report['consistent_observations'] else 1)
                 self.assertFalse(report['migration_ready'])
                 self.assertTrue(report['fragment_bytes_match'])
+                self.assertTrue(report['recognized_shape'])
+                self.assertFalse(report['effective_properties_match'])
+                if name == 'observed':
+                    self.assertEqual(report['reasons'],
+                                     ['Effective property differs from retained-vm-v1: After'])
                 if name == 'changed-restart':
-                    self.assertFalse(report['effective_properties_match'])
                     self.assertIn('Effective property differs from retained-vm-v1: Restart', report['reasons'])
                 self.assertEqual(contents(root), before)
                 self.assertEqual(contents(FIXTURE), fixture_before)

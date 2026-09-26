@@ -16,5 +16,6 @@ manager evidence.
 The tests mutate every property independently, exercise malformed/missing data,
 unknown fields, environment files, execution flags, query errors and stale or
 conflicting observations. No environment file, captured command or source path
-is opened or executed. Full typed property serialization and actual guest defaults
-remain to be validated in a disposable VM.
+is opened or executed. Actual typed-property observations are now retained separately under
+`systemd-261/`; that guest comparison refuses additional mount-ordering edges.
+This synthetic fixture remains synthetic and does not supersede that result.

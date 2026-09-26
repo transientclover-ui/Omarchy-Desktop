@@ -97,11 +97,13 @@ def inspect(snapshot):
 
 
 
-def compare_capture(result, capture_path, source_directory, require_effective=False):
+def compare_capture(result, capture_path, source_directory, require_effective=False, mount_home=None):
     """Compare supplied observations only; source paths are never opened."""
     result['consistent_observations'] = False
     result['fragment_bytes_match'] = None
     result['source_unit_directory'] = source_directory
+    if mount_home is not None:
+        result['mount_context_consistent'] = False
     if require_effective:
         result['effective_properties_match'] = False
     result['unassessed'].append('snapshot origin, capture freshness and manager-loaded bytes')
@@ -126,6 +128,8 @@ def compare_capture(result, capture_path, source_directory, require_effective=Fa
                 capture['collector_exit_status'] != 0 or
                 type(capture.get('sanitized')) is not bool):
             raise ValueError('Unsupported or unsuccessful capture envelope')
+        if mount_home is not None or 'mount_context' in capture:
+            result['mount_context_consistent'] = False
         if require_effective or 'effective' in capture:
             result['effective_properties_match'] = False
         report = capture.get('report')
@@ -193,6 +197,17 @@ def compare_capture(result, capture_path, source_directory, require_effective=Fa
             effective = runpy.run_path(str(Path(__file__).with_name('shell-effective-properties.py')))
             reasons.extend(effective['assess'](capture.get('effective'), unit))
             result['effective_properties_match'] = result['recognized_shape'] and not reasons
+        if mount_home is not None or 'mount_context' in capture:
+            mount = runpy.run_path(str(Path(__file__).with_name('shell-mount-context.py')))
+            mount_reasons = []
+            if (result.get('unit_shape') != 'retained-vm-v1' or result['fragment_bytes_match'] is not True or
+                    reasons != ['Effective property differs from retained-vm-v1: After']):
+                mount_reasons.append('Mount context requires matching snapshot/fragment and only the known After refusal')
+            mount_reasons.extend(mount['assess'](capture.get('mount_context'), capture.get('effective'), unit, mount_home))
+            result['mount_context_consistent'] = not mount_reasons
+            result['mount_context_reasons'] = mount_reasons
+            result['unassessed'].append('mount dependency origins, home identity and changes between mount queries')
+            reasons.extend(mount_reasons)
         result['consistent_observations'] = result['recognized_shape'] and not reasons
     except (OSError, UnicodeError, ValueError) as error:
         reasons.append('Capture comparison refused: ' + str(error))
@@ -208,14 +223,17 @@ def main():
                         help='original absolute path represented by snapshot units/')
     parser.add_argument('--require-effective', action='store_true',
                         help='require matching typed effective properties and fragment provenance')
+    parser.add_argument('--mount-home', help='explicit home mapping for supplementary mount context')
     args = parser.parse_args()
+    if args.mount_home is not None and not (args.capture and args.require_effective):
+        parser.error('--mount-home requires --capture and --require-effective')
     if (args.capture is None) != (args.source_unit_directory is None):
         parser.error('--capture and --source-unit-directory must be supplied together')
     if args.require_effective and args.capture is None:
         parser.error('--require-effective requires --capture and --source-unit-directory')
     result = inspect(args.snapshot)
     if args.capture is not None:
-        result = compare_capture(result, args.capture, args.source_unit_directory, args.require_effective)
+        result = compare_capture(result, args.capture, args.source_unit_directory, args.require_effective, args.mount_home)
     print(json.dumps(result, indent=2, sort_keys=True))
     return 0 if result.get('consistent_observations', result['recognized_shape']) else 1
 

@@ -441,12 +441,69 @@ that adds a second refusal despite matching fragment bytes. The guest service wa
 enabled but inactive; neither capture success nor the other matching properties
 establish shell health. Earlier VM fixtures remain unchanged.
 
+## Supplementary mount-context evidence
+
+The optional development capture adds six fixed, read-only typed queries (29
+properties) for omarchy-shell.service, home.mount and -.mount:
+
+```sh
+python3 tools/capture-shell-ownership-metadata.py /private/guest-directory/mount.json \
+  --hash-fragment --effective-properties --mount-context
+python3 tools/shell-ownership-inventory.py /private/offline-snapshot \
+  --capture /private/guest-directory/mount.json \
+  --source-unit-directory /home/test/.config/systemd/user \
+  --require-effective --mount-home /home/test
+```
+
+Run capture only in the authorized disposable guest; comparison is offline.
+Both existing capture flags are required. Incomplete prerequisite capture skips
+these additional queries. Each query has a five-second timeout (up to 30 seconds
+additional); objects and property lists are fixed, with no discovered paths,
+unit loading or lifecycle commands. Failed queries preserve partial evidence and
+make capture fail. The output retains exclusive creation and mode 0600.
+
+The new `mount_context` envelope contains typed shell identity, After,
+RequiresMountsFor, WantsMountsFor, WorkingDirectory, RootDirectory and RootImage;
+home/root identity, fragment/source paths, drop-ins, reload/transient state; and
+both mount Where values. Missing, extra, malformed and failed records refuse.
+
+`--mount-home` is an explicit evidence mapping, never a host account lookup. The
+bounded candidate supports `/home/` followed by 1–64 ASCII letters, digits,
+underscores or hyphens, with no leading hyphen or digit. It requires the matching
+home-relative .config/systemd/user fragment path. Other layouts are unsupported.
+The shell identity and After must agree across both captures, with matching
+snapshot/fragment evidence and no effective disagreement other than the existing
+After refusal. The supplemental expectations are:
+
+- Exactly app.slice, basic.target, graphical-session.target, home.mount and
+  -.mount in After; no duplicate or unrelated ordering entries.
+- Empty RequiresMountsFor and WantsMountsFor containing only the mapped home.
+- WorkingDirectory equal to `!` plus that home; empty RootDirectory/RootImage.
+  The prefix is systemd's missing-directory-allowed serialization, as shown in
+  [systemd v261's property getter](https://github.com/systemd/systemd/blob/v261/src/core/dbus-execute.c).
+- Loaded, non-transient shell/home/root units with no reported drop-ins or
+  pending reload. Both mounts have empty FragmentPath; the home SourcePath is
+  /proc/self/mountinfo, the root SourcePath is empty, and Where is /home or /.
+
+`mount_context_consistent=true` means only these supplementary observations
+agree. **Overall consistency and effective-property match remain false**, the
+After refusal remains, comparison exits 1, and migration_ready stays false.
+Supplying supplementary evidence without a supported home mapping also refuses;
+it is never silently ignored.
+
+This is not proof of implicit dependency origin: explicit declarations can yield
+equivalent loaded values. Home identity, capture freshness, changes between
+queries and manager-loaded bytes remain unproven. No dependency is newly allowed.
+The new grouped capture has not yet been exercised against a live guest. Tests in
+`tests/shell-mount-context.py` combine explicitly synthetic supplementary records
+with the unchanged retained guest capture and text diagnostics; they do not claim
+new real VM evidence. They cover every property's omission/type/value changes,
+query failures, cross-capture disagreement and preservation of refusal behavior.
+
 ## Next bounded implementation step
 
-Extend bounded read-only evidence to assess working-directory and mount-dependency
-origins, using the retained guest diagnostics as a starting point. Define tests
-for implicit user-home ordering versus explicit or unrelated mount dependencies,
-missing mount metadata and overrides before considering any narrowly justified
-recognition change. Do not simply add arbitrary `.mount` names to the allowlist.
-Keep migration readiness false and stop before live ownership, duplicate-launcher
-resolution or release validation.
+Capture the new supplementary record read-only in a fresh disposable VM and
+retain genuine typed replies for replay. Validate the fixed object/property
+queries and investigate any differences without broadening recognition. Dependency
+origin proof remains separate. Keep migration readiness false and stop before
+live ownership, duplicate-launcher resolution or release validation.

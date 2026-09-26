@@ -2005,3 +2005,53 @@ Only consider a narrowly justified recognition change after that evidence exists
 do not blanket-allow mount units. Freshness, inherited process environment, full
 activation/session assessment, reversible ownership, the duplicate-launcher fix
 and release validation remain subsequent work. Stop after this checkpoint.
+
+
+## 2026-09-26 — Bounded supplementary mount-context capture
+
+Resumed from confirmed HEAD `872edf9` (Validate typed shell properties against
+disposable VM evidence). Tracked state was clean; the three unrelated untracked
+ISO/bootstrap files were left alone. Selected one task from the documented next
+step: implement bounded working-directory/mount context capture and offline
+consistency diagnostics, without relaxing the retained After refusal.
+
+Acceptance criteria: fixed read-only queries; typed and complete supplementary
+evidence; correlation with existing fragment and effective observations;
+meaningful missing/changed/override refusal fixtures; no ownership authorization.
+Implemented --mount-context capture (requires --hash-fragment and
+--effective-properties) with six fixed queries and 29 typed properties. Added
+--mount-home offline mapping and a strictly supplementary consistency result.
+Only the exact retained home/root ordering candidate can agree diagnostically;
+missing/extra properties, unrelated mounts, changed working/root directories,
+explicit mount fragments, drop-ins, reload state and cross-capture disagreements
+refuse. Prerequisite failure skips the additional queries. Capture remains private
+and exclusive; no paths from evidence are used to discover query objects.
+
+Even diagnostic agreement preserves the After refusal, comparison exit 1,
+effective/overall mismatch and migration_ready=false. The new context cannot
+prove implicit dependency origins or user identity; equivalent explicit settings
+may produce the same effective values. The candidate home mapping is deliberately
+narrow. No existing recognition rule or ownership policy was broadened.
+
+Validation passed with Python warnings treated as errors:
+
+- Seven new mount-context tests, including 116 per-property refusal mutations,
+  six-group protocol/error coverage, partial-query failures, offline comparison
+  and mocked complete/prerequisite-failed/partial capture paths.
+- Existing effective-property suite (6 tests), actual-VM replay (3), inventory
+  (2), consistency (3), fragment provenance (2), metadata capture (1) and metadata
+  (7). Existing acceptance/refusal cases continue to run within those suites.
+- Documentation/CLI checks, Python syntax and git diff --check.
+
+Supplementary fixtures are synthetic, informed by retained text diagnostics;
+actual systemd-261 evidence is unchanged. No VM or host manager was contacted in
+this session. The new grouped live capture, including extra identity/root-image
+fields, remains unvalidated on a real guest. No host configuration, service,
+package trust, pacman repository or SDDM state changed. Plasma Wayland, optional
+bar/widgets, disabled/customized choices and menu-only defaults are unchanged.
+
+Next medium-sized task: read-only validation of this new grouped capture in a
+fresh disposable VM, retaining genuine typed responses and replay tests. Explain
+any differences without broadening recognition. Origin proof, ownership transfer,
+duplicate-launcher resolution and release validation remain subsequent work.
+Stop after this implementation checkpoint.

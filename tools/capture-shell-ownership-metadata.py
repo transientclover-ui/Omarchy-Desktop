@@ -90,7 +90,11 @@ def main():
                         help='also read/hash the captured on-disk fragment (no symlinks)')
     parser.add_argument('--effective-properties', action='store_true',
                         help='also collect typed read-only properties for offline comparison')
+    parser.add_argument('--mount-context', action='store_true',
+                        help='also collect fixed shell/home/root mount context (diagnostic only)')
     args = parser.parse_args()
+    if args.mount_context and not (args.hash_fragment and args.effective_properties):
+        parser.error('--mount-context requires --hash-fragment and --effective-properties')
     collector = Path(__file__).with_name('shell-ownership-metadata.py')
     try:
         result = subprocess.run([sys.executable, str(collector)], capture_output=True,
@@ -116,6 +120,14 @@ def main():
             effective = runpy.run_path(str(Path(__file__).with_name('shell-effective-properties.py')))
             evidence['effective'] = effective['collect']()
             if not evidence['effective']['collected']:
+                capture_status = 1
+            evidence['capture_exit_status'] = capture_status
+        if args.mount_context:
+            mount = runpy.run_path(str(Path(__file__).with_name('shell-mount-context.py')))
+            evidence['mount_context'] = (mount['collect']() if capture_status == 0 else
+                {'schema': 1, 'collected': False, 'properties': {},
+                 'errors': ['Prerequisite capture incomplete']})
+            if not evidence['mount_context']['collected']:
                 capture_status = 1
             evidence['capture_exit_status'] = capture_status
         # Exclusive creation prevents clobbering files or following a final symlink.

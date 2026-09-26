@@ -25,3 +25,6 @@ It is a design contract, not an implemented setup option.
 [Display Power-Cycle Protection](docs/DISPLAY-POWER-CYCLE.md) records the TV/HDMI
 workaround investigation. Integration is deferred pending identification of its
 working recovery action; no protection toggle is available yet.
+
+The [KDE Wayland display investigation](docs/DISPLAY-POWER-CYCLE-KDE.md) explains
+native reconnect handling and the evidence required before adding a fallback.

@@ -1,0 +1,47 @@
+{
+  "reviewed_tag": "v6.7.4",
+  "note": "Hashes identify downloaded review inputs; upstream source review is not a binary/runtime test. Full source remains in ignored evidence directory.",
+  "sources": [
+    {
+      "url": "https://raw.githubusercontent.com/KDE/kwin/v6.7.4/src/backends/drm/drm_backend.cpp",
+      "sha256": "20a3bb7fdfa1d5900352be0cb12d81d2016cb5343e2a08831492865c8bf5afd4",
+      "bytes": 15080
+    },
+    {
+      "url": "https://raw.githubusercontent.com/KDE/kwin/v6.7.4/src/backends/drm/drm_gpu.cpp",
+      "sha256": "907a021be62915650dc5ba2e176e7ecc650c33448659355c138202bc84be1d6a",
+      "bytes": 39564
+    },
+    {
+      "url": "https://raw.githubusercontent.com/KDE/kwin/v6.7.4/src/workspace.cpp",
+      "sha256": "44e432753102d32bba5ea19ad2bcda585ee1027531315ad4db4994bda4efa201",
+      "bytes": 117136
+    },
+    {
+      "url": "https://raw.githubusercontent.com/KDE/kwin/v6.7.4/src/outputconfigurationstore.cpp",
+      "sha256": "4918f4d0f53097b4d0487550f3eac99bb1ca8cef10f43e111e230087d67c562b",
+      "bytes": 69304
+    },
+    {
+      "url": "https://raw.githubusercontent.com/KDE/libkscreen/v6.7.4/backends/kwayland/waylandconfig.cpp",
+      "sha256": "1727edda576cabd54e7c61fbb790a2ec43a86fc934d27f4c14d6240f9f49833d",
+      "bytes": 8104
+    },
+    {
+      "url": "https://raw.githubusercontent.com/KDE/libkscreen/v6.7.4/src/doctor/doctor.cpp",
+      "sha256": "066dd13e775cc2dc449cea70592aa7010d2a3f9298c67dce32f5f694e3fe706f",
+      "bytes": 49460
+    },
+    {
+      "url": "https://raw.githubusercontent.com/KDE/libkscreen/v6.7.4/src/doctor/main.cpp",
+      "sha256": "0aa8217ab6af26cd4d0831607b4400b7be59f48f0230fb8d055437458be69506",
+      "bytes": 6871
+    },
+    {
+      "url": "https://raw.githubusercontent.com/KDE/kscreen/v6.7.4/kded/kscreen.json.in",
+      "sha256": "c00f861cc13cd298440a05e36c379988b6a5f29ac100ab59044f2285ff1eed87",
+      "bytes": 4141,
+      "finding": "X-KDE-OnlyShowOnQtPlatforms contains xcb only"
+    }
+  ]
+}

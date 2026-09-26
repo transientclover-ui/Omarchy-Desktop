@@ -1,0 +1,11 @@
+Curated historical observations; local time unless offset shown.
+2026-09-18: KWin 6.7.4-7, Plasma workspace 6.7.4-3, libkscreen/kscreen 6.7.4-1 installed according to pacman log.
+2026-09-18: recovery script/user unit mtime about 13:14; rule backups and active rule mtime about 16:31–16:32. Mtime alone is not authorship or execution proof.
+2026-09-21: retained user-service logs skipped restart/display-tool actions.
+2026-09-22: retained tagged hotplug log reports HOME: unbound variable.
+2026-09-23 11:26:42: kwin_wayland logged Applying output configuration failed!
+2026-09-25 16:02:23 and 23:02:42: kscreenlocker_greet logged There are no outputs - creating placeholder screen.
+2026-09-26 00:45:09: kwin_wayland logged Applying output configuration failed! twice.
+No episode is tied to a confirmed physical TV off/on or successful workaround action. Locker output messages must not be relabelled as KWin recovery messages.
+Targeted readable shell histories contained no matching earlier recovery commands. Root-only rule backup contents remained inaccessible; no privileged bypass attempted.
+The inspected unrelated desktop-restore backup only removed SDDM files after a Hyprland-ready marker; it was not executed and contains no display-recovery implementation.

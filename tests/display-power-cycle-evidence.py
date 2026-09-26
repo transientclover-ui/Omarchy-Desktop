@@ -4,6 +4,7 @@
 This is evidence regression, not protection enable/disable or hardware validation.
 """
 import json
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -14,7 +15,7 @@ FIXTURE = Path(__file__).resolve().parent / 'fixtures/display-power-cycle/host-2
 
 
 class WorkaroundEvidenceTests(unittest.TestCase):
-    def run_fixture(self, status='connected', home=True, legacy_actions=False):
+    def run_fixture(self, status='connected', home=True, legacy_actions=False, rule_environment=None):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             commands = root / 'bin'
@@ -45,6 +46,9 @@ class WorkaroundEvidenceTests(unittest.TestCase):
             script = root / 'replay.sh'
             script.write_text(source.replace('/sys/class/drm/card1-HDMI-A-1', str(connector)))
             env = {'PATH': str(commands), 'CALLS': str(calls), 'LC_ALL': 'C'}
+            if rule_environment:
+                self.assertEqual(set(rule_environment), {'DISPLAY', 'XDG_RUNTIME_DIR', 'DBUS_SESSION_BUS_ADDRESS'})
+                env.update(rule_environment)
             if home:
                 env['HOME'] = str(root / 'home')
             result = subprocess.run(['/bin/bash', str(script)], env=env, cwd=root,
@@ -55,6 +59,14 @@ class WorkaroundEvidenceTests(unittest.TestCase):
 
     def test_missing_home_fails_before_any_action(self):
         result, actions, _ = self.run_fixture(home=False)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('HOME: unbound variable', result.stderr)
+        self.assertEqual(actions, [])
+
+    def test_supplied_udev_environment_does_not_fix_missing_home(self):
+        rule = (FIXTURE / 'active-rule.user-supplied.txt').read_text()
+        values = dict(re.findall(r'ENV\{([A-Z_]+)\}="([^"]*)"', rule))
+        result, actions, _ = self.run_fixture(home=False, rule_environment=values)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('HOME: unbound variable', result.stderr)
         self.assertEqual(actions, [])

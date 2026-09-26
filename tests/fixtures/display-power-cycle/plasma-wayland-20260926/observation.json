@@ -1,0 +1,87 @@
+{
+  "schema": 1,
+  "provenance": "Curated read-only host observations, 2026-09-26; not a hotplug experiment.",
+  "packages": {
+    "kwin": "6.7.4-7",
+    "plasma-workspace": "6.7.4-3",
+    "libkscreen": "6.7.4-1",
+    "kscreen": "6.7.4-1",
+    "powerdevil": "6.7.4-3",
+    "systemd": "261.2-1",
+    "omarchy": "4.0.4-1",
+    "mesa": "1:26.2.2-1",
+    "libdrm": "2.4.134-1"
+  },
+  "running_kernel": "7.2.3-zen1-3-zen",
+  "logind_session": {
+    "Type": "wayland",
+    "Desktop": "KDE",
+    "Active": "yes",
+    "Remote": "no",
+    "Class": "user",
+    "State": "active"
+  },
+  "session_resolution": "self lookup unavailable to tool process; explicit ID from environment checked with logind; not an exhaustive multi-session inventory",
+  "kwin_process_environment": {
+    "XDG_CURRENT_DESKTOP": "KDE",
+    "XDG_SESSION_TYPE": "wayland",
+    "KWIN_variable_names": []
+  },
+  "units": {
+    "plasma-kwin_wayland.service": {
+      "active": true,
+      "drop_ins": []
+    },
+    "plasma-plasmashell.service": {
+      "active": true,
+      "drop_ins": []
+    },
+    "recover-tv-display.service": {
+      "active": false,
+      "drop_ins": []
+    }
+  },
+  "kscreen_query": {
+    "command": [
+      "kscreen-doctor",
+      "--json"
+    ],
+    "child_environment_override": {
+      "QT_QPA_PLATFORM": "wayland"
+    },
+    "exit": 0,
+    "retained_fields_only": true,
+    "outputs": [
+      {
+        "name": "HDMI-A-1",
+        "connected": true,
+        "enabled": true,
+        "currentModeId": "1",
+        "scale": 1,
+        "priority": 0
+      }
+    ]
+  },
+  "saved_configuration_summary": {
+    "HDMI-A-1_entries": 2,
+    "distinct_edid_identifiers": 2,
+    "distinct_edid_hashes": 2,
+    "identity_values_retained": false,
+    "interpretation": "Historical records only; not proof of unstable EDID during a power-cycle."
+  },
+  "disabled_omarchy_plugins": [
+    "omarchy.workspaces",
+    "omarchy.idle",
+    "omarchy.lock",
+    "omarchy.nightlight",
+    "omarchy.monitor"
+  ],
+  "kwin_package_check": {
+    "files": 2256,
+    "altered": 0,
+    "limit": "Installed package metadata check; not proof upstream source is identical to distribution binary."
+  },
+  "causality": "unknown",
+  "physical_power_cycle_performed": false,
+  "recovery_action_performed": false
+}

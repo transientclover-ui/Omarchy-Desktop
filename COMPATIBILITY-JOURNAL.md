@@ -2188,3 +2188,83 @@ necessary because no host changes were made. Next smallest task: correlate an
 existing successful recovery with logs or locate the different script/settings or
 historical revision that actually fixed it, read-only and without cycling the TV.
 Stop at this evidence checkpoint; do not repair the host or invent a substitute.
+
+## 2026-09-26 — KDE Wayland TV lifecycle investigation
+
+Started at confirmed HEAD `df07753`, with clean tracked state and the same three
+unrelated untracked files. Completed only the requested investigation, not a toggle,
+new recovery mechanism, host repair or ownership migration.
+
+Read the existing TV evidence and ownership boundaries; inspected installed KDE
+units, selected process/session environment, package versions/history, targeted
+readable script/history/backup locations and existing journal entries. The active
+local session was verified as KDE Wayland using its explicit logind ID after the
+tool process's `self` lookup failed. This is not a full multiple-session audit.
+The root-only rule backups remain unread; the earlier user-supplied active rule is
+still the available evidence for its contents. No credential or bypass requested.
+
+The old intent was event-triggered output recovery while retaining the session.
+The direct udev invocation bypasses its user service and supplies no HOME. The
+script's legacy service/command names and missing power_mode still prevent its
+intended actions on this host. Package history places KDE 6.7.4 installation before
+the workaround's mtime; no subsequent version change was established as the cause
+of these mismatches. No readable earlier working revision was located. The
+unrelated desktop-restore backup was SDDM/Hyprland readiness cleanup, not recovery.
+File existence and old success messages remain insufficient to establish causation.
+
+Reviewed upstream v6.7.4 KWin DRM backend/GPU, Workspace, configuration store,
+libkscreen Wayland backend/CLI and KScreen KDED metadata. Native KWin already
+subscribes to DRM changes, removes/recreates outputs, selects saved/generated
+configurations, supports a placeholder without physical outputs and requests a
+modeset for a bad link. Saved matching considers EDID identity/hash, MST path and
+connector; it is not a generic fixed-connector restore script. Native wake behavior
+also distinguishes recently removed DPMS-off outputs. KScreen is a compositor
+client on Wayland, and unchanged requests may not produce a commit. Repeating an
+identical mode/enable is not established as forced recovery. Legacy KScreen KDED
+metadata is xcb-only; restarting Plasma panels is not DRM output management.
+
+Host observations: KWin 6.7.4-7, Plasma workspace/PowerDevil 6.7.4-3,
+KScreen/libkscreen 6.7.4-1, Omarchy 4.0.4-1, systemd 261.2-1; running kernel
+7.2.3-zen1-3-zen. Plasma compositor/shell services active with no reported drop-ins;
+selected KWin process environment had KDE/Wayland and no KWIN_* keys. Package
+metadata verification reported 2256 KWin files, zero altered. This does not prove
+upstream source equals the patched distribution binary.
+
+A bounded read-only kscreen-doctor --json query through Wayland returned one
+connected/enabled HDMI-A-1 output, mode ID 1, scale 1. Saved output records contain
+two distinct historical EDID identities/hashes for that connector; no raw identity
+retained and no inference that a power-cycle changed it. Historical output-config
+errors lack TV-event correlation. Several placeholder messages were from
+kscreenlocker_greet, not KWin. Omarchy's monitor panel invokes hyprctl; monitor,
+idle, lock and other previously disabled plugins remain disabled. Generic graphical
+targets and stale user-manager variables are not KDE session ownership.
+
+Decision: native KWin output management is the smallest technically justified
+mechanism for the requested lifecycle. Successful native recovery is plausible,
+not proven as the cause on this machine. No extra automatic corrective action is
+yet justified. A future opt-in fallback would need evidence of a specific failure,
+active-session/identity checks, bounded behavior and ownership-preserving rollback;
+no root rule, forced EDID, compositor restart or configuration rewrite is proposed.
+
+Added docs/DISPLAY-POWER-CYCLE-KDE.md with versioned sources, lifecycle explanation,
+Omarchy boundaries, decision cases and separate validation classes. Preserved
+sanitized current observations, historical findings and source-input hashes in
+fixtures/display-power-cycle/plasma-wayland-20260926. Expanded isolated script
+tests to reproduce missing HOME with the supplied udev environment exactly. Older
+fixtures and production/package/UI/profile tools remain unchanged.
+
+Validation passed: six evidence tests; shell-profile regressions including 22
+invalid overrides; nine settings-selection tests; all 16 packaged/standalone
+preservation/selective-setting cases. Python syntax, JSON, local documentation
+links and git diff --check passed. No VM or upstream KWin test suite was run. Tests
+use fake commands/connector files, not real HDMI or DRM. No host configuration,
+service lifecycle, udev, KDE setting, package state, trust, repository, SDDM or
+physical display state was changed. No protection toggle implemented.
+
+Unverified: causal contribution of the old fix, real hotplug/EDID/link timing,
+physical pixels and full layout restoration. The next smallest implementation is
+an explicitly invoked read-only display-check diagnostic with sanitized timed
+session/output/DPMS/legacy-trigger observations and ambiguous-evidence refusal,
+plus absent/disabled/identity-change/stale-session fixtures. Do not implement it
+in this session or add a recovery action without a demonstrated failure class.
+Stop after this investigation checkpoint.

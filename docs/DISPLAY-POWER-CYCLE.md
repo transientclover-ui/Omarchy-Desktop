@@ -5,6 +5,10 @@ has been located, but its effective recovery action has not been established.
 This checkpoint preserves the evidence and reproduces its failure/no-op paths in
 isolated tests. It does not replace, repair, adopt or disable the host workaround.
 
+The [KDE Wayland follow-up](DISPLAY-POWER-CYCLE-KDE.md) now traces the native
+hotplug/restoration path and recommends a native-first diagnostic approach. The
+original workaround still has no established causal role in successful recovery.
+
 ## Original problem
 
 The user uses a TV as the primary desktop display. Switching it off with its remote

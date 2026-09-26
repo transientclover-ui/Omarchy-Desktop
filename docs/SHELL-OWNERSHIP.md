@@ -494,7 +494,11 @@ it is never silently ignored.
 This is not proof of implicit dependency origin: explicit declarations can yield
 equivalent loaded values. Home identity, capture freshness, changes between
 queries and manager-loaded bytes remain unproven. No dependency is newly allowed.
-The new grouped capture has not yet been exercised against a live guest. Tests in
+The grouped capture has now been validated in a fresh systemd-261 disposable guest.
+All 29 supplementary replies matched separate repeated queries, and the actual
+comparison reported supplementary agreement while retaining the After refusal.
+See [actual mount-context evidence](../tests/fixtures/shell-mount/systemd-261/README.md)
+and `tests/shell-mount-vm-replay.py` for provenance, limitations and replay. Tests in
 `tests/shell-mount-context.py` combine explicitly synthetic supplementary records
 with the unchanged retained guest capture and text diagnostics; they do not claim
 new real VM evidence. They cover every property's omission/type/value changes,
@@ -502,8 +506,9 @@ query failures, cross-capture disagreement and preservation of refusal behavior.
 
 ## Next bounded implementation step
 
-Capture the new supplementary record read-only in a fresh disposable VM and
-retain genuine typed replies for replay. Validate the fixed object/property
-queries and investigate any differences without broadening recognition. Dependency
-origin proof remains separate. Keep migration readiness false and stop before
-live ownership, duplicate-launcher resolution or release validation.
+Add bounded capture-coherence checks around the sequential observations, with
+adversarial fixtures for unit/configuration changes between reads. Document what
+before/after agreement can and cannot establish; it must not imply an atomic
+snapshot or prove dependency origins. Keep the After refusal and migration
+readiness false. Stop before live ownership, duplicate-launcher resolution or
+release validation.

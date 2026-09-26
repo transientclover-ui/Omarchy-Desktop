@@ -1,0 +1,10 @@
+{"type":"s","data":"omarchy-shell.service"}
+{"type":"s","data":"loaded"}
+{"type":"s","data":"/home/test/.config/systemd/user/omarchy-shell.service"}
+{"type":"s","data":""}
+{"type":"as","data":[]}
+{"type":"b","data":false}
+{"type":"b","data":false}
+{"type":"as","data":["graphical-session.target","home.mount","basic.target","-.mount","app.slice"]}
+{"type":"as","data":[]}
+{"type":"as","data":["/home/test"]}

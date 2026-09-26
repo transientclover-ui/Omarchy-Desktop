@@ -1,0 +1,52 @@
+{
+  "activation": "graphical-session.target",
+  "consistent_observations": false,
+  "effective_properties_match": false,
+  "entries": [
+    {
+      "kind": "directory",
+      "mode": 493,
+      "path": "units/graphical-session.target.wants"
+    },
+    {
+      "kind": "symlink",
+      "mode": 511,
+      "path": "units/graphical-session.target.wants/omarchy-shell.service",
+      "target": "../omarchy-shell.service"
+    },
+    {
+      "kind": "file",
+      "mode": 420,
+      "path": "units/omarchy-shell.service",
+      "sha256": "e7ed27417635e1347352cfe571a947e707f59e0cdb28dcaf8519e765a90a8703",
+      "size_bytes": 386
+    }
+  ],
+  "fragment_bytes_match": true,
+  "launch_command": "/usr/bin/quickshell -n -p /usr/share/omarchy/shell",
+  "migration_ready": false,
+  "mount_context_consistent": false,
+  "mount_context_reasons": [
+    "Mount context requires matching snapshot/fragment and only the known After refusal",
+    "Mount context requires otherwise consistent effective evidence with the known After refusal"
+  ],
+  "reasons": [
+    "Effective property differs from retained-vm-v1: After",
+    "Effective property differs from retained-vm-v1: Restart",
+    "Mount context requires matching snapshot/fragment and only the known After refusal",
+    "Mount context requires otherwise consistent effective evidence with the known After refusal"
+  ],
+  "recognized_shape": true,
+  "schema": 1,
+  "scope": "offline-directory-snapshot",
+  "source_unit_directory": "/home/test/.config/systemd/user",
+  "unassessed": [
+    "effective systemd unit and search paths",
+    "live session and process ownership",
+    "activation outside supplied directories",
+    "snapshot origin, capture freshness and manager-loaded bytes",
+    "inherited process environment, unqueried properties and changes between property reads",
+    "mount dependency origins, home identity and changes between mount queries"
+  ],
+  "unit_shape": "retained-vm-v1"
+}

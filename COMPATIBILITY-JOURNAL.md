@@ -2055,3 +2055,72 @@ fresh disposable VM, retaining genuine typed responses and replay tests. Explain
 any differences without broadening recognition. Origin proof, ownership transfer,
 duplicate-launcher resolution and release validation remain subsequent work.
 Stop after this implementation checkpoint.
+
+## 2026-09-26 — Mount-context capture validated in disposable guest
+
+Confirmed HEAD `2cf4018` and clean tracked state before work. Left the three
+unrelated untracked ISO/bootstrap files untouched; public chooser remains clean.
+Selected only the documented grouped mount-context VM validation task. Acceptance:
+real fixed-query replies, accurate diagnostic/refusal behavior, retained sanitized
+evidence and offline replay with meaningful mismatches. No production tool or
+ownership recognition change was needed.
+
+Created a fresh overlay, firmware and USB payload under ignored
+`evidence/mount-context-20260926/`, backed by the preserved revision-5 image and
+clean baseline. No network, host block device or host filesystem share was exposed.
+The user unlocked the encrypted guest directly. Initial runner failed before any
+capture because the payload root was not writable. Corrected the disposable
+harness by attaching a second results disk prepared with a writable root and
+copying the unchanged payload there; result directory/capture remained 0700/0600.
+No host or guest service configuration workaround was used.
+
+Actual systemd 261 (261.2-1-arch) findings:
+
+- Capture and metadata collector returned 0; all 65 effective and 29 supplementary
+  fields collected. Six repeated typed queries exactly matched supplementary data.
+- mount_context_consistent=true with no supplementary reasons. Overall comparison
+  returned 1 and still refused only After; effective/overall match false and
+  migration_ready=false. The expected home/root ordering remains unaccepted.
+- WorkingDirectory=!/home/test and WantsMountsFor=/home/test (sanitized mapping);
+  RequiresMountsFor, RootDirectory and RootImage empty. Loaded shell/home/root
+  units reported no drop-ins, pending reload or transient status. Home/root mounts
+  had empty fragments, expected Where values, home source /proc/self/mountinfo
+  and empty root source. Exact After membership matched the bounded candidate.
+- Service active/running this time; this is not a health/exclusive-ownership pass.
+  The known extra bar was visible and was not addressed.
+- Exact unit SHA-256 e7ed27417635e1347352cfe571a947e707f59e0cdb28dcaf8519e765a90a8703
+  (386 bytes); independent before/after unit and shell.json hashes unchanged.
+
+Retained actual sanitized capture, all six repeated typed replies, unchanged unit,
+guest comparison and runner validation under tests/fixtures/shell-mount/systemd-261/.
+Added four replay tests covering provenance/sanitization, typed collection,
+truncation of each actual query group and full comparisons for observed data plus
+offline HomeMount.Where and Restart mutations. Both mutations add refusals and
+invalidate supplementary agreement. Existing fixtures are unchanged. A test mock
+initially emitted a blank line instead of zero replies for truncated one-property
+queries; corrected the mock and all cases passed. No live mutation was performed.
+
+Validation passed:
+
+- Four new actual-VM replay tests, including six truncated-query cases and three
+  full comparisons with empty PATH and immutable input checks.
+- Seven synthetic mount-context tests; effective-property (6), prior actual-VM
+  replay (3), inventory (2), consistency (3), fragment provenance (2), metadata
+  capture (1) and metadata (7) suites, with warnings treated as errors.
+- Python syntax, JSON/JSONL parsing, documentation links and git diff --check.
+- Both removable disks unmounted, native guest poweroff and QEMU exit 0. Offline
+  qemu-img check and read-only e2fsck passed. Baseline before/after SHA-256 remained
+  844be5c310a5750902c40d1ab95fb5144b6788b29cbfa7d3b96b29aaa253c4c0.
+
+The preserved After refusal is expected, not a failed validation. New live query
+coverage is complete for this guest; implicit dependency origin, home identity,
+freshness, changes between queries, manager-loaded bytes and process environment
+remain unproven. Activation linkage is a constructed comparison fixture, not full
+activation evidence. No host configuration, services, trust, repositories or SDDM
+changed. Plasma Wayland support, optional bar/widgets, custom/disabled choices,
+menu-only defaults and ownership policy remain unchanged; no package was rebuilt.
+
+Next medium-sized task: bounded capture-coherence checks around sequential reads,
+with adversarial change-between-read fixtures and explicit non-atomic limitations.
+Preserve the After refusal and migration_ready=false; do not proceed into live
+ownership, duplicate-launcher resolution or release validation. Stop here.

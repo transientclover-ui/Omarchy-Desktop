@@ -1,0 +1,16 @@
+[Unit]
+Description=Recover TV display after HDMI hotplug blackscreen
+# Run after the compositor is up, but before we need the display
+After=graphical-session.target
+PartOf=graphical-session.target
+# Only run in graphical sessions
+ConditionEnvironment=WAYLAND_DISPLAY
+
+[Service]
+Type=oneshot
+ExecStart=/home/test/.local/bin/recover-tv-display.sh
+# Don't restart automatically — hotplug events are handled by the udev trigger below
+RemainAfterExit=no
+
+[Install]
+WantedBy=graphical-session.target

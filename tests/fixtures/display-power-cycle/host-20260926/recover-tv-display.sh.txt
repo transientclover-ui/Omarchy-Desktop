@@ -1,0 +1,85 @@
+#!/bin/bash
+# recover-tv-display.sh — Recover HDMI-A-1 (TV) output after hotplug blackscreen
+# Usage: run from a TTY (Ctrl+Alt+F2) when the TV screen goes black and won't come back
+#
+# This does NOT restart the compositor. It forces KWin to re-evaluate outputs
+# by toggling the HDMI-A-1 connector via sysfs and then restarting plasmashell's
+# display config module.
+
+set -euo pipefail
+
+LOG="${HOME}/.local/state/omarchy/recover-tv-display.log"
+
+log() {
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG"
+}
+
+# Ensure log dir exists
+mkdir -p "$(dirname "$LOG")"
+
+log "=== TV display recovery started ==="
+
+# 1. Check current state of HDMI-A-1
+CONNECTOR="/sys/class/drm/card1-HDMI-A-1"
+if [[ ! -d "$CONNECTOR" ]]; then
+  log "ERROR: HDMI-A-1 connector not found at $CONNECTOR"
+  log "Available connectors:"
+  ls /sys/class/drm/ | grep -vE '^card$|render' | tee -a "$LOG"
+  exit 1
+fi
+
+STATUS="$(cat "$CONNECTOR/status" 2>/dev/null || echo 'unknown')"
+log "HDMI-A-1 status: $STATUS"
+
+# 2. Toggle the connector: write '0' then '1' to trigger a re-detect
+# This is the same mechanism display managers use to re-probe EDID
+if [[ -w "$CONNECTOR/power_mode" ]]; then
+  log "Toggling power_mode..."
+  echo "on" > "$CONNECTOR/power_mode" 2>/dev/null || true
+fi
+
+# Reset the connector by cycling the status through unbind/bind isn't safe from userspace.
+# Instead, use the drm handle hotplug workaround: trigger a pending page flip or
+# restart the output configuration via KWin/plasmashell.
+
+# 3. Restart plasmashell display config — this re-reads kwinoutputconfig.json
+# and re-applies the output layout without killing the compositor.
+log "Restarting plasmashell display configuration..."
+if command -v systemctl &>/dev/null && systemctl --user is-active plasmashell &>/dev/null; then
+  systemctl --user restart plasmashell &>/dev/null || true
+  log " plasmashell restart triggered"
+else
+  log " plasmashell not running as user service — skipping restart"
+fi
+
+# 4. Also try the KWin output management via DBus if available
+if command -v qdbus &>/dev/null; then
+  export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+  export DBUS_SESSION_BUS_ADDRESS="unix:path=$XDG_RUNTIME_DIR/bus"
+  # Try to restart KWin's output handling
+  if qdbus org.kde.KWin /Outputs 2>/dev/null; then
+    log " KWin DBus output interface found"
+  fi
+fi
+
+# 5. Force a mode refresh by pressing the virtual "refresh" via kscreen_doctor if available
+if command -v kscreen_doctor &>/dev/null; then
+  log "Running kscreen_doctor to re-apply config..."
+  kscreen_doctor --apply-current 2>&1 | tee -a "$LOG" || log "kscreen_doctor failed"
+else
+  log "kscreen_doctor not available — skipping"
+fi
+
+# 6. Wait a moment and check if HDMI-A-1 came back
+sleep 3
+NEW_STATUS="$(cat "$CONNECTOR/status" 2>/dev/null || echo 'unknown')"
+log "HDMI-A-1 status after recovery: $NEW_STATUS"
+
+if [[ "$NEW_STATUS" == "connected" ]]; then
+  log "SUCCESS: HDMI-A-1 is connected again"
+else
+  log "WARNING: HDMI-A-1 still not connected — may need full KWin restart"
+  log "Try: loginctl terminate-user $(whoami)  (then re-login)"
+fi
+
+log "=== TV display recovery finished ==="

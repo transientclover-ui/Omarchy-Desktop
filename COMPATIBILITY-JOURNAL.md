@@ -2124,3 +2124,67 @@ Next medium-sized task: bounded capture-coherence checks around sequential reads
 with adversarial change-between-read fixtures and explicit non-atomic limitations.
 Preserve the After refusal and migration_ready=false; do not proceed into live
 ownership, duplicate-launcher resolution or release validation. Stop here.
+
+## 2026-09-26 — TV power-cycle workaround investigation: safe checkpoint
+
+Confirmed HEAD `4690eb5` with clean tracked files; the three unrelated ISO/bootstrap
+references remain untouched. Selected only the requested optional Display
+Power-Cycle Protection integration. Used the user's explicit safe-checkpoint
+provision after discovering that the located workaround does not establish a
+working recovery mechanism on the current host. Integration is unfinished.
+
+Read-only host investigation found recover-tv-display.sh in ~/.local/bin, its
+user oneshot service, a root-owned /etc/udev/rules.d/99-recover-tv-display.rules,
+an older user copy and backup rule filenames. Direct reading of the active rule
+was denied; sudo -n also required authentication. The user provided its contents
+without sharing credentials. It matches card1-HDMI-A-1 DRM change events, sets
+DISPLAY=:0 and the UID-1000 runtime/bus paths, and directly invokes the user script
+through systemd-cat. It does not invoke the user unit or provide HOME. The user
+copy has an environment syntax error that is corrected in the supplied active
+rule. Exact active-file bytes remain unverified (the pasted header lacks '#').
+
+The script's actual operations differ from its comments. It can write on once to
+power_mode, conditionally restart plasmashell, introspect KWin, and conditionally
+call kscreen_doctor --apply-current. It does not perform the claimed off/on cycle.
+Current host observations: amdgpu connector connected; power_mode absent;
+plasmashell.service not found while plasma-plasmashell.service is active; qdbus6
+and kscreen-doctor installed, but the script's qdbus/kscreen_doctor names absent.
+The upstream KScreen CLI definition also lacks --apply-current. The user service
+is inactive/indirect, with no reported drop-ins or inspected *.wants link.
+
+Historical service logs show restart/display-tool steps skipped and an already
+connected connector. The hotplug journal records HOME: unbound variable on
+September 22. Missing HOME aborts before any recovery. The script reports success
+based only on connected status and returns zero even when still disconnected.
+Separate PowerDevil settings disable idle dim/off/suspend; they do not establish
+manual-TV-power-cycle recovery. No EDID/forced-connector override was found in the
+inspected cmdline/readable module settings. This is not an exhaustive host audit.
+
+This does not disprove the user's successful experience. It leaves the causal
+working action unknown. Changing command names, routing privileges/session state
+or designing a new output-recovery method would invent unverified behavior, so
+no replacement or enable toggle was shipped. The root-triggered user-writable
+script is also unsuitable to duplicate as a distribution ownership model.
+
+Added non-executable sanitized evidence fixtures, five isolated regression tests,
+a user-facing investigation/limitations document and a README status link. Tests
+reproduce missing HOME, success-without-recovery, disconnected zero exit, and
+legacy gated actions against temporary fake files/commands; distinguish the
+provided active-rule excerpt from the older user copy. Production setup, package,
+UI, profiles and ownership code are unchanged.
+
+Validation: five evidence tests passed, shell-profile suite passed (including 22
+invalid-override cases), nine settings-selection tests passed, and preservation
+regressions passed. Python/shell syntax, JSON and documentation-link checks passed.
+No real host script, service lifecycle command, udev reload/trigger, display-state
+change, VM or power-cycle was performed. Package trust, repositories and SDDM were
+untouched. Plasma Wayland, optional bar/widgets, disabled/customized choices and
+menu-only defaults remain unchanged.
+
+Unfinished: identify the actual successful mechanism before implementing opt-in
+control, ownership/adoption, clean enable/disable and rollback/idempotence/conflict
+tests. Real-hardware recovery is unvalidated. No feature-related host rollback is
+necessary because no host changes were made. Next smallest task: correlate an
+existing successful recovery with logs or locate the different script/settings or
+historical revision that actually fixed it, read-only and without cycling the TV.
+Stop at this evidence checkpoint; do not repair the host or invent a substitute.

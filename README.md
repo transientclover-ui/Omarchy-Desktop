@@ -21,3 +21,7 @@ repository creation, and the public-key trust procedure.
 The proposed [cross-session shell ownership policy](docs/SHELL-OWNERSHIP.md)
 defines the remaining preserved-shell lifecycle work and acceptance cases.
 It is a design contract, not an implemented setup option.
+
+[Display Power-Cycle Protection](docs/DISPLAY-POWER-CYCLE.md) records the TV/HDMI
+workaround investigation. Integration is deferred pending identification of its
+working recovery action; no protection toggle is available yet.

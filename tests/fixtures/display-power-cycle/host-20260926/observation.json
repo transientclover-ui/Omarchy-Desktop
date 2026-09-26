@@ -1,0 +1,39 @@
+{
+  "schema": 1,
+  "read_only": true,
+  "active_rule_readable": false,
+  "active_rule_path": "/etc/udev/rules.d/99-recover-tv-display.rules",
+  "connector": "card1-HDMI-A-1",
+  "driver": "amdgpu",
+  "connector_status": "connected",
+  "power_mode_exists": false,
+  "commands": {
+    "qdbus": false,
+    "qdbus6": true,
+    "kscreen_doctor": false,
+    "kscreen-doctor": true
+  },
+  "units": {
+    "recover-tv-display.service": {
+      "LoadState": "loaded",
+      "ActiveState": "inactive",
+      "UnitFileState": "indirect",
+      "DropInPaths": []
+    },
+    "plasmashell.service": {
+      "LoadState": "not-found",
+      "ActiveState": "inactive"
+    },
+    "plasma-plasmashell.service": {
+      "LoadState": "loaded",
+      "ActiveState": "active"
+    }
+  },
+  "journal_findings": [
+    "User-service runs on 2026-09-21 skipped plasmashell restart and kscreen_doctor; connector was already connected.",
+    "Hotplug journal entry on 2026-09-22 failed at line 11: HOME: unbound variable."
+  ],
+  "integration_ready": false,
+  "active_rule_provenance": "User-supplied terminal excerpt; first line lacks a comment marker in the pasted text; exact file bytes unverified.",
+  "active_rule_provided": true
+}

@@ -517,7 +517,7 @@ python3 tools/shell-ownership-inventory.py /private/offline-snapshot \
   --require-effective --mount-home /home/test --require-coherence
 ```
 
-Capture remains for an authorized disposable guest; tests use simulated commands.
+Capture remains for an authorized disposable guest; local unit tests use simulated commands.
 `--check-coherence` requires `--mount-context` and its existing prerequisites.
 After the initial metadata, fragment hash, effective properties and mount context,
 the runner repeats mount context, effective properties, fragment hash and metadata
@@ -557,10 +557,17 @@ changes, failed/malformed queries, forged derived fields, exact type/order check
 private output, fixed command counts and continued refusal. These are synthetic
 repetitions of retained data, not a new real-manager or VM validation claim.
 
+Actual repeated capture has now been validated against systemd 261 in a fresh
+disposable guest. Stable capture agreed; a deterministic guest-only fragment edit
+between observation passes changed its hash and NeedDaemonReload and was refused.
+Both comparisons retained the known After refusal and migration_ready=false.
+See [actual coherence evidence](../tests/fixtures/shell-coherence/systemd-261/README.md)
+and `tests/shell-coherence-vm-replay.py`. The production capture tools were unchanged.
+
 ## Next bounded implementation step
 
-Validate the repeated capture in a disposable guest against its real user manager,
-retain sanitized before/after observations and replay them offline. Include a
-controlled guest-only change that must refuse, while keeping the known After
-refusal and migration readiness false. Stop before live ownership migration,
-duplicate-launcher resolution or package release validation.
+Audit activation sources and session identity in a disposable guest, retaining a
+bounded inventory and offline refusal fixtures for ambiguous or overlapping
+launch sources. Specify what evidence is needed before ownership can be inferred.
+Do not yet resolve duplicate launchers, implement ownership transfer, broaden the
+After contract or advance package release work.

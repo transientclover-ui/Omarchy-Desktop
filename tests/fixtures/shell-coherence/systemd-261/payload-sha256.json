@@ -1,0 +1,9 @@
+{
+  "capture-shell-ownership-metadata.py": "51272ec99a64260e3373b627221a6c15c6340fd1ee8bc022353aea6136e6aec3",
+  "run-guest.py": "288f8485ebb864ffcc79093778a42ab1c06ffa4788135f77dcf6e5ef4c6c8677",
+  "shell-capture-coherence.py": "8dc24e0bb91ebbddc6f5a41e9bff402b6f2bfd6c352fbeebf3df6c0b445f0fdf",
+  "shell-effective-properties.py": "a598eaa7d26d40c767cbf2bd8a658d3e20114141147453e2f50e38e068b1f598",
+  "shell-mount-context.py": "cb817d6b154a53bf73cdeb2982d573d752c297a285b0b2901d67c8cfc33677ce",
+  "shell-ownership-inventory.py": "604868daa4221fa3aae9cd65603b47149eb487ed9cfb88209749d5f7bb56760e",
+  "shell-ownership-metadata.py": "779990a22a3c6896ee07e11e3f7af1372715d931244d528c19386cd0e009861f"
+}

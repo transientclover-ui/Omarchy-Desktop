@@ -1,0 +1,1069 @@
+{
+  "capture_exit_status": 1,
+  "coherence": {
+    "after": {
+      "effective": {
+        "collected": true,
+        "errors": [],
+        "properties": {
+          "Service": {
+            "BusName": {
+              "data": "",
+              "type": "s"
+            },
+            "Environment": {
+              "data": [
+                "QS_DISABLE_FILE_WATCHER=1",
+                "QS_NO_RELOAD_POPUP=1"
+              ],
+              "type": "as"
+            },
+            "EnvironmentFiles": {
+              "data": [],
+              "type": "a(sb)"
+            },
+            "ExecCondition": {
+              "data": [],
+              "type": "a(sasbttttuii)"
+            },
+            "ExecReload": {
+              "data": [],
+              "type": "a(sasbttttuii)"
+            },
+            "ExecReloadPost": {
+              "data": [],
+              "type": "a(sasbttttuii)"
+            },
+            "ExecStartEx": {
+              "data": [
+                [
+                  "/usr/bin/quickshell",
+                  [
+                    "/usr/bin/quickshell",
+                    "-n",
+                    "-p",
+                    "/usr/share/omarchy/shell"
+                  ],
+                  [],
+                  1790521645652191,
+                  21537640,
+                  0,
+                  0,
+                  3186,
+                  0,
+                  0
+                ]
+              ],
+              "type": "a(sasasttttuii)"
+            },
+            "ExecStartPost": {
+              "data": [],
+              "type": "a(sasbttttuii)"
+            },
+            "ExecStartPre": {
+              "data": [],
+              "type": "a(sasbttttuii)"
+            },
+            "ExecStop": {
+              "data": [],
+              "type": "a(sasbttttuii)"
+            },
+            "ExecStopPost": {
+              "data": [],
+              "type": "a(sasbttttuii)"
+            },
+            "ExitType": {
+              "data": "main",
+              "type": "s"
+            },
+            "FinalKillSignal": {
+              "data": 9,
+              "type": "i"
+            },
+            "KillMode": {
+              "data": "control-group",
+              "type": "s"
+            },
+            "KillSignal": {
+              "data": 15,
+              "type": "i"
+            },
+            "PIDFile": {
+              "data": "",
+              "type": "s"
+            },
+            "PassEnvironment": {
+              "data": [],
+              "type": "as"
+            },
+            "RemainAfterExit": {
+              "data": false,
+              "type": "b"
+            },
+            "Restart": {
+              "data": "on-failure",
+              "type": "s"
+            },
+            "RestartForceExitStatus": {
+              "data": [
+                [],
+                []
+              ],
+              "type": "(aiai)"
+            },
+            "RestartKillSignal": {
+              "data": 15,
+              "type": "i"
+            },
+            "RestartMaxDelayUSec": {
+              "data": 18446744073709551615,
+              "type": "t"
+            },
+            "RestartMode": {
+              "data": "normal",
+              "type": "s"
+            },
+            "RestartPreventExitStatus": {
+              "data": [
+                [],
+                []
+              ],
+              "type": "(aiai)"
+            },
+            "RestartSteps": {
+              "data": 0,
+              "type": "u"
+            },
+            "RestartUSec": {
+              "data": 3000000,
+              "type": "t"
+            },
+            "RuntimeMaxUSec": {
+              "data": 18446744073709551615,
+              "type": "t"
+            },
+            "SendSIGKILL": {
+              "data": true,
+              "type": "b"
+            },
+            "Slice": {
+              "data": "app.slice",
+              "type": "s"
+            },
+            "SuccessExitStatus": {
+              "data": [
+                [],
+                []
+              ],
+              "type": "(aiai)"
+            },
+            "TimeoutStartUSec": {
+              "data": 90000000,
+              "type": "t"
+            },
+            "TimeoutStopUSec": {
+              "data": 90000000,
+              "type": "t"
+            },
+            "Type": {
+              "data": "simple",
+              "type": "s"
+            },
+            "UnsetEnvironment": {
+              "data": [],
+              "type": "as"
+            },
+            "WatchdogUSec": {
+              "data": 0,
+              "type": "t"
+            }
+          },
+          "Unit": {
+            "After": {
+              "data": [
+                "-.mount",
+                "app.slice",
+                "home.mount",
+                "basic.target",
+                "graphical-session.target"
+              ],
+              "type": "as"
+            },
+            "Asserts": {
+              "data": [],
+              "type": "a(sbbsi)"
+            },
+            "Before": {
+              "data": [
+                "shutdown.target"
+              ],
+              "type": "as"
+            },
+            "BindsTo": {
+              "data": [],
+              "type": "as"
+            },
+            "Conditions": {
+              "data": [
+                [
+                  "ConditionEnvironment",
+                  false,
+                  false,
+                  "WAYLAND_DISPLAY",
+                  1
+                ]
+              ],
+              "type": "a(sbbsi)"
+            },
+            "Conflicts": {
+              "data": [
+                "shutdown.target"
+              ],
+              "type": "as"
+            },
+            "DefaultDependencies": {
+              "data": true,
+              "type": "b"
+            },
+            "DropInPaths": {
+              "data": [],
+              "type": "as"
+            },
+            "FailureAction": {
+              "data": "none",
+              "type": "s"
+            },
+            "FragmentPath": {
+              "data": "/home/test/.config/systemd/user/omarchy-shell.service",
+              "type": "s"
+            },
+            "Id": {
+              "data": "omarchy-shell.service",
+              "type": "s"
+            },
+            "JoinsNamespaceOf": {
+              "data": [],
+              "type": "as"
+            },
+            "NeedDaemonReload": {
+              "data": true,
+              "type": "b"
+            },
+            "OnFailure": {
+              "data": [],
+              "type": "as"
+            },
+            "OnSuccess": {
+              "data": [],
+              "type": "as"
+            },
+            "PartOf": {
+              "data": [
+                "graphical-session.target"
+              ],
+              "type": "as"
+            },
+            "PropagatesReloadTo": {
+              "data": [],
+              "type": "as"
+            },
+            "PropagatesStopTo": {
+              "data": [],
+              "type": "as"
+            },
+            "ReloadPropagatedFrom": {
+              "data": [],
+              "type": "as"
+            },
+            "Requires": {
+              "data": [
+                "basic.target",
+                "app.slice"
+              ],
+              "type": "as"
+            },
+            "Requisite": {
+              "data": [],
+              "type": "as"
+            },
+            "SourcePath": {
+              "data": "",
+              "type": "s"
+            },
+            "StartLimitAction": {
+              "data": "none",
+              "type": "s"
+            },
+            "StartLimitBurst": {
+              "data": 5,
+              "type": "u"
+            },
+            "StartLimitIntervalUSec": {
+              "data": 10000000,
+              "type": "t"
+            },
+            "StopPropagatedFrom": {
+              "data": [],
+              "type": "as"
+            },
+            "SuccessAction": {
+              "data": "none",
+              "type": "s"
+            },
+            "Transient": {
+              "data": false,
+              "type": "b"
+            },
+            "Upholds": {
+              "data": [],
+              "type": "as"
+            },
+            "Wants": {
+              "data": [],
+              "type": "as"
+            }
+          }
+        },
+        "schema": 1
+      },
+      "fragment": {
+        "outcome": "ok",
+        "path": "/home/test/.config/systemd/user/omarchy-shell.service",
+        "sha256": "7a843b7626dbf9eea01928d471969c6c0ae272fe66b40d050c9c46b9bb5ae7c8",
+        "size_bytes": 428
+      },
+      "mount_context": {
+        "collected": true,
+        "errors": [],
+        "properties": {
+          "HomeMount": {
+            "Where": {
+              "data": "/home",
+              "type": "s"
+            }
+          },
+          "HomeUnit": {
+            "DropInPaths": {
+              "data": [],
+              "type": "as"
+            },
+            "FragmentPath": {
+              "data": "",
+              "type": "s"
+            },
+            "Id": {
+              "data": "home.mount",
+              "type": "s"
+            },
+            "LoadState": {
+              "data": "loaded",
+              "type": "s"
+            },
+            "NeedDaemonReload": {
+              "data": false,
+              "type": "b"
+            },
+            "SourcePath": {
+              "data": "/proc/self/mountinfo",
+              "type": "s"
+            },
+            "Transient": {
+              "data": false,
+              "type": "b"
+            }
+          },
+          "RootMount": {
+            "Where": {
+              "data": "/",
+              "type": "s"
+            }
+          },
+          "RootUnit": {
+            "DropInPaths": {
+              "data": [],
+              "type": "as"
+            },
+            "FragmentPath": {
+              "data": "",
+              "type": "s"
+            },
+            "Id": {
+              "data": "-.mount",
+              "type": "s"
+            },
+            "LoadState": {
+              "data": "loaded",
+              "type": "s"
+            },
+            "NeedDaemonReload": {
+              "data": false,
+              "type": "b"
+            },
+            "SourcePath": {
+              "data": "",
+              "type": "s"
+            },
+            "Transient": {
+              "data": false,
+              "type": "b"
+            }
+          },
+          "ShellService": {
+            "RootDirectory": {
+              "data": "",
+              "type": "s"
+            },
+            "RootImage": {
+              "data": "",
+              "type": "s"
+            },
+            "WorkingDirectory": {
+              "data": "!/home/test",
+              "type": "s"
+            }
+          },
+          "ShellUnit": {
+            "After": {
+              "data": [
+                "-.mount",
+                "app.slice",
+                "home.mount",
+                "basic.target",
+                "graphical-session.target"
+              ],
+              "type": "as"
+            },
+            "DropInPaths": {
+              "data": [],
+              "type": "as"
+            },
+            "FragmentPath": {
+              "data": "/home/test/.config/systemd/user/omarchy-shell.service",
+              "type": "s"
+            },
+            "Id": {
+              "data": "omarchy-shell.service",
+              "type": "s"
+            },
+            "LoadState": {
+              "data": "loaded",
+              "type": "s"
+            },
+            "NeedDaemonReload": {
+              "data": true,
+              "type": "b"
+            },
+            "RequiresMountsFor": {
+              "data": [],
+              "type": "as"
+            },
+            "SourcePath": {
+              "data": "",
+              "type": "s"
+            },
+            "Transient": {
+              "data": false,
+              "type": "b"
+            },
+            "WantsMountsFor": {
+              "data": [
+                "/home/test"
+              ],
+              "type": "as"
+            }
+          }
+        },
+        "schema": 1
+      },
+      "report": {
+        "manager": {
+          "UnitPath": "/home/test/.config/systemd/user.control /run/user/1000/systemd/user.control /run/user/1000/systemd/transient /run/user/1000/systemd/generator.early /home/test/.config/systemd/user /home/test/.config/systemd/user.attached /etc/systemd/user /run/user/1000/systemd/user /run/user/1000/systemd/user.attached /run/systemd/user /run/user/1000/systemd/generator /home/test/.local/share/systemd/user /usr/local/share/systemd/user /usr/share/systemd/user /usr/local/lib/systemd/user /usr/lib/systemd/user /run/user/1000/systemd/generator.late"
+        },
+        "metadata_collected": true,
+        "migration_ready": false,
+        "reasons": [
+          "Manager configuration may be stale"
+        ],
+        "schema": 1,
+        "scope": "user-systemd-metadata",
+        "search_paths": [
+          "/home/test/.config/systemd/user.control",
+          "/run/user/1000/systemd/user.control",
+          "/run/user/1000/systemd/transient",
+          "/run/user/1000/systemd/generator.early",
+          "/home/test/.config/systemd/user",
+          "/home/test/.config/systemd/user.attached",
+          "/etc/systemd/user",
+          "/run/user/1000/systemd/user",
+          "/run/user/1000/systemd/user.attached",
+          "/run/systemd/user",
+          "/run/user/1000/systemd/generator",
+          "/home/test/.local/share/systemd/user",
+          "/usr/local/share/systemd/user",
+          "/usr/share/systemd/user",
+          "/usr/local/lib/systemd/user",
+          "/usr/lib/systemd/user",
+          "/run/user/1000/systemd/generator.late"
+        ],
+        "unassessed": [
+          "unit contents and dependency semantics",
+          "activation files within and outside search paths",
+          "live session and process ownership",
+          "concurrent changes between queries"
+        ],
+        "unit": {
+          "ActiveState": "active",
+          "DropInPaths": "",
+          "ExecStart": "{ path=/usr/bin/quickshell ; argv[]=/usr/bin/quickshell -n -p /usr/share/omarchy/shell ; ignore_errors=no ; start_time=[Sun 2026-09-27 11:07:25 EDT] ; stop_time=[n/a] ; pid=3186 ; code=(null) ; status=0/0 }",
+          "FragmentPath": "/home/test/.config/systemd/user/omarchy-shell.service",
+          "Id": "omarchy-shell.service",
+          "LoadState": "loaded",
+          "Names": "omarchy-shell.service",
+          "NeedDaemonReload": "yes",
+          "SourcePath": "",
+          "SubState": "running",
+          "UnitFileState": "enabled"
+        }
+      }
+    },
+    "agrees": false,
+    "errors": [
+      "Both observation passes must be complete and successful",
+      "Observation changed: report",
+      "Observation changed: fragment",
+      "Observation changed: effective",
+      "Observation changed: mount_context"
+    ],
+    "limitations": [
+      "not an atomic snapshot",
+      "changes reverted between reads may be missed",
+      "manager identity, loaded bytes and unqueried state are not proven"
+    ],
+    "method": "repeat-all-v1",
+    "schema": 1
+  },
+  "collector_exit_status": 0,
+  "effective": {
+    "collected": true,
+    "errors": [],
+    "properties": {
+      "Service": {
+        "BusName": {
+          "data": "",
+          "type": "s"
+        },
+        "Environment": {
+          "data": [
+            "QS_DISABLE_FILE_WATCHER=1",
+            "QS_NO_RELOAD_POPUP=1"
+          ],
+          "type": "as"
+        },
+        "EnvironmentFiles": {
+          "data": [],
+          "type": "a(sb)"
+        },
+        "ExecCondition": {
+          "data": [],
+          "type": "a(sasbttttuii)"
+        },
+        "ExecReload": {
+          "data": [],
+          "type": "a(sasbttttuii)"
+        },
+        "ExecReloadPost": {
+          "data": [],
+          "type": "a(sasbttttuii)"
+        },
+        "ExecStartEx": {
+          "data": [
+            [
+              "/usr/bin/quickshell",
+              [
+                "/usr/bin/quickshell",
+                "-n",
+                "-p",
+                "/usr/share/omarchy/shell"
+              ],
+              [],
+              1790521645652191,
+              21537640,
+              0,
+              0,
+              3186,
+              0,
+              0
+            ]
+          ],
+          "type": "a(sasasttttuii)"
+        },
+        "ExecStartPost": {
+          "data": [],
+          "type": "a(sasbttttuii)"
+        },
+        "ExecStartPre": {
+          "data": [],
+          "type": "a(sasbttttuii)"
+        },
+        "ExecStop": {
+          "data": [],
+          "type": "a(sasbttttuii)"
+        },
+        "ExecStopPost": {
+          "data": [],
+          "type": "a(sasbttttuii)"
+        },
+        "ExitType": {
+          "data": "main",
+          "type": "s"
+        },
+        "FinalKillSignal": {
+          "data": 9,
+          "type": "i"
+        },
+        "KillMode": {
+          "data": "control-group",
+          "type": "s"
+        },
+        "KillSignal": {
+          "data": 15,
+          "type": "i"
+        },
+        "PIDFile": {
+          "data": "",
+          "type": "s"
+        },
+        "PassEnvironment": {
+          "data": [],
+          "type": "as"
+        },
+        "RemainAfterExit": {
+          "data": false,
+          "type": "b"
+        },
+        "Restart": {
+          "data": "on-failure",
+          "type": "s"
+        },
+        "RestartForceExitStatus": {
+          "data": [
+            [],
+            []
+          ],
+          "type": "(aiai)"
+        },
+        "RestartKillSignal": {
+          "data": 15,
+          "type": "i"
+        },
+        "RestartMaxDelayUSec": {
+          "data": 18446744073709551615,
+          "type": "t"
+        },
+        "RestartMode": {
+          "data": "normal",
+          "type": "s"
+        },
+        "RestartPreventExitStatus": {
+          "data": [
+            [],
+            []
+          ],
+          "type": "(aiai)"
+        },
+        "RestartSteps": {
+          "data": 0,
+          "type": "u"
+        },
+        "RestartUSec": {
+          "data": 3000000,
+          "type": "t"
+        },
+        "RuntimeMaxUSec": {
+          "data": 18446744073709551615,
+          "type": "t"
+        },
+        "SendSIGKILL": {
+          "data": true,
+          "type": "b"
+        },
+        "Slice": {
+          "data": "app.slice",
+          "type": "s"
+        },
+        "SuccessExitStatus": {
+          "data": [
+            [],
+            []
+          ],
+          "type": "(aiai)"
+        },
+        "TimeoutStartUSec": {
+          "data": 90000000,
+          "type": "t"
+        },
+        "TimeoutStopUSec": {
+          "data": 90000000,
+          "type": "t"
+        },
+        "Type": {
+          "data": "simple",
+          "type": "s"
+        },
+        "UnsetEnvironment": {
+          "data": [],
+          "type": "as"
+        },
+        "WatchdogUSec": {
+          "data": 0,
+          "type": "t"
+        }
+      },
+      "Unit": {
+        "After": {
+          "data": [
+            "-.mount",
+            "app.slice",
+            "home.mount",
+            "basic.target",
+            "graphical-session.target"
+          ],
+          "type": "as"
+        },
+        "Asserts": {
+          "data": [],
+          "type": "a(sbbsi)"
+        },
+        "Before": {
+          "data": [
+            "shutdown.target"
+          ],
+          "type": "as"
+        },
+        "BindsTo": {
+          "data": [],
+          "type": "as"
+        },
+        "Conditions": {
+          "data": [
+            [
+              "ConditionEnvironment",
+              false,
+              false,
+              "WAYLAND_DISPLAY",
+              1
+            ]
+          ],
+          "type": "a(sbbsi)"
+        },
+        "Conflicts": {
+          "data": [
+            "shutdown.target"
+          ],
+          "type": "as"
+        },
+        "DefaultDependencies": {
+          "data": true,
+          "type": "b"
+        },
+        "DropInPaths": {
+          "data": [],
+          "type": "as"
+        },
+        "FailureAction": {
+          "data": "none",
+          "type": "s"
+        },
+        "FragmentPath": {
+          "data": "/home/test/.config/systemd/user/omarchy-shell.service",
+          "type": "s"
+        },
+        "Id": {
+          "data": "omarchy-shell.service",
+          "type": "s"
+        },
+        "JoinsNamespaceOf": {
+          "data": [],
+          "type": "as"
+        },
+        "NeedDaemonReload": {
+          "data": false,
+          "type": "b"
+        },
+        "OnFailure": {
+          "data": [],
+          "type": "as"
+        },
+        "OnSuccess": {
+          "data": [],
+          "type": "as"
+        },
+        "PartOf": {
+          "data": [
+            "graphical-session.target"
+          ],
+          "type": "as"
+        },
+        "PropagatesReloadTo": {
+          "data": [],
+          "type": "as"
+        },
+        "PropagatesStopTo": {
+          "data": [],
+          "type": "as"
+        },
+        "ReloadPropagatedFrom": {
+          "data": [],
+          "type": "as"
+        },
+        "Requires": {
+          "data": [
+            "basic.target",
+            "app.slice"
+          ],
+          "type": "as"
+        },
+        "Requisite": {
+          "data": [],
+          "type": "as"
+        },
+        "SourcePath": {
+          "data": "",
+          "type": "s"
+        },
+        "StartLimitAction": {
+          "data": "none",
+          "type": "s"
+        },
+        "StartLimitBurst": {
+          "data": 5,
+          "type": "u"
+        },
+        "StartLimitIntervalUSec": {
+          "data": 10000000,
+          "type": "t"
+        },
+        "StopPropagatedFrom": {
+          "data": [],
+          "type": "as"
+        },
+        "SuccessAction": {
+          "data": "none",
+          "type": "s"
+        },
+        "Transient": {
+          "data": false,
+          "type": "b"
+        },
+        "Upholds": {
+          "data": [],
+          "type": "as"
+        },
+        "Wants": {
+          "data": [],
+          "type": "as"
+        }
+      }
+    },
+    "schema": 1
+  },
+  "fragment": {
+    "outcome": "ok",
+    "path": "/home/test/.config/systemd/user/omarchy-shell.service",
+    "sha256": "e7ed27417635e1347352cfe571a947e707f59e0cdb28dcaf8519e765a90a8703",
+    "size_bytes": 386
+  },
+  "mount_context": {
+    "collected": true,
+    "errors": [],
+    "properties": {
+      "HomeMount": {
+        "Where": {
+          "data": "/home",
+          "type": "s"
+        }
+      },
+      "HomeUnit": {
+        "DropInPaths": {
+          "data": [],
+          "type": "as"
+        },
+        "FragmentPath": {
+          "data": "",
+          "type": "s"
+        },
+        "Id": {
+          "data": "home.mount",
+          "type": "s"
+        },
+        "LoadState": {
+          "data": "loaded",
+          "type": "s"
+        },
+        "NeedDaemonReload": {
+          "data": false,
+          "type": "b"
+        },
+        "SourcePath": {
+          "data": "/proc/self/mountinfo",
+          "type": "s"
+        },
+        "Transient": {
+          "data": false,
+          "type": "b"
+        }
+      },
+      "RootMount": {
+        "Where": {
+          "data": "/",
+          "type": "s"
+        }
+      },
+      "RootUnit": {
+        "DropInPaths": {
+          "data": [],
+          "type": "as"
+        },
+        "FragmentPath": {
+          "data": "",
+          "type": "s"
+        },
+        "Id": {
+          "data": "-.mount",
+          "type": "s"
+        },
+        "LoadState": {
+          "data": "loaded",
+          "type": "s"
+        },
+        "NeedDaemonReload": {
+          "data": false,
+          "type": "b"
+        },
+        "SourcePath": {
+          "data": "",
+          "type": "s"
+        },
+        "Transient": {
+          "data": false,
+          "type": "b"
+        }
+      },
+      "ShellService": {
+        "RootDirectory": {
+          "data": "",
+          "type": "s"
+        },
+        "RootImage": {
+          "data": "",
+          "type": "s"
+        },
+        "WorkingDirectory": {
+          "data": "!/home/test",
+          "type": "s"
+        }
+      },
+      "ShellUnit": {
+        "After": {
+          "data": [
+            "-.mount",
+            "app.slice",
+            "home.mount",
+            "basic.target",
+            "graphical-session.target"
+          ],
+          "type": "as"
+        },
+        "DropInPaths": {
+          "data": [],
+          "type": "as"
+        },
+        "FragmentPath": {
+          "data": "/home/test/.config/systemd/user/omarchy-shell.service",
+          "type": "s"
+        },
+        "Id": {
+          "data": "omarchy-shell.service",
+          "type": "s"
+        },
+        "LoadState": {
+          "data": "loaded",
+          "type": "s"
+        },
+        "NeedDaemonReload": {
+          "data": false,
+          "type": "b"
+        },
+        "RequiresMountsFor": {
+          "data": [],
+          "type": "as"
+        },
+        "SourcePath": {
+          "data": "",
+          "type": "s"
+        },
+        "Transient": {
+          "data": false,
+          "type": "b"
+        },
+        "WantsMountsFor": {
+          "data": [
+            "/home/test"
+          ],
+          "type": "as"
+        }
+      }
+    },
+    "schema": 1
+  },
+  "report": {
+    "manager": {
+      "UnitPath": "/home/test/.config/systemd/user.control /run/user/1000/systemd/user.control /run/user/1000/systemd/transient /run/user/1000/systemd/generator.early /home/test/.config/systemd/user /home/test/.config/systemd/user.attached /etc/systemd/user /run/user/1000/systemd/user /run/user/1000/systemd/user.attached /run/systemd/user /run/user/1000/systemd/generator /home/test/.local/share/systemd/user /usr/local/share/systemd/user /usr/share/systemd/user /usr/local/lib/systemd/user /usr/lib/systemd/user /run/user/1000/systemd/generator.late"
+    },
+    "metadata_collected": true,
+    "migration_ready": false,
+    "reasons": [],
+    "schema": 1,
+    "scope": "user-systemd-metadata",
+    "search_paths": [
+      "/home/test/.config/systemd/user.control",
+      "/run/user/1000/systemd/user.control",
+      "/run/user/1000/systemd/transient",
+      "/run/user/1000/systemd/generator.early",
+      "/home/test/.config/systemd/user",
+      "/home/test/.config/systemd/user.attached",
+      "/etc/systemd/user",
+      "/run/user/1000/systemd/user",
+      "/run/user/1000/systemd/user.attached",
+      "/run/systemd/user",
+      "/run/user/1000/systemd/generator",
+      "/home/test/.local/share/systemd/user",
+      "/usr/local/share/systemd/user",
+      "/usr/share/systemd/user",
+      "/usr/local/lib/systemd/user",
+      "/usr/lib/systemd/user",
+      "/run/user/1000/systemd/generator.late"
+    ],
+    "unassessed": [
+      "unit contents and dependency semantics",
+      "activation files within and outside search paths",
+      "live session and process ownership",
+      "concurrent changes between queries"
+    ],
+    "unit": {
+      "ActiveState": "active",
+      "DropInPaths": "",
+      "ExecStart": "{ path=/usr/bin/quickshell ; argv[]=/usr/bin/quickshell -n -p /usr/share/omarchy/shell ; ignore_errors=no ; start_time=[Sun 2026-09-27 11:07:25 EDT] ; stop_time=[n/a] ; pid=3186 ; code=(null) ; status=0/0 }",
+      "FragmentPath": "/home/test/.config/systemd/user/omarchy-shell.service",
+      "Id": "omarchy-shell.service",
+      "LoadState": "loaded",
+      "Names": "omarchy-shell.service",
+      "NeedDaemonReload": "no",
+      "SourcePath": "",
+      "SubState": "running",
+      "UnitFileState": "enabled"
+    }
+  },
+  "sanitized": true,
+  "schema": 1
+}

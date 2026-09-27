@@ -1,0 +1,31 @@
+{
+  "before_hashes": {
+    "/home/test/.config/omarchy/shell.json": "d56e902f5ff35c83de871032bd21d8abaceef8814a5aa998ebb20321b21da78e",
+    "/home/test/.config/systemd/user/omarchy-shell.service": "e7ed27417635e1347352cfe571a947e707f59e0cdb28dcaf8519e765a90a8703"
+  },
+  "cases": {
+    "changed": {
+      "capture_exit": 1,
+      "comparison_exit": 1,
+      "evidence_mode": "0o600",
+      "hashes_after": {
+        "/home/test/.config/omarchy/shell.json": "d56e902f5ff35c83de871032bd21d8abaceef8814a5aa998ebb20321b21da78e",
+        "/home/test/.config/systemd/user/omarchy-shell.service": "7a843b7626dbf9eea01928d471969c6c0ae272fe66b40d050c9c46b9bb5ae7c8"
+      }
+    },
+    "stable": {
+      "capture_exit": 0,
+      "comparison_exit": 1,
+      "evidence_mode": "0o600",
+      "hashes_after": {
+        "/home/test/.config/omarchy/shell.json": "d56e902f5ff35c83de871032bd21d8abaceef8814a5aa998ebb20321b21da78e",
+        "/home/test/.config/systemd/user/omarchy-shell.service": "e7ed27417635e1347352cfe571a947e707f59e0cdb28dcaf8519e765a90a8703"
+      }
+    }
+  },
+  "restored_hashes": {
+    "/home/test/.config/omarchy/shell.json": "d56e902f5ff35c83de871032bd21d8abaceef8814a5aa998ebb20321b21da78e",
+    "/home/test/.config/systemd/user/omarchy-shell.service": "e7ed27417635e1347352cfe571a947e707f59e0cdb28dcaf8519e765a90a8703"
+  },
+  "systemd": "systemd 261 (261.2-1-arch)"
+}

@@ -2341,3 +2341,74 @@ fresh disposable guest, retain sanitized two-pass evidence, and replay both a
 stable capture and a controlled guest-only change that must refuse. Preserve the
 known After refusal and migration boundary. This task was not started; stop after
 this checkpoint.
+
+## 2026-09-27 — Real-VM repeated capture and controlled change refusal
+
+Completed one medium block from adoption HEAD `19cf1b9` (Check coherence across
+repeated shell ownership observations). Verified that exact commit and journal
+before changes. Tracked state was clean; the three unrelated untracked ISO/boot
+references remain untouched. The separate public chooser checkout at `d85d677`
+was inspected for continuity only and not changed.
+
+Booted a fresh disposable QEMU/KVM overlay backed by the preserved revision-5
+image, with separate firmware, no network and no host filesystem/block-device
+share. The user unlocked the encrypted guest directly. Existing capture and
+comparison tools from the starting checkpoint ran unchanged on the real systemd
+261 (261.2-1-arch) user manager. A disposable USB image carried tools and results.
+
+Stable capture exited 0, both observation passes agreed, fragment bytes matched,
+and supplementary mount context agreed. Ownership comparison exited 1 with only
+the known After refusal; migration_ready remained false. Controlled case delegated
+all busctl queries to the real guest executable and appended a harmless unit-file
+comment after the final initial mount reply, before repeating queries. It changed
+the fragment hash and NeedDaemonReload (no to yes). All four observation groups
+differed; repeated metadata became incomplete. Capture and comparison both exited
+1, reporting changed/incomplete observations rather than stable evidence. The
+After refusal remained. No daemon reload or service lifecycle mutation was used.
+
+The harness restored original unit bytes/mtime in finally; independent hashes
+confirmed restoration and unchanged shell.json bytes. Both evidence files were
+0600. Sanitized full two-pass captures, actual guest comparisons, status/hash
+manifest, mutation trigger, original unit and reproducible guest harness are in
+`tests/fixtures/shell-coherence/systemd-261/`. Sanitization only maps home paths
+consistently and marks envelopes sanitized; observed runtime values and all
+coherence differences remain. Raw evidence stays under ignored
+`evidence/coherence-20260927/`. The constructed snapshot activation symlink is not
+a complete live activation inventory. Stable repetition is still not atomicity,
+manager identity, loaded-byte identity, ownership or migration authorization.
+
+Guest results were unmounted and native poweroff completed; QEMU exited 0.
+Read-only ext4 and QCOW2 checks passed. Baseline and revision-5 backing SHA-256
+values were identical before/after (recorded in fixture README). One initial
+terminal command had a Bash syntax error before any harness execution; corrected
+command completed the run. No host configuration, services, packages, trust,
+pacman repositories, SDDM or desktop state was changed.
+
+Validation passed:
+
+- New actual-VM replay: three tests covering hash change/restoration, real
+  coherence recomputation, forged agreement refusal and four full offline
+  comparisons (both cases with/without require-coherence), using empty PATH.
+- Existing coherence suite: 15 capture and 12 comparison scenarios plus missing
+  observations and option-dependency checks (three unittest methods).
+- Ten related inventory, metadata, capture, consistency, fragment, effective,
+  mount, historical VM replay and preserved-shell health suites (36 methods).
+- All 16 packaged/standalone preservation/selective-setting cases, nine settings
+  selection tests, shell-profile suite with 22 invalid overrides, installer-state
+  regression suite; Python syntax, fixture JSON, documentation links and diff checks.
+
+No production code, package payload, revision or checksums changed. KDE Plasma
+Wayland remains a primary desktop without a UWSM requirement; compatible optional
+bar/widgets, disabled choices and profiles remain intact, with menu-only the
+conservative default rather than the only profile.
+
+Assessment: the bounded real-VM coherence gap is closed for stable observations
+and one deterministic file/reload-state change. Release readiness is not implied.
+Remaining work includes activation/session identity and ownership evidence,
+cross-session duplicate-launcher races, reversible managed ownership, broader
+component validation and revision-6 reproducible packaging/fresh release tests.
+Next recommended medium task: audit activation sources and session identity in a
+disposable guest, preserve a bounded inventory and refusal fixtures for ambiguous
+or overlapping launch sources, and document prerequisites for ownership inference.
+Do not implement duplicate-launcher or ownership-transfer fixes in that audit.
+That task was not started. Stop after this checkpoint.

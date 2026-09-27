@@ -1,0 +1,14 @@
+{
+  "action": "append comment after first RootMount reply",
+  "monotonic_ns": 129051908919,
+  "trigger": [
+    "--user",
+    "--json=short",
+    "--no-pager",
+    "get-property",
+    "org.freedesktop.systemd1",
+    "/org/freedesktop/systemd1/unit/_2d_2emount",
+    "org.freedesktop.systemd1.Mount",
+    "Where"
+  ]
+}

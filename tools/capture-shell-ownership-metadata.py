@@ -92,7 +92,11 @@ def main():
                         help='also collect typed read-only properties for offline comparison')
     parser.add_argument('--mount-context', action='store_true',
                         help='also collect fixed shell/home/root mount context (diagnostic only)')
+    parser.add_argument('--check-coherence', action='store_true',
+                        help='repeat all observations and refuse disagreement (not atomic)')
     args = parser.parse_args()
+    if args.check_coherence and not args.mount_context:
+        parser.error('--check-coherence requires --mount-context')
     if args.mount_context and not (args.hash_fragment and args.effective_properties):
         parser.error('--mount-context requires --hash-fragment and --effective-properties')
     collector = Path(__file__).with_name('shell-ownership-metadata.py')
@@ -128,6 +132,21 @@ def main():
                 {'schema': 1, 'collected': False, 'properties': {},
                  'errors': ['Prerequisite capture incomplete']})
             if not evidence['mount_context']['collected']:
+                capture_status = 1
+            evidence['capture_exit_status'] = capture_status
+        if args.check_coherence:
+            coherence = runpy.run_path(str(Path(__file__).with_name('shell-capture-coherence.py')))
+            after = {}
+            if capture_status == 0:
+                # Repeat every requested observation once, in reverse group order.
+                # No retries: a changed or failed observation must remain visible.
+                after['mount_context'] = mount['collect']()
+                after['effective'] = effective['collect']()
+                after['fragment'] = fragment_provenance(report.get('unit', {}).get('FragmentPath'))
+                metadata = runpy.run_path(str(collector))
+                after['report'] = metadata['collect']()
+            evidence['coherence'] = coherence['record'](coherence['observations'](evidence), after)
+            if not evidence['coherence']['agrees']:
                 capture_status = 1
             evidence['capture_exit_status'] = capture_status
         # Exclusive creation prevents clobbering files or following a final symlink.

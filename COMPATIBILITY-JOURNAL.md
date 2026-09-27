@@ -2268,3 +2268,76 @@ session/output/DPMS/legacy-trigger observations and ambiguous-evidence refusal,
 plus absent/disabled/identity-change/stale-session fixtures. Do not implement it
 in this session or add a recovery action without a demonstrated failure class.
 Stop after this investigation checkpoint.
+
+## 2026-09-27 — Bounded repeated capture coherence
+
+Completed one medium work block from adoption checkout HEAD `4345aa8`. The
+public `transientclover-ui/Omarchy-Desktop` Python chooser checkout is separate,
+with an older copied journal at `d85d677`; it was inspected but not changed.
+This newer adoption implementation and journal were used as the source of truth.
+Tracked state was clean, and the three unrelated untracked ISO/boot references
+were left untouched. Chose the documented ownership capture-coherence gap rather
+than expanding the unrelated TV investigation or starting lifecycle migration.
+
+Added optional `--check-coherence` to the development capture runner, requiring
+all existing fragment/effective/mount flags. After a successful initial pass it
+repeats all four observation groups once in reverse group order: mount context,
+effective properties, fragment hash and metadata/search paths. The second pass
+retains fixed read-only query lists/timeouts and bounded no-symlink fragment
+reads. Incomplete initial evidence skips the repeat; changed or failed repeated
+observations preserve diagnostic evidence and return failure. No retry hides a
+change. New private output retains exclusive creation and mode 0600.
+
+The shared coherence assessor compares exact JSON observations, including value
+types and array order. The offline inventory independently recomputes agreement,
+rejects forged derived fields and checks supplied coherence even without the new
+`--require-coherence` option. That option additionally refuses missing historical
+coherence evidence and requires explicit mount-home mapping. Existing captures
+and original comparison commands remain compatible. No historical VM fixture was
+modified or presented as a new repeated-capture observation.
+
+Before/after agreement cannot establish atomicity, freshness, manager identity,
+loaded bytes, changes reverted between reads, or unqueried configuration. A
+byte-identical file replacement between passes can also be missed: metadata is
+checked within each fragment read, not retained as a cross-pass identity proof.
+The known After dependency refusal, overall ownership refusal and
+`migration_ready=false` remain. This is development tooling only; no setup,
+profile, package payload, package revision or checksums were changed.
+
+Validation passed:
+
+- New coherence suite: 15 full fake-command capture cases, 12 offline comparison
+  cases, four missing-observation checks and two option-dependency checks. Covers
+  identity, paths, drop-ins, reload, activation/runtime/launch changes, fragment
+  edits, effective/mount changes, failed/malformed replies, forged agreement,
+  type/order changes and automatic assessment of supplied coherence.
+- All ten related inventory, metadata, capture, consistency, fragment provenance,
+  effective-property, mount-context, historical VM replay and preserved-shell
+  health suites (36 unittest methods with their existing scenario matrices).
+- All 16 packaged/standalone preservation and selective-setting cases; shell
+  profile regression suite, including 22 invalid overrides.
+- Python syntax, local ownership-document links and `git diff --check`.
+
+All new manager interactions used fake executables on an isolated PATH, and
+comparison ran with no commands available. Preservation tests used disposable
+sandbox fixtures. No VM was started or newly validated. No host configuration,
+services, package trust, pacman repositories, SDDM state or display state changed.
+KDE Plasma Wayland remains a primary target without UWSM; optional compatible
+bar/widgets and disabled choices remain intact, with menu-only the conservative
+fresh default rather than the only supported profile.
+
+Completion assessment: the core dual-desktop prototype and prior package
+lifecycle are demonstrated, and local diagnostic/preservation coverage is strong.
+The project is still in compatibility hardening, not release-ready. Outstanding
+work includes real-VM coherence validation, remaining activation/session/ownership
+analysis, the unresolved cross-session duplicate-launcher race and reversible
+managed ownership, broader component validation, and reproducible revision-6
+package builds with fresh disposable-VM release validation. TV recovery causality
+also remains unverified; no recovery action was added. A precise percentage would
+hide the uncertainty in these remaining compatibility tasks.
+
+Next recommended medium block: validate the complete repeated-capture path in a
+fresh disposable guest, retain sanitized two-pass evidence, and replay both a
+stable capture and a controlled guest-only change that must refuse. Preserve the
+known After refusal and migration boundary. This task was not started; stop after
+this checkpoint.

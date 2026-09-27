@@ -504,11 +504,63 @@ with the unchanged retained guest capture and text diagnostics; they do not clai
 new real VM evidence. They cover every property's omission/type/value changes,
 query failures, cross-capture disagreement and preservation of refusal behavior.
 
+## Bounded capture coherence
+
+The development capture can now repeat all four observation groups once:
+
+```sh
+python3 tools/capture-shell-ownership-metadata.py /private/guest-directory/coherent.json \
+  --hash-fragment --effective-properties --mount-context --check-coherence
+python3 tools/shell-ownership-inventory.py /private/offline-snapshot \
+  --capture /private/guest-directory/coherent.json \
+  --source-unit-directory /home/test/.config/systemd/user \
+  --require-effective --mount-home /home/test --require-coherence
+```
+
+Capture remains for an authorized disposable guest; tests use simulated commands.
+`--check-coherence` requires `--mount-context` and its existing prerequisites.
+After the initial metadata, fragment hash, effective properties and mount context,
+the runner repeats mount context, effective properties, fragment hash and metadata
+in reverse group order. There are 20 fixed read-only command invocations in total,
+each retaining the existing five-second timeout (the first metadata subprocess
+also has its existing 15-second outer timeout). Two bounded fragment reads use
+the same no-symlink, regular-file, one-MiB limit as before. No retry hides a change.
+An unsuccessful initial pass skips the repeat and records incomplete coherence.
+A failed repeat retains available observations and exits 1. Output is still
+exclusively created with mode 0600 and marked unsanitized.
+
+The schema-1 `coherence` record uses method `repeat-all-v1`, retains the second
+observations under `after`, and records agreement, errors and explicit limitations.
+Agreement requires complete successful observations and exact JSON equality for
+each group, including array order and value types. Benign ordering changes can
+therefore conservatively refuse. Offline comparison recomputes the result rather
+than trusting `agrees`; a supplied coherence record is always checked even without
+`--require-coherence`. That option additionally rejects historical captures that
+lack the record and requires `--mount-home`. Historical evidence remains unchanged
+and can still be compared with its original command lines.
+
+`capture_coherence_agrees=true` establishes only repeated-observation agreement.
+It does **not** establish an atomic snapshot, fresh evidence at comparison time,
+manager identity, loaded fragment bytes, complete activation sources, dependency
+origins, or process/session ownership. A change reverted between observations,
+a byte-identical file replacement between hash passes, or a manager replacement
+with identical queried values can be missed. Fragment metadata is checked within
+each individual read, not retained as a cross-pass identity guarantee. Successful
+capture is not successful ownership assessment. The existing After refusal and
+`migration_ready=false` remain; no additional dependency is allowed. Sanitization
+must be applied consistently to both observation passes before sharing evidence.
+
+Validation: `PYTHONDONTWRITEBYTECODE=1 python3 -W error
+tests/shell-capture-coherence.py` uses 15 full capture scenarios and 12 offline
+comparison scenarios, plus missing-group and option-dependency checks. It exercises
+changes, failed/malformed queries, forged derived fields, exact type/order checks,
+private output, fixed command counts and continued refusal. These are synthetic
+repetitions of retained data, not a new real-manager or VM validation claim.
+
 ## Next bounded implementation step
 
-Add bounded capture-coherence checks around the sequential observations, with
-adversarial fixtures for unit/configuration changes between reads. Document what
-before/after agreement can and cannot establish; it must not imply an atomic
-snapshot or prove dependency origins. Keep the After refusal and migration
-readiness false. Stop before live ownership, duplicate-launcher resolution or
-release validation.
+Validate the repeated capture in a disposable guest against its real user manager,
+retain sanitized before/after observations and replay them offline. Include a
+controlled guest-only change that must refuse, while keeping the known After
+refusal and migration readiness false. Stop before live ownership migration,
+duplicate-launcher resolution or package release validation.

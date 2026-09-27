@@ -97,10 +97,12 @@ def inspect(snapshot):
 
 
 
-def compare_capture(result, capture_path, source_directory, require_effective=False, mount_home=None):
+def compare_capture(result, capture_path, source_directory, require_effective=False, mount_home=None, require_coherence=False):
     """Compare supplied observations only; source paths are never opened."""
     result['consistent_observations'] = False
     result['fragment_bytes_match'] = None
+    if require_coherence:
+        result['capture_coherence_agrees'] = False
     result['source_unit_directory'] = source_directory
     if mount_home is not None:
         result['mount_context_consistent'] = False
@@ -208,6 +210,17 @@ def compare_capture(result, capture_path, source_directory, require_effective=Fa
             result['mount_context_reasons'] = mount_reasons
             result['unassessed'].append('mount dependency origins, home identity and changes between mount queries')
             reasons.extend(mount_reasons)
+        if require_coherence or 'coherence' in capture:
+            coherence = runpy.run_path(str(Path(__file__).with_name('shell-capture-coherence.py')))
+            coherence_reasons = coherence['assess'](capture)
+            if type(capture.get('capture_exit_status')) is not int or capture['capture_exit_status'] != 0:
+                coherence_reasons.append('Capture coherence requires successful full capture')
+            result['capture_coherence_agrees'] = not coherence_reasons
+            reasons.extend(coherence_reasons)
+            if coherence_reasons:
+                result['effective_properties_match'] = False
+                result['mount_context_consistent'] = False
+            result['unassessed'].append('atomicity, reverted intermediate changes and manager identity')
         result['consistent_observations'] = result['recognized_shape'] and not reasons
     except (OSError, UnicodeError, ValueError) as error:
         reasons.append('Capture comparison refused: ' + str(error))
@@ -224,7 +237,11 @@ def main():
     parser.add_argument('--require-effective', action='store_true',
                         help='require matching typed effective properties and fragment provenance')
     parser.add_argument('--mount-home', help='explicit home mapping for supplementary mount context')
+    parser.add_argument('--require-coherence', action='store_true',
+                        help='require successful repeated-observation evidence')
     args = parser.parse_args()
+    if args.require_coherence and args.mount_home is None:
+        parser.error('--require-coherence requires --mount-home')
     if args.mount_home is not None and not (args.capture and args.require_effective):
         parser.error('--mount-home requires --capture and --require-effective')
     if (args.capture is None) != (args.source_unit_directory is None):
@@ -233,7 +250,7 @@ def main():
         parser.error('--require-effective requires --capture and --source-unit-directory')
     result = inspect(args.snapshot)
     if args.capture is not None:
-        result = compare_capture(result, args.capture, args.source_unit_directory, args.require_effective, args.mount_home)
+        result = compare_capture(result, args.capture, args.source_unit_directory, args.require_effective, args.mount_home, args.require_coherence)
     print(json.dumps(result, indent=2, sort_keys=True))
     return 0 if result.get('consistent_observations', result['recognized_shape']) else 1
 

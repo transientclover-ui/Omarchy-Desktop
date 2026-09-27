@@ -28,3 +28,8 @@ working recovery action; no protection toggle is available yet.
 
 The [KDE Wayland display investigation](docs/DISPLAY-POWER-CYCLE-KDE.md) explains
 native reconnect handling and the evidence required before adding a fallback.
+
+## Development model
+
+This project is “2D-printed”: I specify the behavior, AI workers fabricate
+the implementation, and I test, inspect, refine, and iterate the result.

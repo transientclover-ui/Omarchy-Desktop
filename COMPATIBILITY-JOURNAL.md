@@ -1,5 +1,65 @@
 # Omarchy Desktop Compatibility Journal
 
+## 2026-10-01 — `0.1.0-9` passed rc.2 VM dogfood
+
+`frankenstein-core 0.1.0-9` and `frankenstein-kde 0.1.0-9` passed a clean
+end-to-end dogfood in the isolated Omarchy 4.0.4 VM. The test started from the
+preserved guest with no Frankenstein packages installed, the original Omarchy
+SDDM configuration active, and the Plasma Wayland session already present.
+
+The normal installer ran `omarchy update -y` before package or desktop
+configuration changes. The guest was already current from the preceding
+dogfood update, so the full-system package stage had nothing further to
+upgrade. No reboot boundary was detected, no partial-upgrade command was used,
+and no reboot or SDDM restart was initiated. The corrected fresh-install
+wrapper did not require the `frankenstein` command until after pacman installed
+both `0.1.0-9` packages together. Validation passed before setup activated the
+theme.
+
+The terminal harness initially failed to recognize pacman's interactive
+confirmation and left the installer waiting at `[Y/n]` with zero CPU use. That
+attempt and its log were preserved. Terminating the blocked harness left
+pacman's lock file; the next update attempt failed closed without installing
+Frankenstein. After verifying that no package manager remained and removing
+only that stale test-created lock, the same installer completed normally. This
+was a test-harness interaction failure rather than an installer ordering,
+package, update, or configuration failure.
+
+The installed theme declared `QtVersion=6`, contained no `ThemeConfig`
+reference, used SDDM's supported `config` object, passed packaged-file
+integrity checks, and passed `frankenstein-sddm-validate`. After a real reboot,
+the Frankenstein Qt 6 greeter rendered without a black screen or fallback.
+SDDM authenticated the test user, selected
+`/usr/share/wayland-sessions/plasma.desktop`, and started Plasma Wayland. The
+activation boot had no `ThemeConfig` or other QML reference error, missing
+greeter QML module, greeter crash, compositor crash, login loop, or coredump.
+The greeter emitted only a non-fatal Qt warning that `Qt.labs.settings`
+`Settings` is deprecated. Plasma independently warned that its private volume
+applet module was unavailable; neither warning affected the greeter or login.
+
+`kdeglobals`, the absent `plasmarc`, user look-and-feel, color-scheme and icon
+paths, and the aggregate system appearance assets remained unchanged. Plasma
+rewrote only the `[ScreenMapping]` runtime section of
+`plasma-org.kde.plasma.desktop-appletsrc` after its session started. The
+installer backup proves no other applet or appearance setting changed, and no
+Frankenstein write targeted that file.
+
+Supported rollback exited successfully, removed the Frankenstein SDDM
+override, and restored the original Omarchy SDDM configuration and
+`/var/lib/sddm/state.conf` hashes byte-for-byte. After the second reboot,
+normal Omarchy autologin returned; logging out displayed the original Omarchy
+greeter, authentication succeeded, and Hyprland started normally. No coredump
+or black screen occurred. The restored greeter's normal lack of a session
+selector was not treated as a rollback failure. The Plasma Wayland session
+entry remained present with its original SHA-256 hash and valid
+`startplasma-wayland` command.
+
+This coverage qualifies `v0.1.0-rc.2` for local preparation. It does not claim
+stability beyond this VM's update, fresh installation, Qt 6 greeter,
+authentication, Plasma Wayland, appearance-preservation, rollback, and
+post-rollback Omarchy boundaries. Nothing was pushed or published during the
+dogfood.
+
 ## 2026-10-01 — `0.1.0-8` rc.2 dogfood blocked
 
 The first full VM dogfood of `frankenstein-core 0.1.0-8` and

@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 Frankenstein contributors
+# SPDX-License-Identifier: MIT
+
+set -euo pipefail
+
+readonly default_helper=/usr/libexec/frankenstein-background-writer
+readonly installed_state_helper=/usr/lib/frankenstein/state
+
+fail() {
+  echo "frankenstein-background: $*" >&2
+  exit 1
+}
+
+test_mode=0
+if [[ ${FRANKENSTEIN_BACKGROUND_TEST_MODE:-0} == 1 ]]; then
+  ((EUID != 0)) || fail "test mode is not permitted with root privileges"
+  test_mode=1
+fi
+
+helper=$default_helper
+pkexec_command=pkexec
+if ((test_mode)); then
+  helper=${FRANKENSTEIN_BACKGROUND_HELPER:-$helper}
+  pkexec_command=${FRANKENSTEIN_BACKGROUND_PKEXEC:-$pkexec_command}
+fi
+
+choose_image() {
+  local selected
+  if command -v kdialog >/dev/null 2>&1; then
+    selected=$(kdialog --title "Import Frankenstein login background" \
+      --getopenfilename "${HOME:-/}" "Images (*.png *.jpg *.jpeg *.webp)" || true)
+  elif command -v zenity >/dev/null 2>&1; then
+    selected=$(zenity --file-selection \
+      --title="Import Frankenstein login background" \
+      --file-filter="Supported images | *.png *.PNG *.jpg *.JPG *.jpeg *.JPEG *.webp *.WEBP" || true)
+  else
+    fail "install kdialog or zenity to choose a background graphically"
+  fi
+  printf '%s' "$selected"
+}
+
+selected=$(choose_image)
+[[ -n $selected ]] || exit 0
+[[ -f $selected && ! -L $selected && -r $selected ]] ||
+  fail "the selected file must be a readable, regular, non-symlink file"
+selected=$(realpath -e -- "$selected") || fail "could not resolve the selected file"
+case "${selected,,}" in
+  *.png|*.jpg|*.jpeg|*.webp) ;;
+  *) fail "supported formats are PNG, JPEG, and WebP" ;;
+esac
+
+[[ -x $helper ]] || fail "privileged background writer not found: $helper"
+installed=$("$pkexec_command" "$helper" "$selected") ||
+  fail "the privileged background writer rejected the image"
+[[ $installed == /var/lib/frankenstein/backgrounds/* || $test_mode == 1 ]] ||
+  fail "the privileged writer returned an unexpected path"
+
+script_path=$(realpath -e -- "${BASH_SOURCE[0]}") ||
+  fail "could not resolve the importer location"
+script_dir=$(cd -- "$(dirname -- "$script_path")" && pwd)
+if [[ $script_path == /usr/bin/frankenstein-background ]]; then
+  state_helper=$installed_state_helper
+else
+  checkout_state_helper=$script_dir/../libexec/frankenstein-state
+  [[ -x $checkout_state_helper ]] ||
+    fail "checkout state helper not found: $checkout_state_helper"
+  state_helper=$checkout_state_helper
+fi
+[[ -x $state_helper ]] || fail "canonical state helper not found: $state_helper"
+
+state_path=$("$state_helper" record-background --selected-background "$installed") ||
+  fail "the canonical state helper could not record the imported background"
+[[ -n $state_path ]] || fail "the canonical state helper returned no state path"
+
+echo "Imported login background: $installed"
+echo "Evidence updated: $state_path"

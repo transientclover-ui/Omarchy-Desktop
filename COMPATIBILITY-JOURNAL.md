@@ -2412,3 +2412,104 @@ disposable guest, preserve a bounded inventory and refusal fixtures for ambiguou
 or overlapping launch sources, and document prerequisites for ownership inference.
 Do not implement duplicate-launcher or ownership-transfer fixes in that audit.
 That task was not started. Stop after this checkpoint.
+
+## 2026-10-01 — v1 release candidate and staged SDDM background workflow
+
+Started from adoption HEAD `9a33b36290b8732bbfc2d47be34269c69f242f00`
+on `master`, with no remote or tags and a clean tracked tree. Preserved the
+unrelated untracked `iso-readme.md`, `omarchy-4.0.4.iso.sha256`, and
+`upstream-boot.sh`. The current journal was followed rather than the obsolete
+`a53597a` architectural checkpoint.
+
+Completed the bounded v1 release-candidate implementation without changing the
+live display manager:
+
+- Added read-only `inspect`, `doctor`, and strict `verify` commands with stable
+  schema-1 JSON. Reports distinguish detected, configured, verified, and
+  actually observed active sessions; preserve layered SDDM provenance; report
+  autologin separately from ordinary `RememberLastSession`; validate desktop
+  entries; and classify relevant paths as Frankenstein-, Omarchy-,
+  KDE/Plasma-, SDDM/system-, user-, or ambiguously owned.
+- Added the documented `install`, `switch`, `recover`, `repair-sddm`, and
+  `background` vocabulary while retaining the established command names and
+  their approval boundaries. Setup accepts the opt-in
+  `--login frankenstein` mode, backs up the prior SDDM state/configuration, and
+  does not restart SDDM.
+- Added one canonical atomic non-sensitive state writer for
+  `${XDG_STATE_HOME:-~/.local/state}/frankenstein/sddm-state.json`. Setup,
+  recovery, background import, and diagnostics share schema 1. Malformed,
+  absent, symlinked, stale, or contradictory state is evidence and never an
+  automatic repair authorization.
+- Added the original Frankenstein SDDM theme. Its large session selector is the
+  primary control; selected-session text, username/password login, keyboard
+  focus, restart, shutdown, and a compact gear are visible. The layout uses a
+  calm violet/magenta/indigo palette and retains a readable panel over every
+  background.
+- Positively identified
+  `~/Downloads/ChatGPT Image Oct 1, 2026, 06_05_27 AM.png` as the requested
+  1672x941 vaporwave artwork, copied it without altering the original, and
+  bundled it as
+  `src/sddm/frankenstein/backgrounds/vaporwave-default.png`.
+- Implemented the reviewed safe picker split. A post-login `kdialog`/`zenity`
+  importer chooses a local PNG, JPEG, or WebP. A narrowly scoped Polkit helper
+  rejects symlinks, non-regular/oversized/unsupported/undecodable files,
+  content-addresses a validated copy under
+  `/var/lib/frankenstein/backgrounds/`, and atomically updates only the fixed
+  theme override. The greeter gear selects only the bundled or staged list and
+  persists its choice in the greeter's own configuration. Missing or failed
+  custom images fall back to the bundled default; the unauthenticated greeter
+  never traverses user homes or launches an arbitrary command.
+- Extended packaged and standalone payload/rollback paths for the theme,
+  importer, writer, diagnostics, and state helper. Standalone uninstall removes
+  only its installed theme copy; package-managed payload remains pacman-owned.
+  Existing KDE, Plasma, Hyprland, Omarchy, prior themes, user configuration,
+  and backups are retained.
+- Preserved shell ownership boundaries. Preserve mode never installs the
+  filtered autostart or controls the user-owned service. Filtered mode's
+  autostart only requests its single systemd service, and setup explicitly
+  disables a replaced existing service. No ownership migration is inferred
+  from the earlier offline inventory; `migration_ready` remains false.
+- Replaced stale checkpoint documentation with the finite v1 scope, completed
+  behavior, safety model, state schema, background trust boundary, limitations,
+  and recovery sequence. Package revision is `0.1.0-7`; portable `.SRCINFO`
+  contains no checkout path.
+
+Validation:
+
+- All 2 shell test suites and all 16 ordinary Python fixture/static suites
+  passed. The disposable-guest `run-guest.py` harness was intentionally not
+  invoked because it requires an authorized booted guest; it is not an
+  automated unit test.
+- Installer rollback passed 50 packaged/standalone cases; preserved-shell
+  behavior passed all 16 cases. New diagnostics, state, and SDDM/background
+  suites passed 3, 2, and 4 test methods respectively.
+- All tracked shell entry points passed `bash -n`; 23 Python files compiled
+  in memory with warnings treated as errors; 28 JSON files parsed with `jq`;
+  desktop validation passed with one non-fatal category hint; and
+  `git diff --check` passed. ShellCheck was unavailable and was not installed
+  solely for this run.
+- `sddm-greeter-qt6 --test-mode` loaded the source theme offscreen for 12
+  seconds until the deliberate timeout with no QML module, type, syntax, or
+  load errors. Static theme/background tests also passed.
+- `packaging/arch/build.sh --cleanbuild --force --noconfirm` built both split
+  packages and validated every source checksum. A second build from neutral
+  `/tmp/frankenstein-rc1-build` produced the exact dogfood candidates:
+  `frankenstein-core-0.1.0-7-x86_64.pkg.tar.zst` and
+  `frankenstein-kde-0.1.0-7-x86_64.pkg.tar.zst`, plus `SHA256SUMS`. Their
+  payloads, checksums, installed `frankenstein inspect --json` execution
+  outside the checkout, and text privacy scan passed. Neutral `.BUILDINFO`
+  contains no `/home/violet` or checkout path.
+- Read-only live inspection found Breeze active, no autologin, normal
+  `RememberLastSession`, and four verified installed entries:
+  `hyprland-uwsm.desktop`, `hyprland.desktop`, `plasma.desktop`, and
+  `omarchy.desktop`. No live theme/config/service/session mutation, SDDM
+  restart, logout, reboot, package transaction, or desktop removal occurred.
+
+Release sequence is now explicit: local RC checkpoint, experimental GitHub
+prerelease, exact-artifact local installation, user dogfooding, corrections and
+full revalidation if needed, explicit user approval, stable GitHub release, and
+only then a separately approved OmaStore publication. Time elapsed during
+dogfooding is never approval. This checkout has no remote, so repository
+identity and visibility must be confirmed before the prerelease can be
+published. Theme activation also requires separate moment-of-action approval
+after installation and rollback verification.

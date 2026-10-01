@@ -1,0 +1,173 @@
+#!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 Frankenstein contributors
+# SPDX-License-Identifier: MIT
+
+set -euo pipefail
+
+readonly max_bytes=$((32 * 1024 * 1024))
+readonly max_dimension=16384
+readonly max_pixels=50000000
+readonly bundled_background=backgrounds/vaporwave-default.png
+
+fail() {
+  echo "frankenstein-background-writer: $*" >&2
+  exit 1
+}
+
+fixture_mode=0
+root_prefix=
+if [[ ${FRANKENSTEIN_BACKGROUND_TEST_MODE:-0} == 1 ]]; then
+  ((EUID != 0)) || fail "fixture overrides are never permitted with root privileges"
+  [[ -n ${FRANKENSTEIN_BACKGROUND_FIXTURE_ROOT:-} ]] ||
+    fail "fixture mode requires FRANKENSTEIN_BACKGROUND_FIXTURE_ROOT"
+  root_prefix=$(realpath -e -- "$FRANKENSTEIN_BACKGROUND_FIXTURE_ROOT") ||
+    fail "fixture root does not exist"
+  [[ -d $root_prefix && ! -L $FRANKENSTEIN_BACKGROUND_FIXTURE_ROOT ]] ||
+    fail "fixture root must be a real directory"
+  fixture_mode=1
+else
+  ((EUID == 0)) || fail "this helper must be run through pkexec"
+fi
+
+[[ $# == 1 ]] || fail "usage: ${0##*/} IMAGE"
+input=$1
+[[ -f $input && ! -L $input && -r $input ]] ||
+  fail "input must be a readable, regular, non-symlink file"
+canonical=$(realpath -e -- "$input") || fail "could not canonicalize input"
+[[ -f $canonical && ! -L $canonical ]] || fail "canonical input is not a regular file"
+
+case "${canonical,,}" in
+  *.png) extension=png; expected_format=PNG; expected_mime=image/png ;;
+  *.jpg|*.jpeg) extension=jpg; expected_format=JPEG; expected_mime=image/jpeg ;;
+  *.webp) extension=webp; expected_format=WEBP; expected_mime=image/webp ;;
+  *) fail "supported extensions are .png, .jpg, .jpeg, and .webp" ;;
+esac
+
+filesystem=$(stat -f -c %T -- "$canonical") || fail "could not inspect input filesystem"
+case "$filesystem" in
+  proc|sysfs|devtmpfs|cgroup*|nfs*|cifs|smb*|fuse.sshfs)
+    fail "input must be a local regular file"
+    ;;
+esac
+
+theme_dir=$root_prefix/usr/share/sddm/themes/frankenstein
+background_dir=$root_prefix/var/lib/frankenstein/backgrounds
+override=$theme_dir/theme.conf.user
+[[ -f $theme_dir/Main.qml && -r $theme_dir/backgrounds/vaporwave-default.png ]] ||
+  fail "the Frankenstein SDDM theme is not installed correctly"
+
+install -d -m 0755 -- "$background_dir"
+temporary=$background_dir/.incoming.$$
+override_temporary=$theme_dir/.theme.conf.user.new.$$
+trap 'rm -f -- "$temporary" "$override_temporary"' EXIT
+
+python3 - "$canonical" "$temporary" "$max_bytes" <<'PY' ||
+import os
+import stat
+import sys
+
+source, destination, maximum = sys.argv[1], sys.argv[2], int(sys.argv[3])
+flags = os.O_RDONLY | os.O_CLOEXEC
+if hasattr(os, "O_NOFOLLOW"):
+    flags |= os.O_NOFOLLOW
+source_fd = os.open(source, flags)
+try:
+    before = os.fstat(source_fd)
+    if not stat.S_ISREG(before.st_mode):
+        raise ValueError("input is not a regular file")
+    if before.st_size <= 0 or before.st_size > maximum:
+        raise ValueError("image must be larger than zero and no more than 32 MiB")
+    destination_fd = os.open(
+        destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC, 0o600
+    )
+    try:
+        copied = 0
+        while True:
+            block = os.read(source_fd, min(1024 * 1024, maximum + 1 - copied))
+            if not block:
+                break
+            copied += len(block)
+            if copied > maximum:
+                raise ValueError("image exceeds the 32 MiB limit")
+            pending = memoryview(block)
+            while pending:
+                written = os.write(destination_fd, pending)
+                pending = pending[written:]
+        os.fsync(destination_fd)
+    finally:
+        os.close(destination_fd)
+    after = os.fstat(source_fd)
+    if (
+        copied != before.st_size
+        or after.st_size != before.st_size
+        or after.st_mtime_ns != before.st_mtime_ns
+        or after.st_ino != before.st_ino
+    ):
+        raise ValueError("input changed while it was being copied")
+finally:
+    os.close(source_fd)
+PY
+  fail "could not take a stable, bounded snapshot of the input image"
+
+mime=$(file --brief --mime-type -- "$temporary") || fail "could not identify input MIME type"
+[[ $mime == "$expected_mime" ]] ||
+  fail "file extension and MIME type do not agree ($mime)"
+
+if command -v magick >/dev/null 2>&1; then
+  image_info=$(magick identify -quiet -ping -format '%m %w %h' -- "$temporary") ||
+    fail "the image decoder rejected the file"
+elif command -v identify >/dev/null 2>&1; then
+  image_info=$(identify -quiet -ping -format '%m %w %h' -- "$temporary") ||
+    fail "the image decoder rejected the file"
+else
+  fail "ImageMagick identify is required to validate image dimensions"
+fi
+
+read -r decoded_format width height extra <<<"$image_info"
+[[ -z ${extra:-} && $decoded_format == "$expected_format" &&
+   $width =~ ^[0-9]+$ && $height =~ ^[0-9]+$ ]] ||
+  fail "decoder format or dimensions are invalid"
+((width > 0 && height > 0 && width <= max_dimension && height <= max_dimension)) ||
+  fail "image dimensions must be between 1 and 16384 pixels"
+((width * height <= max_pixels)) || fail "image exceeds the 50 megapixel limit"
+
+digest=$(sha256sum -- "$temporary" | awk '{print $1}')
+filename=$digest.$extension
+destination=$background_dir/$filename
+
+chmod 0644 "$temporary"
+mv -fT -- "$temporary" "$destination"
+if ((!fixture_mode)); then
+  chown root:root -- "$background_dir" "$destination"
+fi
+
+staged=()
+while IFS= read -r path; do
+  staged+=("$path")
+done < <(find "$background_dir" -maxdepth 1 -type f \
+  \( -name '*.png' -o -name '*.jpg' -o -name '*.webp' \) -print | LC_ALL=C sort)
+
+paths=$bundled_background
+for path in "${staged[@]}"; do
+  if ((fixture_mode)); then
+    paths+=",/var/lib/frankenstein/backgrounds/${path##*/}"
+  else
+    paths+=",$path"
+  fi
+done
+
+cat >"$override_temporary" <<EOF
+[General]
+backgrounds=$paths
+EOF
+chmod 0644 "$override_temporary"
+mv -fT -- "$override_temporary" "$override"
+if ((!fixture_mode)); then
+  chown root:root -- "$override"
+fi
+
+if ((fixture_mode)); then
+  printf '/var/lib/frankenstein/backgrounds/%s\n' "$filename"
+else
+  printf '%s\n' "$destination"
+fi

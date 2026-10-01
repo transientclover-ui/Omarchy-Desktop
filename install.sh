@@ -31,9 +31,12 @@ user_files_installed=false
 shell_unit_disabled=false
 filtered_shell_started=false
 sddm_state_backup_ready=false
+user_state_written=false
+user_state_existed=false
 backup_id=
 user_backup=
 system_backup=
+readonly user_sddm_state="${XDG_STATE_HOME:-$HOME/.local/state}/frankenstein/sddm-state.json"
 
 rollback_partial_install() {
   local line=$1 status=$2
@@ -54,6 +57,13 @@ rollback_partial_install() {
       "$HOME/.config/systemd/user/frankenstein-omarchy-shell.service" \
       "$HOME/.local/share/applications/frankenstein-omarchy-menu.desktop"
     systemctl --user daemon-reload
+  fi
+  if [[ $user_state_written == true ]]; then
+    if [[ $user_state_existed == true ]]; then
+      install -Dm0600 "$user_backup/sddm-state.before.json" "$user_sddm_state"
+    else
+      rm -f "$user_sddm_state"
+    fi
   fi
   if [[ $shell_unit_disabled == true ]]; then
     [[ $existing_shell_enabled == true ]] &&
@@ -86,12 +96,17 @@ rollback_partial_install() {
       /usr/bin/frankenstein-shell-adapter \
       /usr/bin/omarchy-default-desktop \
       /usr/bin/frankenstein-settings \
+      /usr/bin/frankenstein-background \
       /usr/lib/frankenstein/set-default \
+      /usr/libexec/frankenstein-background-writer \
       /usr/lib/frankenstein/installer-state \
+      /usr/lib/frankenstein/state \
+      /usr/lib/frankenstein/diagnostics \
       /usr/lib/frankenstein/shell-profile \
       /usr/lib/systemd/system/omarchy-desktop-manager-default.path \
       /usr/lib/systemd/system/omarchy-desktop-manager-default.service
     sudo rm -rf /usr/share/frankenstein/omarchy-shell
+    sudo rm -rf /usr/share/sddm/themes/frankenstein
     sudo rm -f \
       /usr/share/frankenstein/profiles/plasma.json \
       /usr/share/frankenstein/profiles/plasma-menu.jsonc
@@ -118,14 +133,16 @@ trap 'handle_signal "$LINENO"' INT TERM
 usage() {
   cat <<'EOF'
 Usage: ./install.sh [--preflight] [--yes] [--shell auto|preserve|filtered]
-                    [--login preserve|chooser] [--default keep|auto|omarchy|plasma]
+                    [--login preserve|chooser|frankenstein]
+                    [--default keep|auto|omarchy|plasma]
 
   --preflight       Run read-only checks and print the proposed changes.
   --yes             Confirm the printed plan non-interactively.
   --shell VALUE     auto preserves an existing shell; otherwise adds a filtered menu.
                     preserve requires an existing shell; filtered explicitly replaces it.
   --login VALUE     preserve (default) leaves theme/autologin unchanged; chooser
-                    requests a reversible Breeze/no-autologin override.
+                    requests a reversible Breeze/no-autologin override; frankenstein
+                    requests the packaged session-first theme with the same safeguards.
   --default VALUE   keep (default) leaves remembered session state unchanged;
                     auto selects the active supported desktop; or choose a desktop.
 EOF
@@ -145,7 +162,7 @@ while (($#)); do
     --login)
       shift
       requested_login=${1:-}
-      [[ $requested_login =~ ^(preserve|chooser)$ ]] || {
+      [[ $requested_login =~ ^(preserve|chooser|frankenstein)$ ]] || {
         echo "Invalid login integration: $requested_login" >&2; exit 2
       }
       ;;
@@ -209,16 +226,25 @@ if [[ $package_managed == true ]]; then
   shell_autostart_source=$installed_share/templates/frankenstein-omarchy-shell.desktop
   menu_desktop_source=$installed_share/templates/frankenstein-omarchy-menu.desktop
   sddm_override_source=$installed_share/templates/zzzz-omarchy-desktop-manager.conf
+  state_writer=/usr/lib/frankenstein/state
   payload_files=(
     /usr/bin/frankenstein-shell-adapter
     /usr/bin/omarchy-default-desktop
     /usr/bin/frankenstein-settings
+    /usr/bin/frankenstein-background
+    /usr/libexec/frankenstein-background-writer
     /usr/lib/frankenstein/set-default
+    /usr/lib/frankenstein/state
+    /usr/lib/frankenstein/diagnostics
     "$installed_share/omarchy-shell/shell.qml"
     "$installed_share/omarchy-shell/services/PluginRegistry.qml"
     "$installed_share/omarchy-shell/plugins/menu/Menu.qml"
     "$installed_share/profiles/plasma.json"
     "$installed_share/profiles/plasma-menu.jsonc"
+    /usr/share/sddm/themes/frankenstein/Main.qml
+    /usr/share/sddm/themes/frankenstein/metadata.desktop
+    /usr/share/sddm/themes/frankenstein/theme.conf
+    /usr/share/sddm/themes/frankenstein/backgrounds/vaporwave-default.png
     /usr/lib/frankenstein/installer-state
     /usr/lib/frankenstein/shell-profile
     /usr/lib/systemd/system/omarchy-desktop-manager-default.path
@@ -233,17 +259,26 @@ else
   shell_autostart_source=$project_dir/src/frankenstein/frankenstein-omarchy-shell-autostart.desktop
   menu_desktop_source=$project_dir/src/frankenstein/frankenstein-omarchy-menu.desktop
   sddm_override_source=$project_dir/src/frankenstein/zzzz-frankenstein.conf
+  state_writer=$project_dir/src/libexec/frankenstein-state
   payload_files=(
     "$project_dir/src/bin/frankenstein-shell-adapter"
     "$project_dir/src/bin/omarchy-default-desktop"
     "$project_dir/src/bin/frankenstein-settings"
+    "$project_dir/src/bin/frankenstein-background"
+    "$project_dir/src/libexec/frankenstein-background-writer"
     "$project_dir/src/libexec/omarchy-desktop-manager-set-default"
     "$project_dir/src/frankenstein/omarchy-shell/shell.qml"
     "$project_dir/src/frankenstein/omarchy-shell/services/PluginRegistry.qml"
     "$project_dir/src/frankenstein/omarchy-shell/plugins/menu/Menu.qml"
     "$project_dir/src/frankenstein/plasma-shell-profile.json"
     "$project_dir/src/frankenstein/plasma-menu.jsonc"
+    "$project_dir/src/sddm/frankenstein/Main.qml"
+    "$project_dir/src/sddm/frankenstein/metadata.desktop"
+    "$project_dir/src/sddm/frankenstein/theme.conf"
+    "$project_dir/src/sddm/frankenstein/backgrounds/vaporwave-default.png"
     "$project_dir/src/lib/installer-state.sh"
+    "$project_dir/src/libexec/frankenstein-state"
+    "$project_dir/src/libexec/frankenstein-diagnostics"
     "$project_dir/src/lib/shell-profile.sh"
     "$shell_service_source"
     "$shell_autostart_source"
@@ -342,6 +377,11 @@ effective_sddm_value() {
   for file in "${files[@]}"; do
     if [[ $proposed == true && $file == /etc/sddm.conf.d/zzzz-frankenstein.conf ]]; then
       file=$sddm_override_source
+      if [[ $wanted_section == Theme && $wanted_key == Current &&
+            -n ${proposed_theme:-} ]]; then
+        result=$proposed_theme
+        continue
+      fi
     fi
     value=$(awk -F= -v section="$wanted_section" -v key="$wanted_key" '
       /^[[:space:]]*[#;]/ { next }
@@ -396,12 +436,17 @@ system_conflicting_paths=(
   /usr/bin/frankenstein-shell-adapter
   /usr/bin/omarchy-default-desktop
   /usr/bin/frankenstein-settings
+  /usr/bin/frankenstein-background
   /usr/lib/frankenstein/set-default
+  /usr/libexec/frankenstein-background-writer
   /usr/lib/frankenstein/installer-state
+  /usr/lib/frankenstein/state
+  /usr/lib/frankenstein/diagnostics
   /usr/lib/frankenstein/shell-profile
   /usr/share/frankenstein/omarchy-shell
   /usr/share/frankenstein/profiles/plasma.json
   /usr/share/frankenstein/profiles/plasma-menu.jsonc
+  /usr/share/sddm/themes/frankenstein
   /usr/lib/systemd/system/omarchy-desktop-manager-default.path
   /usr/lib/systemd/system/omarchy-desktop-manager-default.service
 )
@@ -435,12 +480,17 @@ autologin_session=$(effective_sddm_value Autologin Session)
 sddm_action=preserve
 if [[ $requested_login == chooser && ( $sddm_theme != breeze || -n $autologin_user || -n $autologin_session ) ]]; then
   sddm_action=add-reversible-breeze-override
+elif [[ $requested_login == frankenstein && ( $sddm_theme != frankenstein || -n $autologin_user || -n $autologin_session ) ]]; then
+  sddm_action=add-reversible-frankenstein-override
 fi
 
 # Refuse configurations whose higher-precedence settings defeat our fragment.
 # Do not rewrite an existing administrator-owned file to force the plan through.
-if [[ $sddm_action == add-reversible-breeze-override ]]; then
-  for setting in 'Theme Current breeze' 'Autologin User' 'Autologin Session' \
+if [[ $sddm_action == add-reversible-breeze-override ||
+      $sddm_action == add-reversible-frankenstein-override ]]; then
+  proposed_theme=breeze
+  [[ $sddm_action != add-reversible-frankenstein-override ]] || proposed_theme=frankenstein
+  for setting in "Theme Current $proposed_theme" 'Autologin User' 'Autologin Session' \
                  'Autologin Relogin false' 'Users RememberLastUser true' \
                  'Users RememberLastSession true'; do
     read -r section key expected <<<"$setting"
@@ -554,6 +604,14 @@ system_backup="$system_state_dir/backups/$backup_id"
 mkdir -p "$user_backup"
 sudo install -d -m 0700 "$system_backup"
 mutation_started=true
+if [[ -e $user_sddm_state || -L $user_sddm_state ]]; then
+  [[ -f $user_sddm_state && ! -L $user_sddm_state ]] || {
+    echo "Refusing non-regular existing state file: $user_sddm_state" >&2
+    exit 1
+  }
+  user_state_existed=true
+  install -m 0600 "$user_sddm_state" "$user_backup/sddm-state.before.json"
+fi
 
 frankenstein_backup_sddm_state "$sddm_state" "$system_backup"
 sddm_state_backup_ready=true
@@ -632,24 +690,42 @@ if [[ $package_managed != true ]]; then
     "$installed_share/omarchy-shell/services" \
     "$installed_share/omarchy-shell/plugins/menu" \
     "$installed_share/profiles" \
+    /usr/share/sddm/themes/frankenstein/backgrounds \
     /usr/lib/systemd/system
 
   sudo install -m 0755 "$project_dir/src/bin/frankenstein-shell-adapter" \
     /usr/bin/frankenstein-shell-adapter
   sudo install -m 0755 "$project_dir/src/bin/frankenstein-settings" \
     /usr/bin/frankenstein-settings
+  sudo install -m 0755 "$project_dir/src/bin/frankenstein-background" \
+    /usr/bin/frankenstein-background
+  sudo install -m 0755 "$project_dir/src/libexec/frankenstein-background-writer" \
+    /usr/libexec/frankenstein-background-writer
   sudo install -m 0755 "$project_dir/src/bin/omarchy-default-desktop" \
     /usr/bin/omarchy-default-desktop
   sudo install -m 0755 "$project_dir/src/libexec/omarchy-desktop-manager-set-default" \
     /usr/lib/frankenstein/set-default
   sudo install -m 0644 "$project_dir/src/lib/installer-state.sh" \
     /usr/lib/frankenstein/installer-state
+  sudo install -m 0755 "$project_dir/src/libexec/frankenstein-state" \
+    /usr/lib/frankenstein/state
+  sudo install -m 0755 "$project_dir/src/libexec/frankenstein-diagnostics" \
+    /usr/lib/frankenstein/diagnostics
   sudo install -m 0644 "$project_dir/src/lib/shell-profile.sh" \
     /usr/lib/frankenstein/shell-profile
   sudo install -m 0644 "$project_dir/src/frankenstein/plasma-shell-profile.json" \
     "$installed_share/profiles/plasma.json"
   sudo install -m 0644 "$project_dir/src/frankenstein/plasma-menu.jsonc" \
     "$installed_share/profiles/plasma-menu.jsonc"
+  sudo install -m 0644 "$project_dir/src/sddm/frankenstein/Main.qml" \
+    /usr/share/sddm/themes/frankenstein/Main.qml
+  sudo install -m 0644 "$project_dir/src/sddm/frankenstein/metadata.desktop" \
+    /usr/share/sddm/themes/frankenstein/metadata.desktop
+  sudo install -m 0644 "$project_dir/src/sddm/frankenstein/theme.conf" \
+    /usr/share/sddm/themes/frankenstein/theme.conf
+  sudo install -m 0644 \
+    "$project_dir/src/sddm/frankenstein/backgrounds/vaporwave-default.png" \
+    /usr/share/sddm/themes/frankenstein/backgrounds/vaporwave-default.png
   sudo install -m 0644 "$project_dir/src/frankenstein/omarchy-shell/shell.qml" \
     "$installed_share/omarchy-shell/shell.qml"
   sudo install -m 0644 \
@@ -681,11 +757,14 @@ if [[ $package_managed != true ]]; then
   done
 fi
 
-if [[ $sddm_action == add-reversible-breeze-override ]]; then
+if [[ $sddm_action == add-reversible-breeze-override ||
+      $sddm_action == add-reversible-frankenstein-override ]]; then
   sddm_override_created=true
   sudo install -m 0644 "$sddm_override_source" \
     /etc/sddm.conf.d/zzzz-frankenstein.conf
-  sudo sed -i 's/^Current=.*/Current=breeze/' /etc/sddm.conf.d/zzzz-frankenstein.conf
+  configured_theme=breeze
+  [[ $sddm_action != add-reversible-frankenstein-override ]] || configured_theme=frankenstein
+  sudo sed -i "s/^Current=.*/Current=$configured_theme/" /etc/sddm.conf.d/zzzz-frankenstein.conf
 fi
 
 sudo systemctl daemon-reload
@@ -734,10 +813,24 @@ PLASMA_ACTION=$plasma_action
 PACKAGE_MANAGED=$package_managed
 SDDM_STATE_BACKED_UP=true
 SHELL_MODE=$shell_mode
+PREVIOUS_SDDM_THEME=$sddm_theme
+REQUESTED_LOGIN=$requested_login
 EOF
 sudo install -m 0644 "$user_backup/install-state.env" \
   "$system_state_dir/installations/$backup_id.env"
 printf '%s\n' "$backup_id" | sudo tee "$system_state_dir/current" >/dev/null
+
+state_arguments=(
+  record-install
+  --previous-theme "$sddm_theme"
+  --backup-location "$system_backup"
+  --configuration-path /etc/sddm.conf.d/zzzz-frankenstein.conf
+  --session "${omarchy_session##*/}"
+)
+[[ -z $plasma_session ]] || state_arguments+=(--session "${plasma_session##*/}")
+[[ $requested_login != frankenstein ]] || state_arguments+=(--theme-active)
+"$state_writer" "${state_arguments[@]}" >/dev/null
+user_state_written=true
 trap - ERR INT TERM
 
 echo

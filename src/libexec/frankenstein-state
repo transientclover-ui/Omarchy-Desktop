@@ -1,0 +1,130 @@
+#!/usr/bin/env python3
+"""Atomically write the non-sensitive Frankenstein SDDM evidence state."""
+
+from __future__ import annotations
+
+import argparse
+from datetime import datetime, timezone
+import json
+import os
+from pathlib import Path
+import tempfile
+
+VERSION = "0.1.0"
+THEME_VERSION = "1.0.0"
+DEFAULT_BACKGROUND = (
+    "/usr/share/sddm/themes/frankenstein/backgrounds/vaporwave-default.png"
+)
+
+
+def state_path() -> Path:
+    override = os.environ.get("FRANKENSTEIN_STATE_FILE")
+    if override:
+        if os.geteuid() == 0:
+            raise SystemExit("FRANKENSTEIN_STATE_FILE is refused as root")
+        return Path(override)
+    state_home = Path(
+        os.environ.get("XDG_STATE_HOME", str(Path.home() / ".local/state"))
+    )
+    return state_home / "frankenstein/sddm-state.json"
+
+
+def existing(path: Path) -> dict:
+    try:
+        if path.is_symlink() or not path.is_file():
+            return {}
+        value = json.loads(path.read_text(encoding="utf-8"))
+        return value if isinstance(value, dict) and value.get("schema_version") == 1 else {}
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return {}
+
+
+def atomic_write(path: Path, data: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if path.parent.is_symlink():
+        raise SystemExit("state directory must not be a symlink")
+    descriptor, temporary = tempfile.mkstemp(
+        prefix=".sddm-state.", dir=path.parent, text=True
+    )
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+            json.dump(data, stream, indent=2, sort_keys=True)
+            stream.write("\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.chmod(temporary, 0o600)
+        os.replace(temporary, path)
+    finally:
+        try:
+            os.unlink(temporary)
+        except FileNotFoundError:
+            pass
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "operation",
+        choices=("record-install", "record-background", "record-recovery"),
+    )
+    parser.add_argument("--theme-active", action="store_true")
+    parser.add_argument("--selected-background")
+    parser.add_argument("--previous-theme")
+    parser.add_argument("--backup-location")
+    parser.add_argument("--configuration-path")
+    parser.add_argument("--session", action="append", default=[])
+    args = parser.parse_args()
+
+    path = state_path()
+    old = existing(path)
+    selected = (
+        args.selected_background
+        or old.get("selected_background")
+        or DEFAULT_BACKGROUND
+    )
+    recovered = args.operation == "record-recovery"
+    data = {
+        "schema_version": 1,
+        "frankenstein_version": VERSION,
+        "theme_version": THEME_VERSION,
+        "theme_installed": bool(
+            Path("/usr/share/sddm/themes/frankenstein/Main.qml").is_file()
+            or (old.get("theme_installed", False) and not recovered)
+        ),
+        "theme_active": False
+        if recovered
+        else bool(args.theme_active or old.get("theme_active", False)),
+        "selected_background": selected,
+        "default_background": DEFAULT_BACKGROUND,
+        "last_known_valid_background": selected,
+        "sddm_configuration_path": (
+            None
+            if recovered
+            else
+            args.configuration_path
+            if args.configuration_path is not None
+            else old.get("sddm_configuration_path")
+        ),
+        "previous_theme": (
+            args.previous_theme
+            if args.previous_theme is not None
+            else old.get("previous_theme")
+        ),
+        "backup_location": (
+            args.backup_location
+            if args.backup_location is not None
+            else old.get("backup_location")
+        ),
+        "detected_sessions": sorted(set(args.session or old.get("detected_sessions", []))),
+        "last_validation": {
+            "version": VERSION,
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        },
+    }
+    atomic_write(path, data)
+    print(path)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

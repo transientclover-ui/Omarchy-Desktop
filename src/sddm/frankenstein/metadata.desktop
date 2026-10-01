@@ -1,0 +1,12 @@
+[SddmGreeterTheme]
+Name=Frankenstein
+Description=A calm, session-forward SDDM theme for Frankenstein
+Author=Frankenstein contributors
+Copyright=2026 Frankenstein contributors
+License=MIT
+Type=sddm-theme
+Version=1.0.0
+MainScript=Main.qml
+ConfigFile=theme.conf
+Theme-Id=frankenstein
+Theme-API=2.0

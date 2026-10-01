@@ -1,0 +1,464 @@
+#!/usr/bin/env python3
+"""Read-only Frankenstein desktop, SDDM, ownership, and state diagnostics."""
+
+from __future__ import annotations
+
+import argparse
+import configparser
+import json
+import os
+from pathlib import Path
+import shutil
+import sys
+from typing import Any
+
+VERSION = "0.1.0"
+VALID_STATE_KEYS = {
+    "schema_version",
+    "frankenstein_version",
+    "theme_version",
+    "theme_installed",
+    "theme_active",
+    "selected_background",
+    "default_background",
+    "last_known_valid_background",
+    "sddm_configuration_path",
+    "previous_theme",
+    "backup_location",
+    "detected_sessions",
+    "last_validation",
+}
+
+
+def rooted(root: Path, path: str) -> Path:
+    return root / path.lstrip("/")
+
+
+def issue(level: str, code: str, message: str, path: str | None = None) -> dict[str, Any]:
+    result: dict[str, Any] = {"level": level, "code": code, "message": message}
+    if path is not None:
+        result["path"] = path
+    return result
+
+
+def read_ini(path: Path) -> tuple[configparser.ConfigParser | None, str | None]:
+    parser = configparser.ConfigParser(interpolation=None, strict=True)
+    parser.optionxform = str
+    try:
+        with path.open(encoding="utf-8") as stream:
+            parser.read_file(stream)
+    except (OSError, UnicodeError, configparser.Error) as error:
+        return None, str(error)
+    return parser, None
+
+
+def sddm_files(root: Path) -> list[Path]:
+    result: list[Path] = []
+    for directory in (
+        "/usr/lib/sddm/sddm.conf.d",
+        "/usr/local/lib/sddm/sddm.conf.d",
+        "/etc/sddm.conf.d",
+    ):
+        candidate = rooted(root, directory)
+        if candidate.is_dir() and not candidate.is_symlink():
+            result.extend(sorted(candidate.glob("*.conf")))
+    main = rooted(root, "/etc/sddm.conf")
+    if main.is_file() and not main.is_symlink():
+        result.append(main)
+    return result
+
+
+def inspect_sddm(root: Path, findings: list[dict[str, Any]]) -> dict[str, Any]:
+    effective: dict[str, dict[str, Any]] = {}
+    layers: list[dict[str, Any]] = []
+    for path in sddm_files(root):
+        display = "/" + str(path.relative_to(root))
+        parser, error = read_ini(path)
+        layer: dict[str, Any] = {"path": display, "valid": error is None}
+        if error:
+            layer["error"] = error
+            findings.append(issue("error", "malformed-sddm-config", error, display))
+        else:
+            values: dict[str, dict[str, str]] = {}
+            assert parser is not None
+            for section in parser.sections():
+                values[section] = dict(parser.items(section))
+                for key, value in parser.items(section):
+                    effective.setdefault(section, {})[key] = {
+                        "value": value,
+                        "source": display,
+                    }
+            layer["values"] = values
+        layers.append(layer)
+
+    def value(section: str, key: str, default: str = "") -> str:
+        return str(effective.get(section, {}).get(key, {}).get("value", default))
+
+    remember = value("Users", "RememberLastSession", "true").lower() not in {
+        "false",
+        "0",
+        "no",
+    }
+    autologin = {
+        "user_configured": bool(value("Autologin", "User")),
+        "session": value("Autologin", "Session") or None,
+    }
+    if autologin["user_configured"]:
+        findings.append(
+            issue(
+                "warning",
+                "autologin-bypasses-chooser",
+                "SDDM autologin can bypass the session chooser.",
+            )
+        )
+    theme = value("Theme", "Current") or None
+    if remember:
+        findings.append(
+            issue(
+                "info",
+                "remember-last-session",
+                "RememberLastSession is enabled; this is normal remembered state.",
+            )
+        )
+    return {
+        "layers": layers,
+        "effective": effective,
+        "theme": theme,
+        "remember_last_session": remember,
+        "autologin": autologin,
+    }
+
+
+def inspect_sessions(root: Path, findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    sessions: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    directories = (
+        ("/usr/share/wayland-sessions", "wayland"),
+        ("/usr/local/share/wayland-sessions", "wayland"),
+        ("/usr/share/xsessions", "x11"),
+        ("/usr/local/share/xsessions", "x11"),
+    )
+    for directory_name, session_type in directories:
+        directory = rooted(root, directory_name)
+        if not directory.is_dir() or directory.is_symlink():
+            continue
+        for path in sorted(directory.glob("*.desktop")):
+            display = "/" + str(path.relative_to(root))
+            record: dict[str, Any] = {
+                "id": path.name,
+                "path": display,
+                "type": session_type,
+                "detected": True,
+                "configured": False,
+                "verified": False,
+                "working": None,
+                "problems": [],
+            }
+            if path.name in seen:
+                record["problems"].append("duplicate session id")
+            seen.add(path.name)
+            parser, error = read_ini(path)
+            if error:
+                record["problems"].append("malformed desktop file: " + error)
+            elif parser is None or not parser.has_section("Desktop Entry"):
+                record["problems"].append("missing [Desktop Entry]")
+            else:
+                entry = parser["Desktop Entry"]
+                record["name"] = entry.get("Name", path.stem)
+                record["exec"] = entry.get("Exec") or None
+                record["try_exec"] = entry.get("TryExec") or None
+                record["hidden"] = entry.get("Hidden", "false").lower() == "true"
+                record["no_display"] = entry.get("NoDisplay", "false").lower() == "true"
+                if record["hidden"] or record["no_display"]:
+                    record["problems"].append("hidden from chooser")
+                if not record["exec"]:
+                    record["problems"].append("missing Exec")
+                if record["try_exec"]:
+                    executable = str(record["try_exec"]).split()[0]
+                    if root == Path("/"):
+                        found = shutil.which(executable) if "/" not in executable else (
+                            executable if os.access(executable, os.X_OK) else None
+                        )
+                    else:
+                        found = rooted(root, executable) if executable.startswith("/") else None
+                        found = found if found and os.access(found, os.X_OK) else None
+                    if not found:
+                        record["problems"].append("TryExec is unavailable")
+                record["configured"] = bool(record["exec"])
+                record["verified"] = record["configured"] and not record["problems"]
+            if record["problems"]:
+                findings.append(
+                    issue(
+                        "warning",
+                        "invalid-session",
+                        "; ".join(record["problems"]),
+                        display,
+                    )
+                )
+            active_session = os.environ.get("DESKTOP_SESSION", "")
+            if root == Path("/") and active_session in {path.name, path.stem}:
+                record["working"] = True
+            sessions.append(record)
+    if not sessions:
+        findings.append(issue("warning", "no-sessions", "No desktop sessions were detected."))
+    return sessions
+
+
+def state_path(root: Path, home: Path) -> Path:
+    if root != Path("/"):
+        return root / "home/test/.local/state/frankenstein/sddm-state.json"
+    return Path(
+        os.environ.get(
+            "FRANKENSTEIN_STATE_FILE",
+            str(home / ".local/state/frankenstein/sddm-state.json"),
+        )
+    )
+
+
+def inspect_state(
+    root: Path, home: Path, findings: list[dict[str, Any]]
+) -> dict[str, Any]:
+    path = state_path(root, home)
+    display = str(path) if root == Path("/") else "/" + str(path.relative_to(root))
+    if not path.exists():
+        findings.append(issue("info", "state-absent", "No user evidence state exists.", display))
+        return {"path": display, "present": False, "valid": False, "data": None}
+    try:
+        if path.is_symlink() or not path.is_file():
+            raise ValueError("state must be a regular, unlinked file")
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(data, dict):
+            raise ValueError("state root must be an object")
+        unknown = sorted(set(data) - VALID_STATE_KEYS)
+        if unknown:
+            raise ValueError("unknown state fields: " + ", ".join(unknown))
+        if data.get("schema_version") != 1:
+            raise ValueError("unsupported schema_version")
+        for key in (
+            "frankenstein_version",
+            "theme_version",
+            "selected_background",
+            "default_background",
+        ):
+            if not isinstance(data.get(key), str):
+                raise ValueError(f"{key} must be a string")
+        for key in ("theme_installed", "theme_active"):
+            if not isinstance(data.get(key), bool):
+                raise ValueError(f"{key} must be a boolean")
+        if not isinstance(data.get("detected_sessions"), list):
+            raise ValueError("detected_sessions must be an array")
+    except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as error:
+        findings.append(issue("warning", "state-invalid", str(error), display))
+        return {"path": display, "present": True, "valid": False, "error": str(error)}
+    return {"path": display, "present": True, "valid": True, "data": data}
+
+
+def ownership(
+    root: Path,
+    home: Path,
+    sessions: list[dict[str, Any]],
+    sddm: dict[str, Any],
+) -> list[dict[str, Any]]:
+    known = (
+        ("/usr/share/sddm/themes/frankenstein", "Frankenstein-owned", "packaged theme"),
+        ("/var/lib/frankenstein", "Frankenstein-owned", "system state and backups"),
+        ("/etc/sddm.conf.d/zzzz-frankenstein.conf", "Frankenstein-owned", "managed override"),
+        ("/usr/share/omarchy", "Omarchy-owned", "package path"),
+        ("/usr/share/plasma", "KDE/Plasma-owned", "package path"),
+        ("/var/lib/sddm", "SDDM/system-owned", "display-manager state"),
+    )
+    result = []
+    for path, owner, evidence in known:
+        candidate = rooted(root, path)
+        result.append(
+            {
+                "path": path,
+                "exists": candidate.exists() or candidate.is_symlink(),
+                "owner": owner,
+                "evidence": evidence,
+            }
+        )
+    user_paths = (
+        home / ".config/omarchy",
+        home / ".config/hypr",
+        home / ".config/kdeglobals",
+    )
+    for candidate in user_paths:
+        result.append(
+            {
+                "path": str(candidate),
+                "exists": candidate.exists() or candidate.is_symlink(),
+                "owner": "user-owned",
+                "evidence": "user configuration path; package provenance not assumed",
+            }
+        )
+    for layer in sddm["layers"]:
+        path = layer["path"]
+        if path == "/etc/sddm.conf.d/zzzz-frankenstein.conf":
+            owner = "Frankenstein-owned"
+            evidence = "exact managed fragment path"
+        else:
+            owner = "SDDM/system-owned"
+            evidence = "SDDM configuration layer; individual authorship not inferred"
+        result.append(
+            {
+                "path": path,
+                "exists": True,
+                "owner": owner,
+                "evidence": evidence,
+            }
+        )
+    for session in sessions:
+        session_id = session["id"].lower()
+        if session_id == "plasma.desktop":
+            owner = "KDE/Plasma-owned"
+            evidence = "packaged Plasma session identifier"
+        elif session_id in {
+            "omarchy.desktop",
+            "hyprland.desktop",
+            "hyprland-uwsm.desktop",
+        }:
+            owner = "Omarchy-owned"
+            evidence = "reviewed Omarchy/Hyprland session identifier"
+        else:
+            owner = "ambiguous/unknown"
+            evidence = "detected session without reviewed package provenance"
+        result.append(
+            {
+                "path": session["path"],
+                "exists": True,
+                "owner": owner,
+                "evidence": evidence,
+            }
+        )
+    return result
+
+
+def report(root: Path, home: Path) -> dict[str, Any]:
+    findings: list[dict[str, Any]] = []
+    sddm = inspect_sddm(root, findings)
+    sessions = inspect_sessions(root, findings)
+    autologin_session = sddm["autologin"]["session"]
+    if autologin_session and autologin_session not in {
+        item["id"] for item in sessions if item["verified"]
+    }:
+        findings.append(
+            issue(
+                "warning",
+                "invalid-autologin-session",
+                "Autologin targets a missing or invalid session.",
+            )
+        )
+    state = inspect_state(root, home, findings)
+    theme_dir = rooted(root, "/usr/share/sddm/themes/frankenstein")
+    theme_installed = (theme_dir / "metadata.desktop").is_file() and (
+        theme_dir / "Main.qml"
+    ).is_file()
+    theme_active = sddm["theme"] == "frankenstein"
+    if theme_active and not theme_installed:
+        findings.append(
+            issue(
+                "error",
+                "active-theme-missing",
+                "SDDM selects Frankenstein but its theme payload is incomplete.",
+            )
+        )
+    if state.get("valid"):
+        evidence = state["data"]
+        if evidence["theme_installed"] != theme_installed:
+            findings.append(
+                issue(
+                    "warning",
+                    "state-stale-theme-install",
+                    "State disagrees with the installed theme payload.",
+                )
+            )
+        if evidence["theme_active"] != theme_active:
+            findings.append(
+                issue(
+                    "warning",
+                    "state-stale-theme-active",
+                    "State disagrees with effective SDDM configuration.",
+                )
+            )
+    summary = {
+        "errors": sum(item["level"] == "error" for item in findings),
+        "warnings": sum(item["level"] == "warning" for item in findings),
+        "informational": sum(item["level"] == "info" for item in findings),
+    }
+    return {
+        "schema_version": 1,
+        "frankenstein_version": VERSION,
+        "read_only": True,
+        "root": str(root),
+        "summary": summary,
+        "theme": {"installed": theme_installed, "active": theme_active},
+        "sddm": sddm,
+        "sessions": sessions,
+        "state": state,
+        "ownership": ownership(root, home, sessions, sddm),
+        "findings": findings,
+    }
+
+
+def text_output(command: str, data: dict[str, Any]) -> str:
+    status = data["summary"]
+    lines = [
+        f"Frankenstein {command}: {status['errors']} error(s), "
+        f"{status['warnings']} warning(s)",
+        f"SDDM theme: {data['sddm']['theme'] or 'not configured'} "
+        f"(Frankenstein installed: {'yes' if data['theme']['installed'] else 'no'})",
+        "Sessions:",
+    ]
+    for session in data["sessions"]:
+        state = "verified" if session["verified"] else "detected, not verified"
+        lines.append(f"  {session.get('name', session['id'])}: {state} [{session['id']}]")
+    if not data["sessions"]:
+        lines.append("  none")
+    if data["findings"]:
+        lines.append("Findings:")
+        for finding in data["findings"]:
+            path = f" ({finding['path']})" if "path" in finding else ""
+            lines.append(
+                f"  {finding['level'].upper()}: {finding['message']}{path}"
+            )
+    return "\n".join(lines)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("command", choices=("inspect", "doctor", "verify"))
+    parser.add_argument("--json", action="store_true", help="emit stable JSON")
+    parser.add_argument(
+        "--root",
+        type=Path,
+        default=Path("/"),
+        help="inspect an offline fixture root instead of the live filesystem",
+    )
+    args = parser.parse_args()
+    root = args.root.resolve()
+    if root.is_symlink() or not root.is_dir():
+        parser.error("--root must be a real directory")
+    if root != Path("/") and os.environ.get("FRANKENSTEIN_ALLOW_FIXTURE_ROOT") != "1":
+        parser.error("offline roots require FRANKENSTEIN_ALLOW_FIXTURE_ROOT=1")
+    home = Path.home() if root == Path("/") else root / "home/test"
+    data = report(root, home)
+    if args.json:
+        print(json.dumps(data, indent=2, sort_keys=True))
+    else:
+        print(text_output(args.command, data))
+    if args.command == "inspect":
+        return 0
+    if data["summary"]["errors"]:
+        return 1
+    if args.command == "verify" and (
+        data["summary"]["warnings"]
+        or not data["theme"]["installed"]
+        or not any(item["verified"] for item in data["sessions"])
+    ):
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

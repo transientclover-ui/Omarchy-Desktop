@@ -58,9 +58,11 @@ source "$state_file"
 
 if [[ ${PACKAGE_MANAGED:-false} == true ]]; then
   template_dir=/usr/share/frankenstein/templates
+  state_writer=/usr/lib/frankenstein/state
 else
   project_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
   template_dir=$project_dir/src
+  state_writer=$project_dir/src/libexec/frankenstein-state
 fi
 
 if [[ $assume_yes != true ]]; then
@@ -154,6 +156,8 @@ fi
 if [[ $SDDM_OVERRIDE_CREATED == true ]]; then
   sudo rm -f /etc/sddm.conf.d/zzzz-frankenstein.conf
 fi
+"$state_writer" record-recovery \
+  --backup-location "$state_dir/backups/$backup_id" >/dev/null
 sudo rm -f \
   /etc/systemd/system/omarchy-desktop-manager-default.path \
   /etc/systemd/system/omarchy-desktop-manager-default.service
@@ -164,12 +168,17 @@ if [[ ${PACKAGE_MANAGED:-false} != true ]]; then
     /usr/bin/frankenstein-shell-adapter \
     /usr/bin/omarchy-default-desktop \
     /usr/bin/frankenstein-settings \
+    /usr/bin/frankenstein-background \
+    /usr/libexec/frankenstein-background-writer \
     /usr/lib/frankenstein/installer-state \
+    /usr/lib/frankenstein/state \
+    /usr/lib/frankenstein/diagnostics \
     /usr/lib/frankenstein/shell-profile \
     /usr/lib/frankenstein/set-default \
     /usr/share/frankenstein/profiles/plasma.json \
     /usr/share/frankenstein/profiles/plasma-menu.jsonc
   sudo rm -rf /usr/share/frankenstein/omarchy-shell
+  sudo rm -rf /usr/share/sddm/themes/frankenstein
 fi
 sudo rm -rf /var/lib/omarchy-desktop-manager
 sudo rm -f "$state_dir/current"

@@ -4,6 +4,7 @@
 *.img
 *.ppm
 *.png
+!src/sddm/frankenstein/backgrounds/vaporwave-default.png
 *.log
 control.sock
 installer-test-control.sock

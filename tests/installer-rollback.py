@@ -63,12 +63,20 @@ def fixture(root, existed, standalone=False):
         'uninstall.sh': 'usr/lib/frankenstein/uninstall',
         'src/lib/installer-state.sh': 'usr/lib/frankenstein/installer-state',
         'src/lib/shell-profile.sh': 'usr/lib/frankenstein/shell-profile',
+        'src/libexec/frankenstein-state': 'usr/lib/frankenstein/state',
+        'src/libexec/frankenstein-diagnostics': 'usr/lib/frankenstein/diagnostics',
         'src/bin/frankenstein-shell-adapter': 'usr/bin/frankenstein-shell-adapter',
         'src/bin/frankenstein-settings': 'usr/bin/frankenstein-settings',
+        'src/bin/frankenstein-background': 'usr/bin/frankenstein-background',
+        'src/libexec/frankenstein-background-writer': 'usr/libexec/frankenstein-background-writer',
         'src/bin/omarchy-default-desktop': 'usr/bin/omarchy-default-desktop',
         'src/frankenstein/plasma-shell-profile.json': 'usr/share/frankenstein/profiles/plasma.json',
         'src/frankenstein/plasma-menu.jsonc': 'usr/share/frankenstein/profiles/plasma-menu.jsonc',
         'src/frankenstein/zzzz-frankenstein.conf': 'usr/share/frankenstein/templates/zzzz-omarchy-desktop-manager.conf',
+        'src/sddm/frankenstein/Main.qml': 'usr/share/sddm/themes/frankenstein/Main.qml',
+        'src/sddm/frankenstein/metadata.desktop': 'usr/share/sddm/themes/frankenstein/metadata.desktop',
+        'src/sddm/frankenstein/theme.conf': 'usr/share/sddm/themes/frankenstein/theme.conf',
+        'src/sddm/frankenstein/backgrounds/vaporwave-default.png': 'usr/share/sddm/themes/frankenstein/backgrounds/vaporwave-default.png',
         'src/frankenstein/frankenstein-omarchy-shell-autostart.desktop': 'usr/share/frankenstein/templates/frankenstein-omarchy-shell.desktop',
         'src/frankenstein/frankenstein-omarchy-menu.desktop': 'usr/share/frankenstein/templates/frankenstein-omarchy-menu.desktop',
         'src/systemd/frankenstein-omarchy-shell.service': 'usr/share/frankenstein/templates/frankenstein-omarchy-shell.service',
@@ -173,8 +181,15 @@ exit 0
         shutil.rmtree(root / 'usr/share/frankenstein')
         shutil.rmtree(root / 'usr/lib/systemd/system')
         (root / 'usr/lib/systemd/system').mkdir()
-        for name in ('frankenstein-shell-adapter', 'omarchy-default-desktop', 'frankenstein-settings'):
+        for name in (
+            'frankenstein-shell-adapter',
+            'omarchy-default-desktop',
+            'frankenstein-settings',
+            'frankenstein-background',
+        ):
             (root / 'usr/bin' / name).unlink()
+        (root / 'usr/libexec/frankenstein-background-writer').unlink()
+        shutil.rmtree(root / 'usr/share/sddm/themes/frankenstein')
         shutil.copytree(PROJECT / 'src', root / 'home/source/src')
         for name in ('install.sh', 'uninstall.sh'):
             copy(root, name, 'home/source/' + name)

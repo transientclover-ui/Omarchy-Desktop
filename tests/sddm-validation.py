@@ -102,6 +102,17 @@ class SddmValidationTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("QtVersion=6", result.stderr)
 
+    def test_undefined_theme_config_context_fails_closed(self):
+        main = self.theme / "Main.qml"
+        main.write_text(
+            main.read_text().replace(
+                "config.defaultBackground", "ThemeConfig.defaultBackground"
+            )
+        )
+        result = self.run_validator()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("undefined ThemeConfig", result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

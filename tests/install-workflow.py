@@ -32,8 +32,8 @@ class InstallWorkflowTests(unittest.TestCase):
             """case "$1" in
 -Qp)
   case "$3" in
-    *frankenstein-core*) echo 'frankenstein-core 0.1.0-8';;
-    *frankenstein-kde*) echo 'frankenstein-kde 0.1.0-8';;
+    *frankenstein-core*) echo 'frankenstein-core 0.1.0-9';;
+    *frankenstein-kde*) echo 'frankenstein-kde 0.1.0-9';;
     *) exit 2;;
   esac;;
 -U) printf 'pacman %s\\n' "$*" >>"$OPERATION_LOG";;
@@ -111,6 +111,18 @@ esac
         self.assertNotIn("-Sy", operations[1])
         self.assertFalse(
             any("reboot" in operation or "systemctl" in operation for operation in operations)
+        )
+
+    def test_fresh_install_does_not_require_frankenstein_command_before_packages(self):
+        (self.tools / "frankenstein").unlink()
+        result = self.run_installer()
+        self.assertNotEqual(result.returncode, 0)
+        operations = self.operations()
+        self.assertEqual(operations[0], "omarchy update -y")
+        self.assertTrue(operations[1].startswith("pacman -U --needed -- "))
+        self.assertIn(
+            "Frankenstein command is missing after package installation",
+            result.stderr,
         )
 
     def test_update_failure_aborts_before_any_installation(self):

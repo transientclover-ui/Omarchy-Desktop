@@ -1,5 +1,56 @@
 # Omarchy Desktop Compatibility Journal
 
+## 2026-10-01 — `0.1.0-8` rc.2 dogfood blocked
+
+The first full VM dogfood of `frankenstein-core 0.1.0-8` and
+`frankenstein-kde 0.1.0-8` did not qualify for `v0.1.0-rc.2`.
+
+The clean guest exposed a fresh-install bug in the update-first wrapper before
+it could run the updater: the wrapper required the `frankenstein` command
+before installing the package that provides it. The check now runs after
+`pacman -U`. The failed attempt made no package or SDDM configuration change.
+
+With that wrapper correction, `omarchy update -y` completed a full system
+upgrade, updating `aether` and `mise-bin`. No reboot boundary was detected, no
+automatic reboot or SDDM restart occurred, both `0.1.0-8` packages installed
+together, package verification reported no altered files, and pre-activation
+validation passed. The installed metadata declared `QtVersion=6`.
+
+After a real VM reboot, the Frankenstein greeter rendered, authentication
+succeeded, and Plasma Wayland started without a login loop, fallback, greeter
+crash, compositor crash, or coredump. The SDDM journal nevertheless exposed
+two QML runtime errors:
+
+```text
+file:///usr/share/sddm/themes/frankenstein/Main.qml:35: ReferenceError: ThemeConfig is not defined
+file:///usr/share/sddm/themes/frankenstein/Main.qml:19: ReferenceError: ThemeConfig is not defined
+```
+
+SDDM exposes `theme.conf` through the `config` context property, not a
+`ThemeConfig` global. The source now uses `config.defaultBackground` and
+`config.backgrounds`; validation rejects the invalid identifier before
+activation. This evidence-backed correction advances the packages to
+`0.1.0-9`, which still requires a new end-to-end activation test.
+
+The global Plasma configuration and user look-and-feel, color-scheme, and icon
+trees stayed unchanged. Plasma itself rewrote only the `[ScreenMapping]`
+section of `plasma-org.kde.plasma.desktop-appletsrc` after login. The diff
+included the temporary test-harness directory created in the user's home and
+screen-mapping reconciliation; no Frankenstein activation write targeted that
+file. System look-and-feel, color-scheme, and icon asset hashes were unchanged
+across update and installation.
+
+Supported rollback completed with status 0, removed the Frankenstein override,
+restored the original SDDM state hash and Omarchy configuration byte-for-byte,
+and left Plasma appearance files untouched. After the second reboot, the
+original Omarchy greeter rendered and authentication succeeded with no
+coredump. That greeter exposes no session selector and submitted
+`omarchy.desktop`, so the required post-rollback Plasma login could not be
+performed without another configuration action. This is a second rc.2 pass
+criterion failure, independent of the corrected QML identifier.
+
+No rc.2 tag was created and nothing was pushed or published.
+
 ## 2026-10-01 — `v0.1.0-rc.1` known-bad SDDM dogfood result
 
 `v0.1.0-rc.1` (`503c440e85a8dc4d180519a90c22f165866f8339`,

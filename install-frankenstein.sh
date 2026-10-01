@@ -35,7 +35,7 @@ elif (($#)); then
   usage
 fi
 
-for command_name in omarchy pacman sudo frankenstein uname; do
+for command_name in omarchy pacman sudo uname; do
   command -v "$command_name" >/dev/null 2>&1 || {
     echo "Required installation command is missing: $command_name" >&2
     exit 1
@@ -90,4 +90,8 @@ fi
 
 echo "System update completed without a detected reboot boundary."
 sudo pacman -U --needed -- "$core_package" "$kde_package"
+command -v frankenstein >/dev/null 2>&1 || {
+  echo "Frankenstein command is missing after package installation." >&2
+  exit 1
+}
 frankenstein install "$@"

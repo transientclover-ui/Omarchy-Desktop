@@ -16,7 +16,7 @@ Rectangle {
     readonly property color mutedLavender: "#bfb2df"
     readonly property color magenta: "#e66bb4"
     readonly property color indigo: "#6761b9"
-    readonly property string defaultBackground: ThemeConfig.defaultBackground || "backgrounds/vaporwave-default.png"
+    readonly property string defaultBackground: config.defaultBackground || "backgrounds/vaporwave-default.png"
     property string activeBackground: defaultBackground
     property string statusMessage: ""
 
@@ -32,7 +32,7 @@ Rectangle {
     function rebuildBackgrounds() {
         backgroundsModel.clear()
         backgroundsModel.append({ "path": defaultBackground, "label": qsTr("Vaporwave default") })
-        var configured = String(ThemeConfig.backgrounds || "").split(",")
+        var configured = String(config.backgrounds || "").split(",")
         for (var i = 0; i < configured.length; ++i) {
             var candidate = configured[i].trim()
             if (!candidate || candidate === defaultBackground || !isAllowedBackground(candidate))

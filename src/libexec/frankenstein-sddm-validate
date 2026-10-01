@@ -58,6 +58,9 @@ main_script=$(ini_value "$metadata" SddmGreeterTheme MainScript)
 config_file=$(ini_value "$metadata" SddmGreeterTheme ConfigFile)
 safe_theme_file "$main_script"
 safe_theme_file "$config_file"
+if grep -Eq '(^|[^[:alnum:]_])ThemeConfig([^[:alnum:]_]|$)' "$theme_dir/$main_script"; then
+  fail "MainScript references undefined ThemeConfig; SDDM exposes theme.conf as config"
+fi
 
 default_background=$(ini_value "$theme_dir/$config_file" General defaultBackground)
 safe_theme_file "$default_background"

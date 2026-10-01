@@ -39,6 +39,7 @@ Frankenstein invokes but does not bundle:
 - Omarchy (MIT)
 - Quickshell (LGPL-3.0-only)
 - KDE Plasma, Breeze, and System Settings (LGPL-2.0-or-later)
+- X.Org cursor themes (HPND-sell-variant)
 - SDDM (GPL-2.0-or-later)
 
 Those projects remain under their respective licenses. Their package metadata

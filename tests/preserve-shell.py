@@ -57,11 +57,14 @@ esac
         state = root / 'var/lib/sddm/state.conf'
         original_state = state.read_bytes()
         sddm_before = snapshot(root / 'etc')
-        preflight = rollback.run(root, 'install.sh', preflight=True)
+        preflight = rollback.run(
+            root, 'install.sh', arguments=['--preflight', '--shell', 'preserve'])
         rollback.check(preflight.returncode == 0 and 'Shell integration:     preserve' in preflight.stdout,
                        'preservation not selected', preflight)
-        result = rollback.run(root, 'install.sh', fail_watch=failed_setup,
-                              fail_restore='rename' if failed_setup and failed_restore else '')
+        result = rollback.run(
+            root, 'install.sh', fail_watch=failed_setup,
+            fail_restore='rename' if failed_setup and failed_restore else '',
+            arguments=['--yes', '--shell', 'preserve'])
         rollback.check(result.returncode == (42 if failed_setup else 0), 'unexpected setup result', result)
         rollback.check(snapshot(config) == before, 'setup changed existing settings', result)
         rollback.check(not (root / 'home/test/.local/share/applications/frankenstein-omarchy-menu.desktop').exists(),
@@ -116,7 +119,10 @@ def test_category(standalone, category):
         original_state = (root / 'var/lib/sddm/state.conf').read_bytes()
         flags = {'login': ['--login', 'chooser'], 'default': ['--default', 'plasma'],
                  'shell': ['--shell', 'filtered']}[category]
-        result = rollback.run(root, 'install.sh', arguments=['--yes', *flags])
+        arguments = ['--yes', *flags]
+        if category != 'shell':
+            arguments += ['--shell', 'preserve']
+        result = rollback.run(root, 'install.sh', arguments=arguments)
         rollback.check(result.returncode == 0, 'selective setup failed', result)
         override = root / 'etc/sddm.conf.d/zzzz-frankenstein.conf'
         rollback.check(override.exists() == (category == 'login'), 'login settings changed without selection', result)
@@ -133,6 +139,124 @@ def test_category(standalone, category):
         print(f'PASS: selective {category}, {"standalone" if standalone else "packaged"}')
 
 
+def test_auto_adopts_existing(standalone):
+    with tempfile.TemporaryDirectory(prefix='frankenstein-auto-shell-') as directory:
+        root = Path(directory)
+        rollback.fixture(root, True, standalone)
+        unit = rollback.put(
+            root, 'home/test/.config/systemd/user/omarchy-shell.service',
+            '[Service]\nExecStart=/usr/bin/quickshell -n -p /usr/share/omarchy/shell\n')
+        wanted = root / 'home/test/.config/systemd/user/graphical-session.target.wants'
+        wanted.mkdir()
+        (wanted / unit.name).symlink_to('../omarchy-shell.service')
+        rollback.put(root, 'var/original-shell-active', 'running\n')
+        rollback.put(root, 'home/test/.config/omarchy/shell.json',
+                     '{"version":1,"bar":{"layout":{"left":[],"center":[],"right":[]}}}\n')
+        shell_before = snapshot(root / 'home/test/.config/omarchy')
+        sddm_before = snapshot(root / 'etc')
+        state_before = (root / 'var/lib/sddm/state.conf').read_bytes()
+
+        result = rollback.run(root, 'install.sh')
+        rollback.check(result.returncode == 0 and
+                       'Shell integration:     filtered' in result.stdout,
+                       'auto did not adopt the existing stock shell', result)
+        record_id = (root / 'var/lib/frankenstein/current').read_text().strip()
+        record = root / f'var/lib/frankenstein/installations/{record_id}.env'
+        rollback.check('SHELL_MODE=filtered' in record.read_text(),
+                       'adapter mode was not recorded', result)
+        rollback.check(not (root / 'var/original-shell-active').exists(),
+                       'stock shell remained active', result)
+        rollback.check((root / 'home/test/.config/systemd/user/'
+                        'frankenstein-omarchy-shell.service').is_file(),
+                       'adapter service missing', result)
+        rollback.check((root / 'home/test/.config/autostart/'
+                        'frankenstein-omarchy-shell.desktop').is_file(),
+                       'adapter autostart missing', result)
+        rollback.check(snapshot(root / 'home/test/.config/omarchy') == shell_before,
+                       'Omarchy user configuration changed', result)
+        rollback.check(snapshot(root / 'etc') == sddm_before,
+                       'SDDM configuration changed', result)
+        rollback.check((root / 'var/lib/sddm/state.conf').read_bytes() == state_before,
+                       'remembered SDDM session changed', result)
+
+        result = rollback.run(root, 'uninstall.sh')
+        rollback.check(result.returncode == 0, 'adapter uninstall failed', result)
+        rollback.check((root / 'var/original-shell-active').exists(),
+                       'original shell runtime was not restored', result)
+        rollback.check((wanted / unit.name).is_symlink(),
+                       'original shell enablement was not restored', result)
+        rollback.check(not (root / 'home/test/.config/systemd/user/'
+                            'frankenstein-omarchy-shell.service').exists(),
+                       'adapter service remained after uninstall', result)
+        rollback.check(snapshot(root / 'home/test/.config/omarchy') == shell_before,
+                       'rollback changed Omarchy user configuration', result)
+        print(f'PASS: auto KDE shell adoption, {"standalone" if standalone else "packaged"}')
+
+
+def test_preserve_migration(fail_health=False):
+    with tempfile.TemporaryDirectory(prefix='frankenstein-shell-migration-') as directory:
+        root = Path(directory)
+        rollback.fixture(root, True, False)
+        unit = rollback.put(
+            root, 'home/test/.config/systemd/user/omarchy-shell.service',
+            '[Service]\nExecStart=/usr/bin/quickshell -n -p /usr/share/omarchy/shell\n')
+        wanted = root / 'home/test/.config/systemd/user/graphical-session.target.wants'
+        wanted.mkdir()
+        (wanted / unit.name).symlink_to('../omarchy-shell.service')
+        rollback.put(root, 'var/original-shell-active', 'running\n')
+        sddm_config_before = snapshot(root / 'etc')
+        sddm_state_before = (root / 'var/lib/sddm/state.conf').read_bytes()
+
+        setup = rollback.run(
+            root, 'install.sh', arguments=['--yes', '--shell', 'preserve'])
+        rollback.check(setup.returncode == 0, 'preserve setup failed', setup)
+        record_id = (root / 'var/lib/frankenstein/current').read_text().strip()
+        record = root / f'var/lib/frankenstein/installations/{record_id}.env'
+        rollback.put(root, 'usr/bin/frankenstein-shell-adapter',
+                     '#!/bin/bash\n[[ $1 == check ]] || exit 2\n'
+                     f'exit {1 if fail_health else 0}\n', True)
+        if fail_health:
+            rollback.put(root, 'mock/sleep', '#!/bin/bash\nexit 0\n', True)
+
+        migration = rollback.run(root, 'migration', arguments=[])
+        expected_status = 1 if fail_health else 0
+        rollback.check(migration.returncode == expected_status,
+                       'unexpected migration result', migration)
+        rollback.check(snapshot(root / 'etc') == sddm_config_before,
+                       'migration changed SDDM configuration', migration)
+        rollback.check((root / 'var/lib/sddm/state.conf').read_bytes() == sddm_state_before,
+                       'migration changed SDDM state', migration)
+
+        service = root / 'home/test/.config/systemd/user/frankenstein-omarchy-shell.service'
+        autostart = root / 'home/test/.config/autostart/frankenstein-omarchy-shell.desktop'
+        menu = root / 'home/test/.local/share/applications/frankenstein-omarchy-menu.desktop'
+        if fail_health:
+            rollback.check('SHELL_MODE=preserve' in record.read_text(),
+                           'failed migration did not restore shell mode', migration)
+            rollback.check(not service.exists() and not autostart.exists() and not menu.exists(),
+                           'failed migration left integration files', migration)
+            rollback.check((root / 'var/original-shell-active').exists() and
+                           (wanted / unit.name).is_symlink(),
+                           'failed migration did not restore stock shell', migration)
+        else:
+            record_text = record.read_text()
+            rollback.check('SHELL_MODE=filtered' in record_text and
+                           'EXISTING_SHELL_ENABLED=true' in record_text and
+                           'EXISTING_SHELL_ACTIVE=true' in record_text,
+                           'migration state is incomplete', migration)
+            rollback.check(service.is_file() and autostart.is_file() and menu.is_file(),
+                           'migration integration files are incomplete', migration)
+            rollback.check(not (root / 'var/original-shell-active').exists() and
+                           not (wanted / unit.name).exists(),
+                           'migration left the stock shell active', migration)
+            uninstall = rollback.run(root, 'uninstall.sh')
+            rollback.check(uninstall.returncode == 0, 'migrated uninstall failed', uninstall)
+            rollback.check((root / 'var/original-shell-active').exists() and
+                           (wanted / unit.name).is_symlink(),
+                           'migrated uninstall did not restore stock shell', uninstall)
+        print(f'PASS: preserve-to-adapter migration, fail_health={fail_health}')
+
+
 if __name__ == '__main__':
     for standalone in (False, True):
         test(standalone)
@@ -142,3 +266,6 @@ if __name__ == '__main__':
         test(standalone, failed_setup=True, failed_restore=True)
         for category in ('login', 'default', 'shell'):
             test_category(standalone, category)
+        test_auto_adopts_existing(standalone)
+    test_preserve_migration()
+    test_preserve_migration(fail_health=True)

@@ -161,7 +161,11 @@ QtObject {
     var manifest = installedPlugins[key]
     var config = shellConfigProvider ? shellConfigProvider() : null
     if (manifest) {
-      if (compatibilityAllowlist) {
+      if (compatibilityAllowlist === "__none__" && manifest.__isFirstParty) return false
+      // A non-empty Plasma profile filters Omarchy-owned components with
+      // known compositor assumptions while leaving configured third-party
+      // widgets user-managed.
+      if (compatibilityAllowlist && manifest.__isFirstParty) {
         var allowed = "," + compatibilityAllowlist + ","
         if (allowed.indexOf("," + key + ",") === -1) return false
       }

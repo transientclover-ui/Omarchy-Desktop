@@ -17,6 +17,8 @@ Commands:
   recover       Restore the recorded pre-install state (alias for uninstall)
   repair-sddm   Plan or install the Frankenstein chooser theme
   background    Import a local image into the safe SDDM background collection
+  adopt-kde-shell
+                Replace a preserved stock shell with the Plasma adapter
   preflight     Check compatibility and print the proposed KDE setup
   setup         Add KDE integration; preserve an existing Omarchy shell
   uninstall     Remove configuration while preserving KDE and backups
@@ -26,6 +28,7 @@ Commands:
   enable        Enable the filtered KDE adapter (when managed)
   disable       Disable the filtered KDE adapter (when managed)
   menu          Open the Omarchy setup menu under Plasma
+  bar           Enable, disable, or inspect the optional Omarchy top bar
 EOF
 }
 
@@ -61,6 +64,9 @@ case $command_name in
   background)
     exec /usr/bin/frankenstein-background "$@"
     ;;
+  adopt-kde-shell)
+    exec /usr/lib/frankenstein/adopt-kde-shell "$@"
+    ;;
   preflight)
     exec /usr/lib/frankenstein/setup --preflight "$@"
     ;;
@@ -79,7 +85,7 @@ case $command_name in
     fi
     exec /usr/bin/omarchy-default-desktop --choose-and-switch
     ;;
-  check|enable|disable|menu)
+  check|enable|disable|menu|bar)
     exec /usr/bin/frankenstein-shell-adapter "$command_name" "$@"
     ;;
   help|--help|-h|'')

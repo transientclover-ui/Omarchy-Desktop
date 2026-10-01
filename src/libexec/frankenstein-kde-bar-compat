@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 Frankenstein contributors
+# SPDX-License-Identifier: MIT
+
+set -euo pipefail
+
+[[ $# == 2 ]] || {
+  echo "Usage: frankenstein-kde-bar-compat <Omarchy Bar.qml> <destination>" >&2
+  exit 2
+}
+
+source_file=$1
+destination=$2
+
+[[ -f $source_file && -r $source_file ]] || {
+  echo "Omarchy Bar.qml is unavailable: $source_file" >&2
+  exit 1
+}
+
+[[ $(grep -c '^import Quickshell\.Hyprland$' "$source_file") == 1 ]] || {
+  echo "Unsupported Omarchy Bar.qml Hyprland import layout." >&2
+  exit 1
+}
+
+for expected_line in \
+  '  function focusedScreenName() {' \
+  '    var monitor = Hyprland.focusedMonitor' \
+  '    return monitor ? String(monitor.name || "") : ""'; do
+  [[ $(grep -Fxc "$expected_line" "$source_file") == 1 ]] || {
+    echo "Unsupported Omarchy Bar.qml focused-monitor implementation." >&2
+    exit 1
+  }
+done
+
+mkdir -p "$(dirname "$destination")"
+awk '
+  $0 == "import Quickshell.Hyprland" { next }
+  $0 == "  function focusedScreenName() {" {
+    if ((getline monitor) <= 0 ||
+        (getline result) <= 0 ||
+        (getline closing) <= 0 ||
+        monitor != "    var monitor = Hyprland.focusedMonitor" ||
+        result != "    return monitor ? String(monitor.name || \"\") : \"\"" ||
+        closing != "  }") exit 42
+    print "  function focusedScreenName() {"
+    print "    return \"\""
+    print "  }"
+    next
+  }
+  { print }
+' "$source_file" >"$destination" || {
+  echo "Unsupported Omarchy Bar.qml focused-monitor implementation." >&2
+  rm -f "$destination"
+  exit 1
+}
+
+if grep -qE 'Quickshell\.Hyprland|Hyprland\.focusedMonitor' "$destination"; then
+  echo "Generated KDE Bar.qml still contains compositor-specific references." >&2
+  rm -f "$destination"
+  exit 1
+fi

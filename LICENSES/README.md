@@ -10,3 +10,7 @@ Omarchy's MIT License. Its copyright notice and license text are retained in
 
 Runtime dependencies are not bundled. Their licenses are supplied by their
 respective Arch packages.
+
+The X.Org Whiteglass cursor is supplied by the separate Arch
+`xcursor-themes` dependency under HPND-sell-variant; it is not bundled into
+Frankenstein.

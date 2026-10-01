@@ -26,10 +26,10 @@ base=$project_dir/src/frankenstein/plasma-shell-profile.json
 
 base_before=$(sha256sum "$base")
 effective=$(frankenstein_effective_shell_profile "$base")
-assert_equal native "$(jq -r '.shell.panel' <<<"$effective")" "safe default panel"
-assert_equal omarchy.menu \
+assert_equal native "$(jq -r '.shell.panel' <<<"$effective")" "existing-profile default panel"
+assert_equal "" \
   "$(jq -r '.shell.enabledPlugins | join(",")' <<<"$effective")" \
-  "safe default plugin allowlist"
+  "empty KDE bar plugin allowlist"
 
 cat >"$work_dir/custom.json" <<'EOF'
 {

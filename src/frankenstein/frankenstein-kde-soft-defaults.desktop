@@ -3,9 +3,9 @@
 
 [Desktop Entry]
 Type=Application
-Name=Frankenstein Omarchy Shell
-Comment=Start the KDE-compatible Omarchy Shell bar
-Exec=systemctl --user start frankenstein-omarchy-shell.service
+Name=Frankenstein KDE first-login defaults
+Comment=Finish one-shot project defaults without replacing user choices
+Exec=/usr/bin/frankenstein-kde-soft-defaults login
 OnlyShowIn=KDE;
 NoDisplay=true
 X-KDE-autostart-phase=2

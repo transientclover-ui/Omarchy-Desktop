@@ -32,8 +32,8 @@ class InstallWorkflowTests(unittest.TestCase):
             """case "$1" in
 -Qp)
   case "$3" in
-    *frankenstein-core*) echo 'frankenstein-core 0.1.0-9';;
-    *frankenstein-kde*) echo 'frankenstein-kde 0.1.0-9';;
+    *frankenstein-core*) echo 'frankenstein-core 0.1.0-10';;
+    *frankenstein-kde*) echo 'frankenstein-kde 0.1.0-10';;
     *) exit 2;;
   esac;;
 -U) printf 'pacman %s\\n' "$*" >>"$OPERATION_LOG";;
@@ -59,6 +59,10 @@ esac
         text = INSTALLER.read_text()
         text = text.replace("/run/reboot-required", str(self.reboot_marker))
         text = text.replace("/usr/lib/modules", str(self.modules))
+        text = text.replace(
+            "command -v frankenstein >/dev/null 2>&1",
+            f"[[ -x {self.tools / 'frankenstein'} ]]",
+        )
         self.installer = self.work / "install-frankenstein.sh"
         self.installer.write_text(text)
         self.installer.chmod(0o755)

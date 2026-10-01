@@ -1,0 +1,178 @@
+#!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 Frankenstein contributors
+# SPDX-License-Identifier: MIT
+
+set -Eeuo pipefail
+
+readonly state_dir=/var/lib/frankenstein
+readonly template_dir=/usr/share/frankenstein/templates
+readonly service_file="$HOME/.config/systemd/user/frankenstein-omarchy-shell.service"
+readonly autostart_file="$HOME/.config/autostart/frankenstein-omarchy-shell.desktop"
+readonly menu_file="$HOME/.local/share/applications/frankenstein-omarchy-menu.desktop"
+
+state_changed=false
+files_installed=false
+stock_disabled=false
+record=
+state_file=
+state_backup=
+temporary_state=
+stock_enabled=false
+stock_active=false
+root_command=()
+
+restore_migration() {
+  local status=$?
+  trap - ERR INT TERM
+  set +e
+  [[ -z $temporary_state ]] || rm -f "$temporary_state"
+  systemctl --user stop frankenstein-omarchy-shell.service
+  if [[ $files_installed == true ]]; then
+    rm -f "$service_file" "$autostart_file" "$menu_file"
+    systemctl --user daemon-reload
+  fi
+  if [[ $state_changed == true ]]; then
+    "${root_command[@]}" install -m 0644 "$state_backup" "$state_file"
+  fi
+  if [[ $stock_disabled == true ]]; then
+    [[ $stock_enabled == true ]] && systemctl --user enable omarchy-shell.service
+    [[ $stock_active == true ]] && systemctl --user start omarchy-shell.service
+  fi
+  echo "KDE shell adoption failed; the preserved shell was restored." >&2
+  exit "$status"
+}
+
+trap restore_migration ERR INT TERM
+
+[[ $EUID -ne 0 ]] || {
+  echo "Run shell adoption as the desktop user, not as root." >&2
+  exit 1
+}
+case ${XDG_CURRENT_DESKTOP:-} in
+  KDE|KDE:*) ;;
+  *) echo "KDE shell adoption requires an active Plasma session." >&2; exit 1 ;;
+esac
+
+for path in \
+  /usr/bin/frankenstein-shell-adapter \
+  "$template_dir/frankenstein-omarchy-shell.service" \
+  "$template_dir/frankenstein-omarchy-shell.desktop" \
+  "$template_dir/frankenstein-omarchy-menu.desktop"; do
+  [[ -r $path ]] || {
+    echo "The KDE shell adapter package is incomplete: $path" >&2
+    exit 1
+  }
+done
+
+[[ -r $state_dir/current ]] || {
+  echo "No active Frankenstein installation record was found." >&2
+  exit 1
+}
+record=$(cat "$state_dir/current")
+[[ $record =~ ^[0-9]{8}T[0-9]{6}Z$ ]] || {
+  echo "Invalid Frankenstein installation record." >&2
+  exit 1
+}
+state_file="$state_dir/installations/$record.env"
+[[ -r $state_file ]] || {
+  echo "Installation state is unavailable: $state_file" >&2
+  exit 1
+}
+
+install_user=$(sed -n 's/^INSTALL_USER=//p' "$state_file")
+install_home=$(sed -n 's/^INSTALL_HOME=//p' "$state_file")
+shell_mode=$(sed -n 's/^SHELL_MODE=//p' "$state_file")
+package_managed=$(sed -n 's/^PACKAGE_MANAGED=//p' "$state_file")
+[[ $install_user == "$USER" && $install_home == "$HOME" ]] || {
+  echo "The active installation belongs to another user." >&2
+  exit 1
+}
+[[ $package_managed == true ]] || {
+  echo "Shell adoption requires the packaged Frankenstein integration." >&2
+  exit 1
+}
+if [[ $shell_mode == filtered ]]; then
+  echo "The KDE-compatible shell adapter is already adopted."
+  exit 0
+fi
+[[ $shell_mode == preserve ]] || {
+  echo "Unsupported shell ownership mode: $shell_mode" >&2
+  exit 1
+}
+
+for path in "$service_file" "$autostart_file" "$menu_file"; do
+  [[ ! -e $path && ! -L $path ]] || {
+    echo "Integration path already exists: $path" >&2
+    exit 1
+  }
+done
+
+systemctl --user is-enabled omarchy-shell.service >/dev/null 2>&1 &&
+  stock_enabled=true
+systemctl --user is-active omarchy-shell.service >/dev/null 2>&1 &&
+  stock_active=true
+
+if sudo -n true 2>/dev/null; then
+  root_command=(sudo)
+elif [[ -n ${WAYLAND_DISPLAY:-}${DISPLAY:-} ]] && command -v pkexec >/dev/null 2>&1; then
+  root_command=(pkexec)
+else
+  sudo -v
+  root_command=(sudo)
+fi
+state_backup="$HOME/.local/state/frankenstein/backups/$record/install-state.before-shell-adoption.env"
+install -d -m 0700 "$(dirname "$state_backup")"
+if [[ -e $state_backup || -L $state_backup ]]; then
+  [[ -f $state_backup && ! -L $state_backup ]] || {
+    echo "Invalid migration backup: $state_backup" >&2
+    exit 1
+  }
+  cmp -s "$state_file" "$state_backup" || {
+    echo "A different shell-adoption backup already exists: $state_backup" >&2
+    exit 1
+  }
+else
+  install -m 0600 "$state_file" "$state_backup"
+fi
+
+install -d -m 0755 \
+  "$(dirname "$service_file")" \
+  "$(dirname "$autostart_file")" \
+  "$(dirname "$menu_file")"
+install -m 0644 "$template_dir/frankenstein-omarchy-shell.service" "$service_file"
+install -m 0644 "$template_dir/frankenstein-omarchy-shell.desktop" "$autostart_file"
+install -m 0644 "$template_dir/frankenstein-omarchy-menu.desktop" "$menu_file"
+files_installed=true
+
+temporary_state=$(mktemp)
+awk -v enabled="$stock_enabled" -v active="$stock_active" '
+  /^SHELL_MODE=/ { print "SHELL_MODE=filtered"; next }
+  /^EXISTING_SHELL_ENABLED=/ { print "EXISTING_SHELL_ENABLED=" enabled; next }
+  /^EXISTING_SHELL_ACTIVE=/ { print "EXISTING_SHELL_ACTIVE=" active; next }
+  { print }
+' "$state_file" >"$temporary_state"
+"${root_command[@]}" install -m 0644 "$temporary_state" "$state_file"
+rm -f "$temporary_state"
+temporary_state=
+state_changed=true
+
+systemctl --user disable --now omarchy-shell.service
+stock_disabled=true
+systemctl --user daemon-reload
+systemctl --user start frankenstein-omarchy-shell.service
+
+healthy=false
+for _ in {1..15}; do
+  if /usr/bin/frankenstein-shell-adapter check >/dev/null 2>&1; then
+    healthy=true
+    break
+  fi
+  sleep 1
+done
+[[ $healthy == true ]] || {
+  echo "The KDE-compatible bar did not become healthy." >&2
+  false
+}
+
+trap - ERR INT TERM
+echo "The KDE-compatible Omarchy integration is active for future Plasma logins."

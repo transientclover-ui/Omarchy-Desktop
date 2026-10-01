@@ -17,12 +17,29 @@ defaults, and uncertain ownership is reported instead of guessed.
 - `install`, `switch`, `recover`, and `repair-sddm` expose the established
   explicit-approval setup, default-session, and rollback paths. The earlier
   `setup`, `desktop`, and `uninstall` names remain available.
-- Existing Omarchy Shell configuration is preserved when detected. The
-  filtered Plasma adapter remains an explicit fallback, not an automatic
-  replacement for a user-owned shell.
+- Plasma starts a Frankenstein-owned, session-scoped Omarchy Shell adapter.
+  Fresh Plasma profiles receive the top bar alongside the stock KDE panel,
+  with no first-party Omarchy widgets enabled; existing Plasma layouts retain
+  the native-panel profile unless the user opts in. User-installed widgets
+  remain eligible, while Hyprland keeps the untouched stock shell.
 - A Frankenstein-owned SDDM theme makes the session selector the primary
   control and includes ordinary login, keyboard navigation, and visible power
   actions.
+- On a fresh account with no meaningful appearance choice, setup initializes
+  the subdued `Frankenstein Dusk` KDE color scheme, the project wallpaper, and
+  Qt's available `Windows` application style and X.Org Whiteglass cursor once.
+  Existing choices win, and the one-shot initializer never reconciles or
+  reapplies a changed setting.
+- The complete visual identity is declared in
+  `/usr/share/frankenstein/presets/dusk-9x.json`; assets, functional shell
+  integration, and user-owned runtime configuration remain separate.
+- Matching Omarchy palette files are installed as optional project assets but
+  are not forced over the user's active Omarchy theme.
+- Memphis98 is not redistributed because its licensing is unclear. The
+  permissively licensed X.Org Whiteglass theme provides the Windows 9x-style
+  cursor fallback; the unverified Tumi and Microsoft-derived Chicago95
+  conversions are excluded. KDE's icon default remains in place when no
+  licensed candidate is available.
 - The bundled default is a project-owned soft vaporwave background. A
   post-login graphical importer validates local PNG, JPEG, or WebP images and
   stages them in a greeter-readable collection. The login-screen gear can

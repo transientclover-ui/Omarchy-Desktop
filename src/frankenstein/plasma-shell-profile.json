@@ -3,9 +3,7 @@
   "id": "plasma",
   "desktop": "KDE",
   "shell": {
-    "enabledPlugins": [
-      "omarchy.menu"
-    ],
+    "enabledPlugins": [],
     "panel": "native"
   },
   "nativeComponents": [
@@ -21,9 +19,10 @@
   ],
   "unsupported": [
     "Hyprland workspace widget",
+    "Hyprland keyboard-layout widget",
     "Hyprland lock integration",
     "Hyprland monitor controls",
     "Hyprland screenshot and screen-record actions",
-    "Omarchy bar widgets and panels not explicitly enabled"
+    "First-party Omarchy widgets unless explicitly enabled"
   ]
 }

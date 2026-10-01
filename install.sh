@@ -28,6 +28,8 @@ payload_installed=false
 sddm_override_created=false
 default_path_enabled=false
 user_files_installed=false
+soft_defaults_autostart_installed=false
+shell_profile_default_created=false
 shell_unit_disabled=false
 filtered_shell_started=false
 sddm_state_backup_ready=false
@@ -57,6 +59,12 @@ rollback_partial_install() {
       "$HOME/.config/systemd/user/frankenstein-omarchy-shell.service" \
       "$HOME/.local/share/applications/frankenstein-omarchy-menu.desktop"
     systemctl --user daemon-reload
+  fi
+  if [[ $soft_defaults_autostart_installed == true ]]; then
+    rm -f "$HOME/.config/autostart/frankenstein-kde-soft-defaults.desktop"
+  fi
+  if [[ $shell_profile_default_created == true ]]; then
+    rm -f "$HOME/.config/frankenstein/plasma.json"
   fi
   if [[ $user_state_written == true ]]; then
     if [[ $user_state_existed == true ]]; then
@@ -96,12 +104,14 @@ rollback_partial_install() {
       /usr/bin/frankenstein-shell-adapter \
       /usr/bin/omarchy-default-desktop \
       /usr/bin/frankenstein-settings \
+      /usr/bin/frankenstein-kde-soft-defaults \
       /usr/bin/frankenstein-background \
       /usr/lib/frankenstein/set-default \
       /usr/libexec/frankenstein-background-writer \
       /usr/lib/frankenstein/installer-state \
       /usr/lib/frankenstein/state \
       /usr/lib/frankenstein/diagnostics \
+      /usr/lib/frankenstein/adopt-kde-shell \
       /usr/lib/frankenstein/sddm-validate \
       /usr/lib/frankenstein/shell-profile \
       /usr/lib/systemd/system/omarchy-desktop-manager-default.path \
@@ -110,7 +120,11 @@ rollback_partial_install() {
     sudo rm -rf /usr/share/sddm/themes/frankenstein
     sudo rm -f \
       /usr/share/frankenstein/profiles/plasma.json \
-      /usr/share/frankenstein/profiles/plasma-menu.jsonc
+      /usr/share/frankenstein/profiles/plasma-menu.jsonc \
+      /usr/share/frankenstein/presets/dusk-9x.json \
+      /usr/share/color-schemes/FrankensteinDusk.colors
+    sudo rm -rf /usr/share/wallpapers/FrankensteinDusk
+    sudo rm -rf /usr/share/frankenstein/themes/dusk
   fi
 
   [[ -z $backup_id ]] || sudo rm -f "$system_state_dir/installations/$backup_id.env"
@@ -139,8 +153,9 @@ Usage: ./install.sh [--preflight] [--yes] [--shell auto|preserve|filtered]
 
   --preflight       Run read-only checks and print the proposed changes.
   --yes             Confirm the printed plan non-interactively.
-  --shell VALUE     auto preserves an existing shell; otherwise adds a filtered menu.
-                    preserve requires an existing shell; filtered explicitly replaces it.
+  --shell VALUE     auto installs the Plasma-compatible Omarchy bar.
+                    preserve explicitly keeps an existing all-desktops shell;
+                    filtered is the legacy name for the compatible adapter.
   --login VALUE     preserve (default) leaves theme/autologin unchanged; chooser
                     requests a reversible Breeze/no-autologin override; frankenstein
                     requests the packaged session-first theme with the same safeguards.
@@ -225,6 +240,7 @@ fi
 if [[ $package_managed == true ]]; then
   shell_service_source=$installed_share/templates/frankenstein-omarchy-shell.service
   shell_autostart_source=$installed_share/templates/frankenstein-omarchy-shell.desktop
+  soft_defaults_autostart_source=$installed_share/templates/frankenstein-kde-soft-defaults.desktop
   menu_desktop_source=$installed_share/templates/frankenstein-omarchy-menu.desktop
   sddm_override_source=$installed_share/templates/zzzz-omarchy-desktop-manager.conf
   state_writer=/usr/lib/frankenstein/state
@@ -233,17 +249,31 @@ if [[ $package_managed == true ]]; then
     /usr/bin/frankenstein-shell-adapter
     /usr/bin/omarchy-default-desktop
     /usr/bin/frankenstein-settings
+    /usr/bin/frankenstein-kde-soft-defaults
     /usr/bin/frankenstein-background
     /usr/libexec/frankenstein-background-writer
     /usr/lib/frankenstein/set-default
     /usr/lib/frankenstein/state
     /usr/lib/frankenstein/diagnostics
+    /usr/lib/frankenstein/adopt-kde-shell
     /usr/lib/frankenstein/sddm-validate
     "$installed_share/omarchy-shell/shell.qml"
     "$installed_share/omarchy-shell/services/PluginRegistry.qml"
     "$installed_share/omarchy-shell/plugins/menu/Menu.qml"
+    "$installed_share/omarchy-shell/plugins/bar/Bar.qml"
     "$installed_share/profiles/plasma.json"
     "$installed_share/profiles/plasma-menu.jsonc"
+    "$installed_share/presets/dusk-9x.json"
+    "$installed_share/themes/dusk/colors.toml"
+    "$installed_share/themes/dusk/shell.toml"
+    /usr/share/color-schemes/FrankensteinDusk.colors
+    /usr/share/wallpapers/FrankensteinDusk/metadata.json
+    /usr/share/wallpapers/FrankensteinDusk/contents/images/1672x941.png
+    /usr/share/icons/whiteglass/cursors/left_ptr
+    /usr/share/icons/whiteglass/cursors/hand2
+    /usr/share/icons/whiteglass/cursors/xterm
+    /usr/share/icons/whiteglass/cursors/watch
+    /usr/share/icons/whiteglass/cursors/left_ptr_watch
     /usr/share/sddm/themes/frankenstein/Main.qml
     /usr/share/sddm/themes/frankenstein/metadata.desktop
     /usr/share/sddm/themes/frankenstein/theme.conf
@@ -254,12 +284,14 @@ if [[ $package_managed == true ]]; then
     /usr/lib/systemd/system/omarchy-desktop-manager-default.service
     "$shell_service_source"
     "$shell_autostart_source"
+    "$soft_defaults_autostart_source"
     "$menu_desktop_source"
     "$sddm_override_source"
   )
 else
   shell_service_source=$project_dir/src/systemd/frankenstein-omarchy-shell.service
   shell_autostart_source=$project_dir/src/frankenstein/frankenstein-omarchy-shell-autostart.desktop
+  soft_defaults_autostart_source=$project_dir/src/frankenstein/frankenstein-kde-soft-defaults.desktop
   menu_desktop_source=$project_dir/src/frankenstein/frankenstein-omarchy-menu.desktop
   sddm_override_source=$project_dir/src/frankenstein/zzzz-frankenstein.conf
   state_writer=$project_dir/src/libexec/frankenstein-state
@@ -268,6 +300,7 @@ else
     "$project_dir/src/bin/frankenstein-shell-adapter"
     "$project_dir/src/bin/omarchy-default-desktop"
     "$project_dir/src/bin/frankenstein-settings"
+    "$project_dir/src/bin/frankenstein-kde-soft-defaults"
     "$project_dir/src/bin/frankenstein-background"
     "$project_dir/src/libexec/frankenstein-background-writer"
     "$project_dir/src/libexec/omarchy-desktop-manager-set-default"
@@ -276,6 +309,11 @@ else
     "$project_dir/src/frankenstein/omarchy-shell/plugins/menu/Menu.qml"
     "$project_dir/src/frankenstein/plasma-shell-profile.json"
     "$project_dir/src/frankenstein/plasma-menu.jsonc"
+    "$project_dir/src/frankenstein/presets/dusk-9x.json"
+    "$project_dir/src/frankenstein/themes/dusk/FrankensteinDusk.colors"
+    "$project_dir/src/frankenstein/themes/dusk/colors.toml"
+    "$project_dir/src/frankenstein/themes/dusk/shell.toml"
+    "$project_dir/src/frankenstein/themes/dusk/wallpaper/metadata.json"
     "$project_dir/src/sddm/frankenstein/Main.qml"
     "$project_dir/src/sddm/frankenstein/metadata.desktop"
     "$project_dir/src/sddm/frankenstein/theme.conf"
@@ -283,10 +321,13 @@ else
     "$project_dir/src/lib/installer-state.sh"
     "$project_dir/src/libexec/frankenstein-state"
     "$project_dir/src/libexec/frankenstein-diagnostics"
+    "$project_dir/src/libexec/frankenstein-adopt-kde-shell"
     "$project_dir/src/libexec/frankenstein-sddm-validate"
+    "$project_dir/src/libexec/frankenstein-kde-bar-compat"
     "$project_dir/src/lib/shell-profile.sh"
     "$shell_service_source"
     "$shell_autostart_source"
+    "$soft_defaults_autostart_source"
     "$menu_desktop_source"
     "$sddm_override_source"
   )
@@ -420,14 +461,12 @@ if [[ -e $HOME/.config/systemd/user/omarchy-shell.service || -L $HOME/.config/sy
   systemctl --user is-active omarchy-shell.service >/dev/null 2>&1 && existing_shell_active=true
 fi
 
-# An existing shell belongs to the user. Do not substitute a reduced profile
-# or change its enablement just to add desktop-selection integration.
 shell_mode=filtered
 if [[ $requested_shell == preserve && $existing_shell_unit != true ]]; then
   echo "No existing Omarchy shell service to preserve; refusing to guess a replacement." >&2
   exit 1
 fi
-if [[ $requested_shell != filtered && $existing_shell_unit == true ]]; then
+if [[ $requested_shell == preserve ]]; then
   shell_mode=preserve
 fi
 
@@ -447,11 +486,13 @@ system_conflicting_paths=(
   /usr/lib/frankenstein/installer-state
   /usr/lib/frankenstein/state
   /usr/lib/frankenstein/diagnostics
+  /usr/lib/frankenstein/adopt-kde-shell
   /usr/lib/frankenstein/sddm-validate
   /usr/lib/frankenstein/shell-profile
   /usr/share/frankenstein/omarchy-shell
   /usr/share/frankenstein/profiles/plasma.json
   /usr/share/frankenstein/profiles/plasma-menu.jsonc
+  /usr/share/frankenstein/presets/dusk-9x.json
   /usr/share/sddm/themes/frankenstein
   /usr/lib/systemd/system/omarchy-desktop-manager-default.path
   /usr/lib/systemd/system/omarchy-desktop-manager-default.service
@@ -463,6 +504,14 @@ configuration_conflicting_paths=(
   "$HOME/.config/autostart/frankenstein-omarchy-shell.desktop"
   "$HOME/.local/share/applications/frankenstein-omarchy-menu.desktop"
 )
+shell_profile_default=preserve
+shell_profile_override="$HOME/.config/frankenstein/plasma.json"
+if [[ $shell_mode == filtered &&
+      ! -e $shell_profile_override && ! -L $shell_profile_override &&
+      ! -e $HOME/.config/plasma-org.kde.plasma.desktop-appletsrc ]]; then
+  shell_profile_default=omarchy
+fi
+
 if [[ $package_managed != true ]]; then
   for conflicting_path in "${system_conflicting_paths[@]}"; do
     [[ ! -e $conflicting_path && ! -L $conflicting_path ]] || {
@@ -559,9 +608,12 @@ Frankenstein KDE compatibility preflight
   Existing shell unit:   $existing_shell_unit
   Shell unit enabled:    $existing_shell_enabled
   Shell unit active:     $existing_shell_active
+  Fresh shell default:   $shell_profile_default
 
 Planned preservation:
-  - Do not edit KDE panels, wallpaper, themes, shortcuts, KWin, lock, or input settings.
+  - Preserve every existing KDE appearance and layout choice.
+  - Initialize eligible project appearance defaults only when no meaningful
+    user choice exists, then never reapply them.
   - Back up the complete ~/.config/omarchy tree and relevant KDE configuration.
   - Back up SDDM configuration and both desktop-session entries.
   - Preserve the original Omarchy session and packaged Omarchy Shell.
@@ -583,7 +635,7 @@ if [[ $shell_mode == preserve ]]; then
   echo "No filtered shell, replacement autostart or shell service changes will be made."
   echo "This preserves the existing setup; it does not certify every enabled plugin."
 else
-  echo "Add the menu-only KDE adapter and autostart; existing configuration files remain intact."
+  echo "Add the KDE-compatible Omarchy bar adapter and autostart; existing configuration files remain intact."
   if [[ $existing_shell_unit == true ]]; then
     echo "Explicit filtered choice: stop/disable the existing shell service; its bar and other plugins will not run in the filtered shell."
   fi
@@ -687,7 +739,9 @@ if [[ $plasma_action == install ]]; then
   }
 fi
 
-for command_name in quickshell qs systemsettings xdg-terminal-exec qdbus6; do
+for command_name in quickshell qs systemsettings xdg-terminal-exec qdbus6 \
+                    kreadconfig6 kwriteconfig6 plasma-apply-colorscheme \
+                    plasma-apply-wallpaperimage; do
   command -v "$command_name" >/dev/null 2>&1 || {
     echo "Required Plasma integration command is missing after package installation: $command_name" >&2
     exit 1
@@ -706,7 +760,12 @@ if [[ $package_managed != true ]]; then
     /usr/lib/frankenstein \
     "$installed_share/omarchy-shell/services" \
     "$installed_share/omarchy-shell/plugins/menu" \
+    "$installed_share/omarchy-shell/plugins/bar" \
     "$installed_share/profiles" \
+    "$installed_share/presets" \
+    "$installed_share/themes/dusk" \
+    /usr/share/color-schemes \
+    /usr/share/wallpapers/FrankensteinDusk/contents/images \
     /usr/share/sddm/themes/frankenstein/backgrounds \
     /usr/lib/systemd/system
 
@@ -714,6 +773,8 @@ if [[ $package_managed != true ]]; then
     /usr/bin/frankenstein-shell-adapter
   sudo install -m 0755 "$project_dir/src/bin/frankenstein-settings" \
     /usr/bin/frankenstein-settings
+  sudo install -m 0755 "$project_dir/src/bin/frankenstein-kde-soft-defaults" \
+    /usr/bin/frankenstein-kde-soft-defaults
   sudo install -m 0755 "$project_dir/src/bin/frankenstein-background" \
     /usr/bin/frankenstein-background
   sudo install -m 0755 "$project_dir/src/libexec/frankenstein-background-writer" \
@@ -728,6 +789,8 @@ if [[ $package_managed != true ]]; then
     /usr/lib/frankenstein/state
   sudo install -m 0755 "$project_dir/src/libexec/frankenstein-diagnostics" \
     /usr/lib/frankenstein/diagnostics
+  sudo install -m 0755 "$project_dir/src/libexec/frankenstein-adopt-kde-shell" \
+    /usr/lib/frankenstein/adopt-kde-shell
   sudo install -m 0755 "$project_dir/src/libexec/frankenstein-sddm-validate" \
     /usr/lib/frankenstein/sddm-validate
   sudo install -m 0644 "$project_dir/src/lib/shell-profile.sh" \
@@ -736,6 +799,21 @@ if [[ $package_managed != true ]]; then
     "$installed_share/profiles/plasma.json"
   sudo install -m 0644 "$project_dir/src/frankenstein/plasma-menu.jsonc" \
     "$installed_share/profiles/plasma-menu.jsonc"
+  sudo install -m 0644 "$project_dir/src/frankenstein/presets/dusk-9x.json" \
+    "$installed_share/presets/dusk-9x.json"
+  sudo install -m 0644 \
+    "$project_dir/src/frankenstein/themes/dusk/FrankensteinDusk.colors" \
+    /usr/share/color-schemes/FrankensteinDusk.colors
+  sudo install -m 0644 "$project_dir/src/frankenstein/themes/dusk/colors.toml" \
+    "$installed_share/themes/dusk/colors.toml"
+  sudo install -m 0644 "$project_dir/src/frankenstein/themes/dusk/shell.toml" \
+    "$installed_share/themes/dusk/shell.toml"
+  sudo install -m 0644 \
+    "$project_dir/src/frankenstein/themes/dusk/wallpaper/metadata.json" \
+    /usr/share/wallpapers/FrankensteinDusk/metadata.json
+  sudo install -m 0644 \
+    "$project_dir/src/sddm/frankenstein/backgrounds/vaporwave-default.png" \
+    /usr/share/wallpapers/FrankensteinDusk/contents/images/1672x941.png
   sudo install -m 0644 "$project_dir/src/sddm/frankenstein/Main.qml" \
     /usr/share/sddm/themes/frankenstein/Main.qml
   sudo install -m 0644 "$project_dir/src/sddm/frankenstein/metadata.desktop" \
@@ -753,6 +831,12 @@ if [[ $package_managed != true ]]; then
   sudo install -m 0644 \
     "$project_dir/src/frankenstein/omarchy-shell/plugins/menu/Menu.qml" \
     "$installed_share/omarchy-shell/plugins/menu/Menu.qml"
+  "$project_dir/src/libexec/frankenstein-kde-bar-compat" \
+    /usr/share/omarchy/shell/plugins/bar/Bar.qml \
+    "$user_backup/Bar.qml"
+  sudo install -m 0644 "$user_backup/Bar.qml" \
+    "$installed_share/omarchy-shell/plugins/bar/Bar.qml"
+  rm -f "$user_backup/Bar.qml"
   sudo install -m 0644 "$project_dir/src/systemd/omarchy-desktop-manager-default.path" \
     /usr/lib/systemd/system/omarchy-desktop-manager-default.path
   sudo install -m 0644 "$project_dir/src/systemd/omarchy-desktop-manager-default.service" \
@@ -762,8 +846,11 @@ fi
 if [[ $package_managed != true ]]; then
   sudo ln -sfn /usr/share/omarchy/shell/Commons "$installed_share/omarchy-shell/Commons"
   sudo ln -sfn /usr/share/omarchy/shell/Ui "$installed_share/omarchy-shell/Ui"
-  # QML resolves Bar even when the KDE profile disables its instance.
-  sudo ln -sfn /usr/share/omarchy/shell/plugins/bar "$installed_share/omarchy-shell/plugins/bar"
+  for source in /usr/share/omarchy/shell/plugins/bar/*; do
+    name=${source##*/}
+    [[ $name == Bar.qml ]] && continue
+    sudo ln -sfn "$source" "$installed_share/omarchy-shell/plugins/bar/$name"
+  done
   for source in /usr/share/omarchy/shell/services/*; do
     name=${source##*/}
     [[ $name == PluginRegistry.qml ]] && continue
@@ -805,6 +892,18 @@ if [[ $shell_mode == filtered ]]; then
     "$HOME/.config/autostart/frankenstein-omarchy-shell.desktop"
   install -m 0644 "$menu_desktop_source" \
     "$HOME/.local/share/applications/frankenstein-omarchy-menu.desktop"
+  if [[ $shell_profile_default == omarchy ]]; then
+    install -d -m 0755 "${shell_profile_override%/*}"
+    cat >"$shell_profile_override" <<'EOF'
+{
+  "schemaVersion": 1,
+  "shell": {
+    "panel": "omarchy"
+  }
+}
+EOF
+    shell_profile_default_created=true
+  fi
 
   if [[ $existing_shell_unit == true ]]; then
     shell_unit_disabled=true
@@ -834,6 +933,7 @@ SDDM_STATE_BACKED_UP=true
 SHELL_MODE=$shell_mode
 PREVIOUS_SDDM_THEME=$sddm_theme
 REQUESTED_LOGIN=$requested_login
+SHELL_PROFILE_DEFAULT_CREATED=$shell_profile_default_created
 EOF
 sudo install -m 0644 "$user_backup/install-state.env" \
   "$system_state_dir/installations/$backup_id.env"
@@ -851,6 +951,18 @@ state_arguments=(
 "$state_writer" "${state_arguments[@]}" >/dev/null
 user_state_written=true
 trap - ERR INT TERM
+
+if /usr/bin/frankenstein-kde-soft-defaults apply; then
+  soft_defaults_state="${XDG_STATE_HOME:-$HOME/.local/state}/frankenstein/kde-soft-defaults-v1"
+  if grep -q '^wallpaper=pending$' "$soft_defaults_state"; then
+    install -d -m 0755 "$HOME/.config/autostart"
+    install -m 0644 "$soft_defaults_autostart_source" \
+      "$HOME/.config/autostart/frankenstein-kde-soft-defaults.desktop"
+    soft_defaults_autostart_installed=true
+  fi
+else
+  echo "Warning: KDE soft-default initialization failed; existing appearance was retained." >&2
+fi
 
 echo
 echo "Frankenstein installation completed."

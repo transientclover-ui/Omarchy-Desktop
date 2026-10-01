@@ -63,6 +63,7 @@ run_shell() {
     return 1
   }
   allow_plugins=$(profile_value "$profile" '.shell.enabledPlugins | join(",")')
+  [[ -n $allow_plugins ]] || allow_plugins=__none__
   no_bar=$(profile_value "$profile" 'if .shell.panel == "native" then "1" else "0" end')
 
   export OMARCHY_PATH=/usr/share/omarchy
@@ -120,7 +121,9 @@ open_settings() {
 }
 
 check() {
-  local profile desktop expected state count ping active_plugins notification_owner polkit_count
+  local profile desktop expected state count ping active_plugins allowed_plugins
+  local unexpected_plugins panel_mode bar_status bar_loaded bar_hidden bar_ready
+  local notification_owner polkit_count
   profile=$(profile_for_desktop) || {
     echo "unsupported desktop: $(desktop_environment)"
     return 1
@@ -133,9 +136,24 @@ check() {
   ping=$(ipc shell ping 2>/dev/null || true)
   active_plugins=$(ipc shell listPlugins 2>/dev/null |
     jq -r '[.[] | select(.enabled == true) | .id] | sort | join(",")' 2>/dev/null || true)
-  expected_plugins=$(profile_value "$profile" '.shell.enabledPlugins | sort | join(",")')
+  allowed_plugins=$(profile_value "$profile" '.shell.enabledPlugins | sort | join(",")')
+  unexpected_plugins=$(ipc shell listPlugins 2>/dev/null |
+    jq -r --argjson allowed "$(profile_value "$profile" '.shell.enabledPlugins')" '
+      [.[] | select(.enabled == true and .firstParty == true)
+       | select((.id as $id | $allowed | index($id)) == null) | .id]
+      | sort | join(",")' 2>/dev/null || true)
+  panel_mode=$(profile_value "$profile" '.shell.panel')
+  bar_status=$(ipc shell barStatus 2>/dev/null || true)
+  bar_loaded=$(jq -r '.loaded' <<<"$bar_status" 2>/dev/null || true)
+  bar_hidden=$(jq -r '.hidden' <<<"$bar_status" 2>/dev/null || true)
+  bar_ready=false
+  if [[ $panel_mode == omarchy && $bar_loaded == true && $bar_hidden == false ]] ||
+     [[ $panel_mode == native && $bar_loaded == false ]]; then
+    bar_ready=true
+  fi
   notification_owner=$(busctl --user --no-pager --list 2>/dev/null |
-    awk '$1 == "org.freedesktop.Notifications" { owner=$2 } END { print owner }')
+    awk '$1 == "org.freedesktop.Notifications" { owner=$2 } END { print owner }' ||
+    true)
   polkit_count=$(pgrep -fc 'polkit.*agent|polkit-kde-authentication-agent' || true)
 
   printf 'profile=%s\n' "$profile"
@@ -146,14 +164,82 @@ check() {
   printf 'shell_instances=%s\n' "$count"
   printf 'shell_ipc=%s\n' "${ping:-unavailable}"
   printf 'enabled_plugins=%s\n' "${active_plugins:-unavailable}"
-  printf 'expected_plugins=%s\n' "$expected_plugins"
+  printf 'allowed_first_party_plugins=%s\n' "$allowed_plugins"
+  printf 'unexpected_first_party_plugins=%s\n' "${unexpected_plugins:-unavailable}"
+  printf 'panel_mode=%s\n' "$panel_mode"
+  printf 'bar_loaded=%s\n' "${bar_loaded:-unavailable}"
+  printf 'bar_hidden=%s\n' "${bar_hidden:-unavailable}"
+  printf 'bar_ready=%s\n' "$bar_ready"
   printf 'profile_override=%s\n' "$([[ -e $profile_override ]] && echo "$profile_override" || echo none)"
   printf 'native_components=%s\n' "$(profile_value "$profile" '.nativeComponents | join(",")')"
   printf 'notification_owner=%s\n' "${notification_owner:-none}"
   printf 'polkit_agent_processes=%s\n' "$polkit_count"
 
   [[ $desktop == "$expected" && $state == enabled && $count -eq 1 &&
-    $ping == ok && $active_plugins == "$expected_plugins" ]]
+    $ping == ok && -z $unexpected_plugins && $bar_ready == true ]]
+}
+
+set_bar_mode() {
+  local requested=$1 panel before= replacement backup_dir backup= healthy=false
+  local config_dir=${profile_override%/*}
+  case $requested in
+    enable) panel=omarchy ;;
+    disable) panel=native ;;
+    *) echo "Unknown bar action: $requested" >&2; return 2 ;;
+  esac
+
+  if [[ -e $profile_override || -L $profile_override ]]; then
+    [[ -f $profile_override && ! -L $profile_override && -O $profile_override ]] || {
+      echo "Refusing to replace a non-regular or non-user-owned profile: $profile_override" >&2
+      return 1
+    }
+    frankenstein_validate_shell_profile_override "$profile_override" || return 1
+    before=$(mktemp)
+    cp -p "$profile_override" "$before"
+  fi
+
+  install -d -m 0755 "$config_dir"
+  replacement=$(mktemp "$config_dir/.plasma.json.XXXXXX")
+  if [[ -n $before ]]; then
+    jq --arg panel "$panel" '.shell.panel = $panel' "$before" >"$replacement"
+  else
+    jq -n --arg panel "$panel" \
+      '{schemaVersion:1,shell:{panel:$panel}}' >"$replacement"
+  fi
+  frankenstein_validate_shell_profile_override "$replacement"
+
+  backup_dir=${XDG_STATE_HOME:-$HOME/.local/state}/frankenstein/settings-backups
+  install -d -m 0700 "$backup_dir"
+  if [[ -n $before ]]; then
+    backup=$(mktemp "$backup_dir/plasma-profile-$(date -u +%Y%m%dT%H%M%SZ)-XXXXXX.json")
+    install -m 0600 "$before" "$backup"
+  fi
+  install -m 0644 "$replacement" "$profile_override"
+  rm -f "$replacement"
+
+  if systemctl --user restart "$service"; then
+    for _ in {1..10}; do
+      if "$0" check >/dev/null 2>&1; then
+        healthy=true
+        break
+      fi
+      sleep 1
+    done
+  fi
+  if [[ $healthy != true ]]; then
+    if [[ -n $before ]]; then
+      install -m 0644 "$before" "$profile_override"
+    else
+      rm -f "$profile_override"
+    fi
+    systemctl --user restart "$service" || true
+    rm -f "$before"
+    echo "Bar change failed; the previous profile was restored." >&2
+    return 1
+  fi
+  rm -f "$before"
+  echo "Omarchy top bar $requested; stock KDE panel configuration was unchanged."
+  [[ -z $backup ]] || echo "Previous shell profile preserved at: $backup"
 }
 
 # Consult only the installer-owned scalar fields; never evaluate state as code.
@@ -215,7 +301,7 @@ ipc_shell_dir=$shell_dir
 if [[ $shell_mode == preserve ]]; then
   ipc_shell_dir=/usr/share/omarchy/shell
   case ${1:-} in
-    run|enable|disable)
+    run|enable|disable|bar)
       echo "Your existing Omarchy shell is preserved. Frankenstein will not start, stop or replace it." >&2
       exit 1
       ;;
@@ -271,8 +357,15 @@ case ${1:-} in
     }
     frankenstein_validate_shell_profile_override "$2"
     ;;
+  bar)
+    case ${2:-} in
+      enable|disable) set_bar_mode "$2" ;;
+      status) profile_value plasma '.shell.panel' ;;
+      *) echo "Usage: frankenstein-shell-adapter bar {enable|disable|status}" >&2; exit 2 ;;
+    esac
+    ;;
   *)
-    echo "Usage: frankenstein-shell-adapter {run [profile]|menu [route]|terminal <command>|settings <page>|enable|disable|status|check|profile [profile]|profile-path|profile-validate <file>}" >&2
+    echo "Usage: frankenstein-shell-adapter {run [profile]|menu [route]|terminal <command>|settings <page>|enable|disable|status|check|bar {enable|disable|status}|profile [profile]|profile-path|profile-validate <file>}" >&2
     exit 2
     ;;
 esac

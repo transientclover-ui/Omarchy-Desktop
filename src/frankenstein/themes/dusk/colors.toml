@@ -1,0 +1,18 @@
+# SPDX-FileCopyrightText: 2026 Frankenstein contributors
+# SPDX-License-Identifier: MIT
+
+foreground = "#d7cfe2"
+background = "#151421"
+accent = "#8b7aa8"
+muted = "#998fa8"
+red = "#c47b86"
+green = "#7fa58f"
+yellow = "#b89a73"
+blue = "#72839b"
+magenta = "#a9859d"
+cyan = "#76a6aa"
+color0 = "#151421"
+color1 = "#c47b86"
+color4 = "#72839b"
+color7 = "#d7cfe2"
+color8 = "#746d82"

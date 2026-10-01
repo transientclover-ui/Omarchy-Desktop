@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 [Unit]
-Description=Frankenstein filtered Omarchy Shell integration
+Description=Frankenstein KDE-compatible Omarchy Shell integration
 PartOf=plasma-workspace.target
 After=plasma-kwin_wayland.service
 

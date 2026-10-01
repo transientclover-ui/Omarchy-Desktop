@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "frankenstein-dusk-9x",
+  "name": "Frankenstein Dusk 9x",
+  "mode": "soft-default",
+  "colorScheme": {
+    "name": "FrankensteinDusk",
+    "asset": "color-schemes/FrankensteinDusk.colors"
+  },
+  "wallpaper": {
+    "asset": "wallpapers/FrankensteinDusk/contents/images/1672x941.png"
+  },
+  "applicationStyle": {
+    "name": "Windows"
+  },
+  "icons": {
+    "name": null,
+    "reason": "Memphis98 redistribution license is not established"
+  },
+  "cursor": {
+    "name": "whiteglass",
+    "probe": "icons/whiteglass/cursors/left_ptr",
+    "package": "xcursor-themes",
+    "license": "HPND-sell-variant"
+  },
+  "plasmaPanel": "native",
+  "omarchyBar": "soft-default"
+}

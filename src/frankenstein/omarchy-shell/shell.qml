@@ -1624,6 +1624,14 @@ ShellRoot {
       return "no-bar"
     }
 
+    function barStatus(): string {
+      return JSON.stringify({
+        loaded: shell.bar !== null,
+        hidden: shell.bar ? shell.bar.barHidden === true : true,
+        position: shell.bar ? String(shell.bar.position || "") : ""
+      })
+    }
+
     function setPluginEnabled(id: string, enabled: string): string {
       return shell.pluginRegistry.setEnabled(id, enabled === "true") ? "ok" : "unknown"
     }

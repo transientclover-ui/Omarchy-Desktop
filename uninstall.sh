@@ -81,6 +81,20 @@ EOF
   }
 fi
 
+soft_defaults_autostart="$HOME/.config/autostart/frankenstein-kde-soft-defaults.desktop"
+if [[ -e $soft_defaults_autostart && $force != true ]]; then
+  if [[ ${PACKAGE_MANAGED:-false} == true ]]; then
+    soft_defaults_autostart_source=$template_dir/frankenstein-kde-soft-defaults.desktop
+  else
+    soft_defaults_autostart_source=$template_dir/frankenstein/frankenstein-kde-soft-defaults.desktop
+  fi
+  cmp -s "$soft_defaults_autostart" "$soft_defaults_autostart_source" || {
+    echo "Refusing to remove a modified file: $soft_defaults_autostart" >&2
+    echo "Review it or rerun with --force." >&2
+    exit 1
+  }
+fi
+
 # Older installation records used the filtered shell path.
 case ${SHELL_MODE:-filtered} in
   preserve|filtered) ;;
@@ -122,6 +136,25 @@ if [[ ${SHELL_MODE:-filtered} == filtered ]]; then
         exit 1
       }
     done
+  fi
+
+  if [[ ${SHELL_PROFILE_DEFAULT_CREATED:-false} == true &&
+        -e $HOME/.config/frankenstein/plasma.json ]]; then
+    expected_profile=$(mktemp)
+    cat >"$expected_profile" <<'EOF'
+{
+  "schemaVersion": 1,
+  "shell": {
+    "panel": "omarchy"
+  }
+}
+EOF
+    if cmp -s "$HOME/.config/frankenstein/plasma.json" "$expected_profile"; then
+      rm -f "$HOME/.config/frankenstein/plasma.json"
+    else
+      echo "Preserving user-modified shell profile: $HOME/.config/frankenstein/plasma.json"
+    fi
+    rm -f "$expected_profile"
   fi
 
   systemctl --user stop frankenstein-omarchy-shell.service 2>/dev/null || true
@@ -168,20 +201,27 @@ if [[ ${PACKAGE_MANAGED:-false} != true ]]; then
     /usr/bin/frankenstein-shell-adapter \
     /usr/bin/omarchy-default-desktop \
     /usr/bin/frankenstein-settings \
+    /usr/bin/frankenstein-kde-soft-defaults \
     /usr/bin/frankenstein-background \
     /usr/libexec/frankenstein-background-writer \
     /usr/lib/frankenstein/installer-state \
     /usr/lib/frankenstein/state \
     /usr/lib/frankenstein/diagnostics \
+    /usr/lib/frankenstein/adopt-kde-shell \
     /usr/lib/frankenstein/sddm-validate \
     /usr/lib/frankenstein/shell-profile \
     /usr/lib/frankenstein/set-default \
     /usr/share/frankenstein/profiles/plasma.json \
-    /usr/share/frankenstein/profiles/plasma-menu.jsonc
+    /usr/share/frankenstein/profiles/plasma-menu.jsonc \
+    /usr/share/frankenstein/presets/dusk-9x.json \
+    /usr/share/color-schemes/FrankensteinDusk.colors
+  sudo rm -rf /usr/share/wallpapers/FrankensteinDusk
+  sudo rm -rf /usr/share/frankenstein/themes/dusk
   sudo rm -rf /usr/share/frankenstein/omarchy-shell
   sudo rm -rf /usr/share/sddm/themes/frankenstein
 fi
 sudo rm -rf /var/lib/omarchy-desktop-manager
+rm -f "$soft_defaults_autostart"
 sudo rm -f "$state_dir/current"
 sudo systemctl daemon-reload
 

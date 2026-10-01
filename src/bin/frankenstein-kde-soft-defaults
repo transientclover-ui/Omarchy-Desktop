@@ -1,0 +1,240 @@
+#!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 Frankenstein contributors
+# SPDX-License-Identifier: MIT
+
+set -Eeuo pipefail
+
+readonly command_name=${1:-}
+readonly config_home=${XDG_CONFIG_HOME:-$HOME/.config}
+readonly state_home=${XDG_STATE_HOME:-$HOME/.local/state}
+readonly state_dir=$state_home/frankenstein
+readonly state_file=$state_dir/kde-soft-defaults-v1
+readonly kdeglobals=$config_home/kdeglobals
+readonly plasma_config=$config_home/plasma-org.kde.plasma.desktop-appletsrc
+readonly autostart_file=$config_home/autostart/frankenstein-kde-soft-defaults.desktop
+readonly preset_relative=frankenstein/presets/dusk-9x.json
+
+usage() {
+  echo "Usage: frankenstein-kde-soft-defaults apply|login" >&2
+  exit 2
+}
+
+data_file() {
+  local relative=$1 directory
+  [[ -n $relative ]] || return 1
+  if [[ -n ${XDG_DATA_HOME:-} && -r $XDG_DATA_HOME/$relative ]]; then
+    printf '%s\n' "$XDG_DATA_HOME/$relative"
+    return 0
+  fi
+  IFS=: read -ra data_dirs <<<"${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
+  for directory in "${data_dirs[@]}"; do
+    if [[ -r $directory/$relative ]]; then
+      printf '%s\n' "$directory/$relative"
+      return 0
+    fi
+  done
+  return 1
+}
+
+validated_preset() {
+  local preset
+  preset=$(data_file "$preset_relative") || {
+    echo "Frankenstein visual preset is unavailable; no appearance defaults were changed." >&2
+    return 1
+  }
+  jq -e '
+    .schemaVersion == 1 and .mode == "soft-default" and
+    (.colorScheme.name | type == "string" and length > 0) and
+    (.colorScheme.asset | type == "string" and length > 0) and
+    (.wallpaper.asset | type == "string" and length > 0) and
+    (.applicationStyle.name | type == "string" and length > 0) and
+    (.cursor.name | type == "string" and length > 0) and
+    (.cursor.probe | type == "string" and length > 0) and
+    .plasmaPanel == "native" and .omarchyBar == "soft-default"
+  ' "$preset" >/dev/null || {
+    echo "Frankenstein visual preset is invalid; no appearance defaults were changed." >&2
+    return 1
+  }
+  printf '%s\n' "$preset"
+}
+
+read_setting() {
+  local file=$1 group=$2 key=$3
+  [[ -r $file ]] || return 0
+  awk -v wanted_group="$group" -v wanted_key="$key" '
+    $0 == "[" wanted_group "]" { active=1; next }
+    /^\[/ { active=0 }
+    active {
+      line=$0
+      sub(/^[[:space:]]*/, "", line)
+      split(line, parts, "=")
+      name=parts[1]
+      sub(/[[:space:]]*$/, "", name)
+      if (name == wanted_key) {
+        sub(/^[^=]*=[[:space:]]*/, "", line)
+        value=line
+        found=1
+      }
+    }
+    END { if (found) print value }
+  ' "$file"
+}
+
+write_state() {
+  local color=$1 style=$2 icons=$3 cursor=$4 wallpaper=$5 temporary
+  install -d -m 0700 "$state_dir"
+  temporary=$(mktemp "$state_dir/.kde-soft-defaults.XXXXXX")
+  chmod 0600 "$temporary"
+  cat >"$temporary" <<EOF
+version=1
+color=$color
+style=$style
+icons=$icons
+cursor=$cursor
+wallpaper=$wallpaper
+EOF
+  mv -f "$temporary" "$state_file"
+}
+
+load_state() {
+  [[ -f $state_file && ! -L $state_file ]] || {
+    echo "Invalid KDE soft-default state: $state_file" >&2
+    return 1
+  }
+  # The file is generated above and accepts only fixed enum-like values.
+  # shellcheck disable=SC1090
+  source "$state_file"
+  [[ ${version:-} == 1 &&
+     ${color:-} =~ ^(applied|preserved|unavailable|failed)$ &&
+     ${style:-} =~ ^(applied|preserved|unavailable|failed)$ &&
+     ${icons:-} =~ ^(preserved|unavailable)$ &&
+     ${cursor:-} =~ ^(applied|preserved|unavailable|failed)$ &&
+     ${wallpaper:-} =~ ^(pending|applied|preserved|unavailable|failed)$ ]]
+}
+
+wallpaper_is_configured() {
+  [[ -r $plasma_config ]] &&
+    grep -Eq '^[[:space:]]*(wallpaperplugin|Image)=' "$plasma_config"
+}
+
+apply_wallpaper() {
+  local wallpaper_path
+  if wallpaper_is_configured; then
+    wallpaper=preserved
+    return
+  fi
+  wallpaper_path=$(data_file "${FRANKENSTEIN_WALLPAPER_ASSET:-}") || {
+    wallpaper=unavailable
+    echo "Frankenstein wallpaper is unavailable; keeping the KDE default." >&2
+    return
+  }
+  if [[ ${XDG_CURRENT_DESKTOP:-} != KDE* ]]; then
+    wallpaper=pending
+    return
+  fi
+  if plasma-apply-wallpaperimage "$wallpaper_path"; then
+    wallpaper=applied
+  else
+    wallpaper=failed
+    echo "Could not initialize the Frankenstein wallpaper; keeping the KDE default." >&2
+  fi
+}
+
+apply_defaults() {
+  local preset scheme_name scheme_asset wallpaper_asset application_style
+  local cursor_name cursor_probe style_probe color_scheme widget_style icon_theme cursor_theme
+  if [[ -e $state_file || -L $state_file ]]; then
+    load_state
+    return
+  fi
+  preset=$(validated_preset)
+  scheme_name=$(jq -r '.colorScheme.name' "$preset")
+  scheme_asset=$(jq -r '.colorScheme.asset' "$preset")
+  wallpaper_asset=$(jq -r '.wallpaper.asset' "$preset")
+  application_style=$(jq -r '.applicationStyle.name' "$preset")
+  cursor_name=$(jq -r '.cursor.name' "$preset")
+  cursor_probe=$(jq -r '.cursor.probe' "$preset")
+
+  color_scheme=$(read_setting "$kdeglobals" General ColorScheme)
+  if [[ -n $color_scheme ]] ||
+     { [[ -r $kdeglobals ]] && grep -q '^\[Colors:' "$kdeglobals"; }; then
+    color=preserved
+  elif data_file "$scheme_asset" >/dev/null; then
+    if plasma-apply-colorscheme "$scheme_name"; then
+      color=applied
+    else
+      color=failed
+      echo "Could not initialize Frankenstein Dusk; keeping the KDE default." >&2
+    fi
+  else
+    color=unavailable
+    echo "Frankenstein Dusk is unavailable; keeping the KDE color default." >&2
+  fi
+
+  widget_style=$(read_setting "$kdeglobals" KDE widgetStyle)
+  if [[ -n $widget_style ]]; then
+    style=preserved
+  else
+    style_probe=$(mktemp)
+    if QT_QPA_PLATFORM=offscreen QT_STYLE_OVERRIDE="$application_style" \
+         systemsettings --list >"$style_probe" 2>&1 &&
+       ! grep -Eqi 'invalid|not available|not found|does not exist' "$style_probe"; then
+      if kwriteconfig6 --file "$kdeglobals" --group KDE \
+           --key widgetStyle "$application_style"; then
+        style=applied
+      else
+        style=failed
+        echo "Could not initialize the Windows application style; keeping the KDE default." >&2
+      fi
+    else
+      style=unavailable
+      echo "The Qt Windows application style is unavailable; keeping the KDE default." >&2
+    fi
+    rm -f "$style_probe"
+  fi
+
+  icon_theme=$(read_setting "$kdeglobals" Icons Theme)
+  [[ -n $icon_theme ]] && icons=preserved || icons=unavailable
+
+  cursor_theme=$(read_setting "$config_home/kcminputrc" Mouse cursorTheme)
+  if [[ -n $cursor_theme ]]; then
+    cursor=preserved
+  elif data_file "$cursor_probe" >/dev/null; then
+    if kwriteconfig6 --file "$config_home/kcminputrc" \
+         --group Mouse --key cursorTheme "$cursor_name"; then
+      cursor=applied
+    else
+      cursor=failed
+      echo "Could not initialize the Whiteglass cursor; keeping the KDE default." >&2
+    fi
+  else
+    cursor=unavailable
+    echo "The Whiteglass cursor is unavailable; keeping the KDE default." >&2
+  fi
+
+  wallpaper=pending
+  FRANKENSTEIN_WALLPAPER_ASSET=$wallpaper_asset
+  apply_wallpaper
+  write_state "$color" "$style" "$icons" "$cursor" "$wallpaper"
+}
+
+apply_at_login() {
+  load_state
+  if [[ $wallpaper == pending ]]; then
+    local preset
+    if preset=$(validated_preset); then
+      FRANKENSTEIN_WALLPAPER_ASSET=$(jq -r '.wallpaper.asset' "$preset")
+      apply_wallpaper
+    else
+      wallpaper=unavailable
+    fi
+    write_state "$color" "$style" "$icons" "$cursor" "$wallpaper"
+  fi
+  rm -f "$autostart_file"
+}
+
+case $command_name in
+  apply) apply_defaults ;;
+  login) apply_at_login ;;
+  *) usage ;;
+esac

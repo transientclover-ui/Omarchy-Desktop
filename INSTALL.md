@@ -56,9 +56,9 @@ options are:
 
 | Option | Effect |
 | --- | --- |
-| `--shell auto` | Preserve a detected shell; otherwise install the filtered menu adapter |
+| `--shell auto` | Install the Plasma adapter; initialize its top bar only for a fresh Plasma profile |
 | `--shell preserve` | Require and preserve the existing shell |
-| `--shell filtered` | Explicitly replace its activation with the filtered adapter while retaining configuration and backup |
+| `--shell filtered` | Legacy explicit name for the KDE-compatible adapter |
 | `--login preserve` | Leave theme and autologin untouched |
 | `--login chooser` | Install a reversible Breeze/no-autologin override |
 | `--login frankenstein` | Install a reversible Frankenstein-theme/no-autologin override |
@@ -68,6 +68,24 @@ options are:
 The installer refuses higher-precedence SDDM settings that would defeat its
 proposed fragment. It never rewrites those administrator-owned files to force a
 result.
+
+An existing experimental installation recorded with `--shell preserve` can
+adopt the packaged Plasma adapter without rerunning setup:
+
+```bash
+frankenstein adopt-kde-shell
+```
+
+The migration backs up and changes only shell-ownership fields, installs the
+Plasma-scoped service/autostart files, and rolls back if the visible bar health
+check fails. It does not read or write SDDM or KDE appearance configuration.
+
+The packaged `Frankenstein Dusk 9x` preset is declared at
+`/usr/share/frankenstein/presets/dusk-9x.json`. On a fresh Plasma profile it
+keeps the stock KDE panel and adds the KDE-compatible Omarchy top bar. Existing
+Plasma panel/shell state selects the native-panel profile unless the user runs
+`frankenstein bar enable`. `frankenstein bar disable` records the user's choice
+and setup never turns the bar back on.
 
 Before a Frankenstein theme can be selected, setup validates `QtVersion=6`,
 the Qt 6 greeter's linked libraries, all QML imports, the theme entry points,
@@ -81,13 +99,27 @@ Before mutation it creates:
 
 The backups include relevant SDDM files and state, both session entries, the
 complete Omarchy configuration tree, and selected KDE configuration. Setup does
-not modify KDE panels, wallpaper, shortcuts, KWin, lock-screen, or input
-settings. SDDM activation and rollback never call Plasma theme tools or write
-`kdeglobals`, `plasmarc`, `plasma-org.kde.plasma.desktop-appletsrc`,
-look-and-feel packages, color schemes, or icon themes.
+not modify existing KDE panels, wallpaper, shortcuts, KWin, lock-screen, input
+settings, or meaningful appearance choices. On a fresh account only, the
+experimental package uses normal KDE tools once to initialize the project color
+scheme, wallpaper, available Qt `Windows` application style, and X.Org
+Whiteglass cursor. It does not alter panel layout or install a look-and-feel
+package.
 
 Setup never restarts SDDM, logs out, or reboots. Save work, then log out
 normally and choose a desktop using the prominent session selector.
+
+The package installs `Frankenstein Dusk` and matching Omarchy palette files.
+The KDE scheme is selected only when no color choice or custom color groups
+exist. The wallpaper is applied at setup or once at the first Plasma login when
+no wallpaper choice exists. The permissively licensed X.Org Whiteglass cursor
+theme is selected only when no cursor preference exists. A marker under
+`~/.local/state/frankenstein/` prevents later setup runs or logins from
+reapplying defaults. Users remain free to change every initialized value.
+
+Memphis98 is not packaged because authoritative redistribution permission
+could not be established. The distro/KDE icon default remains in place rather
+than creating a partial or legally ambiguous experience.
 
 ## Backgrounds
 

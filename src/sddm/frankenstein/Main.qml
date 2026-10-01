@@ -10,12 +10,15 @@ Rectangle {
     id: root
     width: 1920
     height: 1080
-    color: "#100c26"
+    color: "#11131f"
 
-    readonly property color lavender: "#e7ddff"
-    readonly property color mutedLavender: "#bfb2df"
-    readonly property color magenta: "#e66bb4"
-    readonly property color indigo: "#6761b9"
+    readonly property color lavender: "#d7cfe2"
+    readonly property color mutedLavender: "#998fa8"
+    readonly property color magenta: "#a9859d"
+    readonly property color indigo: "#72839b"
+    readonly property color surface: "#201c2c"
+    readonly property color surfaceRaised: "#2d273d"
+    readonly property color outline: "#574b6a"
     readonly property string defaultBackground: config.defaultBackground || "backgrounds/vaporwave-default.png"
     property string activeBackground: defaultBackground
     property string statusMessage: ""
@@ -88,7 +91,7 @@ Rectangle {
 
     Rectangle {
         anchors.fill: parent
-        color: "#4d100c26"
+        color: "#6611131f"
     }
 
     Rectangle {
@@ -97,8 +100,8 @@ Rectangle {
         anchors.bottom: parent.bottom
         height: parent.height * 0.45
         gradient: Gradient {
-            GradientStop { position: 0.0; color: "#00100c26" }
-            GradientStop { position: 1.0; color: "#d9100c26" }
+            GradientStop { position: 0.0; color: "#0011131f" }
+            GradientStop { position: 1.0; color: "#e611131f" }
         }
     }
 
@@ -145,8 +148,8 @@ Rectangle {
 
         background: Rectangle {
             radius: 12
-            color: settingsButton.checked || settingsButton.hovered ? "#b34b3c78" : "#8a241c49"
-            border.color: "#806f61ad"
+            color: settingsButton.checked || settingsButton.hovered ? "#cc4f3d60" : "#b3201c2c"
+            border.color: root.outline
         }
         contentItem: Text {
             text: settingsButton.text
@@ -164,9 +167,9 @@ Rectangle {
         width: Math.min(520, parent.width - 48)
         height: Math.min(570, parent.height - 90)
         radius: 24
-        color: "#d421183f"
+        color: "#f0201c2c"
         border.width: 1
-        border.color: "#806f61ad"
+        border.color: root.outline
         z: 2
 
         ColumnLayout {
@@ -195,9 +198,9 @@ Rectangle {
 
                 background: Rectangle {
                     radius: 12
-                    color: "#d1342859"
+                    color: root.surfaceRaised
                     border.width: sessionSelector.activeFocus ? 2 : 1
-                    border.color: sessionSelector.activeFocus ? root.magenta : "#806f61ad"
+                    border.color: sessionSelector.activeFocus ? root.magenta : root.outline
                 }
             }
 
@@ -222,9 +225,9 @@ Rectangle {
                 KeyNavigation.backtab: sessionSelector
                 background: Rectangle {
                     radius: 12
-                    color: "#d1342859"
+                    color: root.surfaceRaised
                     border.width: username.activeFocus ? 2 : 1
-                    border.color: username.activeFocus ? root.magenta : "#806f61ad"
+                    border.color: username.activeFocus ? root.magenta : root.outline
                 }
             }
 
@@ -241,9 +244,9 @@ Rectangle {
                 onAccepted: root.submitLogin()
                 background: Rectangle {
                     radius: 12
-                    color: "#d1342859"
+                    color: root.surfaceRaised
                     border.width: password.activeFocus ? 2 : 1
-                    border.color: password.activeFocus ? root.magenta : "#806f61ad"
+                    border.color: password.activeFocus ? root.magenta : root.outline
                 }
             }
 
@@ -259,13 +262,13 @@ Rectangle {
                 onClicked: root.submitLogin()
                 background: Rectangle {
                     radius: 12
-                    color: loginButton.down ? "#c650438c"
-                                            : (loginButton.hovered ? "#df6653a4" : "#c4564796")
-                    border.color: "#a79bdf"
+                    color: loginButton.down ? "#8f493f59"
+                                            : (loginButton.hovered ? "#a85b4b70" : "#994f3d60")
+                    border.color: root.indigo
                 }
                 contentItem: Text {
                     text: loginButton.text
-                    color: "#ffffff"
+                    color: root.lavender
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                     font: loginButton.font
@@ -318,9 +321,9 @@ Rectangle {
         width: Math.min(430, parent.width - 48)
         height: Math.min(510, parent.height - settingsButton.height - 72)
         radius: 20
-        color: "#f021183f"
+        color: "#fa201c2c"
         border.width: 1
-        border.color: "#806f61ad"
+        border.color: root.outline
         z: 4
 
         ColumnLayout {
@@ -358,9 +361,9 @@ Rectangle {
                     width: backgroundList.width
                     height: 88
                     radius: 12
-                    color: root.activeBackground === path ? "#b34b3c78" : "#80342859"
+                    color: root.activeBackground === path ? "#cc4f3d60" : "#b32d273d"
                     border.width: root.activeBackground === path ? 2 : 1
-                    border.color: root.activeBackground === path ? root.magenta : "#806f61ad"
+                    border.color: root.activeBackground === path ? root.magenta : root.outline
 
                     RowLayout {
                         anchors.fill: parent

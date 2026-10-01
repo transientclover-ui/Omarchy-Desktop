@@ -3,7 +3,7 @@
 pkgbase=frankenstein
 pkgname=(frankenstein-core frankenstein-kde)
 pkgver=0.1.0
-pkgrel=9
+pkgrel=10
 pkgdesc='Reversible Omarchy desktop compatibility manager'
 arch=(x86_64)
 license=(MIT)
@@ -14,11 +14,14 @@ _local_sources=(
   "uninstall.sh::../../uninstall.sh"
   "frankenstein::../../src/bin/frankenstein"
   "frankenstein-settings::../../src/bin/frankenstein-settings"
+  "frankenstein-kde-soft-defaults::../../src/bin/frankenstein-kde-soft-defaults"
   "omarchy-default-desktop::../../src/bin/omarchy-default-desktop"
   "omarchy-desktop-manager-set-default::../../src/libexec/omarchy-desktop-manager-set-default"
   "frankenstein-diagnostics::../../src/libexec/frankenstein-diagnostics"
+  "frankenstein-adopt-kde-shell::../../src/libexec/frankenstein-adopt-kde-shell"
   "frankenstein-sddm-validate::../../src/libexec/frankenstein-sddm-validate"
   "frankenstein-state::../../src/libexec/frankenstein-state"
+  "frankenstein-kde-bar-compat::../../src/libexec/frankenstein-kde-bar-compat"
   "installer-state.sh::../../src/lib/installer-state.sh"
   "shell-profile.sh::../../src/lib/shell-profile.sh"
   "omarchy-desktop-manager-default.path::../../src/systemd/omarchy-desktop-manager-default.path"
@@ -33,11 +36,17 @@ _local_sources=(
   "plasma-shell-profile.json::../../src/frankenstein/plasma-shell-profile.json"
   "plasma-shell-profile.json.license::../../src/frankenstein/plasma-shell-profile.json.license"
   "plasma-menu.jsonc::../../src/frankenstein/plasma-menu.jsonc"
+  "dusk-9x.json::../../src/frankenstein/presets/dusk-9x.json"
+  "FrankensteinDusk.colors::../../src/frankenstein/themes/dusk/FrankensteinDusk.colors"
+  "dusk-colors.toml::../../src/frankenstein/themes/dusk/colors.toml"
+  "dusk-shell.toml::../../src/frankenstein/themes/dusk/shell.toml"
+  "dusk-wallpaper-metadata.json::../../src/frankenstein/themes/dusk/wallpaper/metadata.json"
   "shell.qml::../../src/frankenstein/omarchy-shell/shell.qml"
   "PluginRegistry.qml::../../src/frankenstein/omarchy-shell/services/PluginRegistry.qml"
   "Menu.qml::../../src/frankenstein/omarchy-shell/plugins/menu/Menu.qml"
   "frankenstein-omarchy-shell.service::../../src/systemd/frankenstein-omarchy-shell.service"
   "frankenstein-omarchy-shell-autostart.desktop::../../src/frankenstein/frankenstein-omarchy-shell-autostart.desktop"
+  "frankenstein-kde-soft-defaults.desktop::../../src/frankenstein/frankenstein-kde-soft-defaults.desktop"
   "frankenstein-omarchy-menu.desktop::../../src/frankenstein/frankenstein-omarchy-menu.desktop"
   "zzzz-frankenstein.conf::../../src/frankenstein/zzzz-frankenstein.conf"
   "INSTALL.md::../../INSTALL.md"
@@ -53,42 +62,57 @@ for _source_spec in "${_local_sources[@]}"; do
 done
 unset _source_spec
 
-sha256sums=('06fb9103c17e58d247b8b28216d573499aa66b5533251709ff96b0c71986e6b8'
-            '78c66885aba2629b2c9fa824a6d3ef796c240249b07495d769aa9ab9bc532ce9'
-            '1d7dbcc93b70dad7a4c3fee31efec46639f07eaf45fd34ca354239a3c1a14a52'
+prepare() {
+  "$srcdir/frankenstein-kde-bar-compat" \
+    /usr/share/omarchy/shell/plugins/bar/Bar.qml \
+    "$srcdir/kde-Bar.qml"
+}
+
+sha256sums=('33ad6a7e594687ea7328176c0b010985ea380228c9bd6cf243c68da314d5db4f'
+            '00ad10f4abc61d32c59ac0c1a7f28269e799fdaeef095c09c0fb89428020fd4d'
+            '53308358d9b20b688753de6d1775399b803913d117a8b62d8001754805e3409a'
             '5993843c05b1631623e4ab7a4e4feb08096488c4593e0c555c772b760713b5ad'
+            '43954dac80b5618babe0e56c85562ac89d75e1359edb718b21df3598a580442e'
             'a027b97907dcfbecf655892208531468cc0b9fc2047cfffe17d75aa11614bb92'
             '23d1181e1449fa1b2f1dd58868b0a84349d770b5ff950f9b8b3b023d010bde67'
             'a57b10579d563329dd05e770abc42e7cea765241b9105188efb76c9a0f44dc4a'
+            '6c42284796593168af2abb36515549ac9c84018e0344a554bffff38a72e551b4'
             'd3c45de8d59a9eb41611f0f8033143ac2c821194cae3fabfd8c76e8255f0525a'
             '8a9f830a7c087045880e8e7ee5743aff2d39ddc7bc0dcf0aaa9e564cdfbba833'
+            '0b01ff528f32b8039f3aee6c744e24561b039c94560cf402f968358836008ef6'
             '6868c58493d48b7d90f8b73815970be5b9d907d061d54a94c2c08714677bf05c'
             'f608cd9d92b74d3463a14a8cd85d3eb4862b0f9ae2589475071d40627748ecef'
             '2548486b601283e05c6b65b993dd25181372786f6abb3b3b19ff7e6680eae44c'
             'bbbe60b05867f23e8c6691ab42c51883ff26fe956e15914d96ac495828464823'
-            'f92beaa370daad0fbfccb224fd1af3db1bc852df4f9a49385e7271089268ef4e'
+            'a085f5715fd488a5f9eb0a6c3880455cc403d567fb41da07e012e9639548b3d1'
             '614cad60a53be3559c84ece8df0e5dcb7802496e76e5e49c39ad7b20113bc04f'
             '9e5b35f9095ca6b73c1e7cb31b1fa1e710eb39324a9baae829b3e7047e7989f4'
-            'b71efa381ed284be7b54c4398d2511ff139c8effa98806aa2e5dc2692a83f5c7'
+            '8cc0ad6c87bbf5f06bd2f28ce9e4c6e1827536ed9918356271ff2fee00d917bb'
             '068a8a99fed522badc2b6fe0564fbe766369fd480ff86a924dfbeedee20212b2'
             '137387fcc3f71ba2083bf98332448342812c3c96ec64ecbcd0b558124d887c93'
             '60184748efe78a685f341e785eb8b8ba4d2e4081c5f9518396a0682977f61423'
-            'd9cd2cc551e409b0b827d38b60953d46803e0a6ef9da719c9223bef7feb3b7ab'
+            '26c2d258222df2a3556b8512fe042beb17f9f929157bc6a17b0a610ae009e926'
             '82e50f4ea1a5e2b5eee093eb83e92e1137ef5f41281a1608d2cd310bb71caee4'
             '3d0228bced73441f3286af63d2e233208b882ecb5eacab28233a3fdd714fc916'
-            '5dc713d0cbf54af961b347120ebcd761d5602503202c076a2a033e9b7e903bb2'
-            '289ec80da32f78c25466391afee067f5d7401f03dd6b99420c40165137abbde7'
+            '2b625ba59e2ecae06b9e5de2fda4d0d914fc2a321a57ce6361a437469d1553bd'
+            '6f372b657d6062d3c06035ff0031a42c95c4493bb6b4b07568472b3b4bb9aded'
+            'b3e7bc0c34221a4ce2d2df0fbd40496c95b5fec786556c5aee884b967641d9b9'
+            'd596aa1b0120f3485a396cdc298d6ee9343972eb4a9bb24a389c0532642b88e1'
+            'f00c28f1da472928e116e7178b2ad7f7e09a3fe3c613e2985bac401fa3a5e06d'
+            '8c8b817823e79377eb7aac8f380385492cdf3b8ad230b72f11c6497d1634a573'
+            'ad6215ce0748fd692d79726c570baaaa0c22d7d275d0634904202b0f702e3c7c'
             'eee1e163f3dfe7505818ac11bcca4e986b96627c7e64ff35921df38d8b5c71a6'
-            'fc152c8e5efdc14ef37998d0f4409268aed9ce3cd1dd8810a68d2ac19a67e421'
-            '652700e339e22f3be83fdcf02d202ba98a1973c7a3e9005a8e224eb702c6caaf'
+            '8ddc0ee611062fda4996c6b975eb9eb992123fafa9b6c9190d9a2b188cd124e1'
+            '22cf52861b31434546f10c3b6ab475613085fcd70d4e0e50d2c7618c2a7efcbe'
+            '116a89c31283e8a6b3803a7058ba78cd8fd6ef7df3d7a84b20a829c8f56e9f8a'
             '49e9cb294beec3db540aa6d0e5c7609951f7ff3c71bba2d646212438ce776458'
             'a48edade017ac1417e88d485cbc0d46ce0d907b6565730cee4520715e39890a2'
-            '5b676e9a1624e2ff7741e7fd1eb2885460db7709502577ffcb09786fa81d7803'
+            '5421e049dcb0fa03b64b3b03e2b37c3472223323f684028bf8723f516d2ecd43'
             'eac402fd4d58098607ca2b4d6e46cf554e2488355bae62aeef78c04429752ce1'
-            '97ee7bc04ccb0bd8086dcea75639aff73aa2156c4f3235302c0b99a343d00afc'
+            '8b7168a05acabc6652081a996fc5d44ebab8f2bdf43c175b4b589f57e7e2e00b'
             '9c6cab6fc2ed586d11cc4468235c35d927b9e8cd2fc434a017837b67360df0e9'
             'f18861fdf84c2a227febb8d7152b0e29f720d6c59bc93517eac7d0fd8af3def9'
-            '05f3528231724e3c042111b2a681b4809c7fb37c46026f5f69add59fbcb3334e')
+            '4499531c979c3435f0788f8a1b50a8db8ce85c2305064d9abddfd53a04ea4609')
 
 package_frankenstein-core() {
   pkgdesc='Common CLI and default-session manager for Frankenstein'
@@ -108,6 +132,8 @@ package_frankenstein-core() {
     "$pkgdir/usr/lib/frankenstein/set-default"
   install -Dm0755 "$srcdir/frankenstein-diagnostics" \
     "$pkgdir/usr/lib/frankenstein/diagnostics"
+  install -Dm0755 "$srcdir/frankenstein-adopt-kde-shell" \
+    "$pkgdir/usr/lib/frankenstein/adopt-kde-shell"
   install -Dm0755 "$srcdir/frankenstein-state" \
     "$pkgdir/usr/lib/frankenstein/state"
   install -Dm0644 "$srcdir/installer-state.sh" \
@@ -138,12 +164,14 @@ package_frankenstein-kde() {
   depends=(
     "frankenstein-core=$pkgver-$pkgrel"
     breeze file imagemagick jq kdialog 'omarchy=4.0.4-1'
-    plasma-desktop plasma-workspace qt6-declarative qt6-imageformats qt6-tools
-    quickshell sddm systemsettings xdg-terminal-exec
+    kconfig plasma-desktop plasma-workspace qt6-declarative qt6-imageformats qt6-tools
+    quickshell sddm systemsettings xcursor-themes xdg-terminal-exec
   )
 
   install -Dm0755 "$srcdir/frankenstein-shell-adapter" \
     "$pkgdir/usr/bin/frankenstein-shell-adapter"
+  install -Dm0755 "$srcdir/frankenstein-kde-soft-defaults" \
+    "$pkgdir/usr/bin/frankenstein-kde-soft-defaults"
   install -Dm0755 "$srcdir/frankenstein-background" \
     "$pkgdir/usr/bin/frankenstein-background"
   install -Dm0755 "$srcdir/frankenstein-background-writer" \
@@ -164,20 +192,37 @@ package_frankenstein-kde() {
     "$pkgdir/usr/share/frankenstein/profiles/plasma.json.license"
   install -Dm0644 "$srcdir/plasma-menu.jsonc" \
     "$pkgdir/usr/share/frankenstein/profiles/plasma-menu.jsonc"
+  install -Dm0644 "$srcdir/dusk-9x.json" \
+    "$pkgdir/usr/share/frankenstein/presets/dusk-9x.json"
+  install -Dm0644 "$srcdir/FrankensteinDusk.colors" \
+    "$pkgdir/usr/share/color-schemes/FrankensteinDusk.colors"
+  install -Dm0644 "$srcdir/dusk-colors.toml" \
+    "$pkgdir/usr/share/frankenstein/themes/dusk/colors.toml"
+  install -Dm0644 "$srcdir/dusk-shell.toml" \
+    "$pkgdir/usr/share/frankenstein/themes/dusk/shell.toml"
+  install -Dm0644 "$srcdir/dusk-wallpaper-metadata.json" \
+    "$pkgdir/usr/share/wallpapers/FrankensteinDusk/metadata.json"
+  install -Dm0644 "$srcdir/vaporwave-default.png" \
+    "$pkgdir/usr/share/wallpapers/FrankensteinDusk/contents/images/1672x941.png"
   install -Dm0644 "$srcdir/shell.qml" \
     "$pkgdir/usr/share/frankenstein/omarchy-shell/shell.qml"
   install -Dm0644 "$srcdir/PluginRegistry.qml" \
     "$pkgdir/usr/share/frankenstein/omarchy-shell/services/PluginRegistry.qml"
   install -Dm0644 "$srcdir/Menu.qml" \
     "$pkgdir/usr/share/frankenstein/omarchy-shell/plugins/menu/Menu.qml"
+  install -Dm0644 "$srcdir/kde-Bar.qml" \
+    "$pkgdir/usr/share/frankenstein/omarchy-shell/plugins/bar/Bar.qml"
 
+  local source name
   ln -s /usr/share/omarchy/shell/Commons \
     "$pkgdir/usr/share/frankenstein/omarchy-shell/Commons"
   ln -s /usr/share/omarchy/shell/Ui \
     "$pkgdir/usr/share/frankenstein/omarchy-shell/Ui"
-  ln -s /usr/share/omarchy/shell/plugins/bar \
-    "$pkgdir/usr/share/frankenstein/omarchy-shell/plugins/bar"
-  local source name
+  for source in /usr/share/omarchy/shell/plugins/bar/*; do
+    name=${source##*/}
+    [[ $name == Bar.qml ]] && continue
+    ln -s "$source" "$pkgdir/usr/share/frankenstein/omarchy-shell/plugins/bar/$name"
+  done
   for source in /usr/share/omarchy/shell/services/*; do
     name=${source##*/}
     [[ $name == PluginRegistry.qml ]] && continue
@@ -193,6 +238,8 @@ package_frankenstein-kde() {
     "$pkgdir/usr/share/frankenstein/templates/frankenstein-omarchy-shell.service"
   install -Dm0644 "$srcdir/frankenstein-omarchy-shell-autostart.desktop" \
     "$pkgdir/usr/share/frankenstein/templates/frankenstein-omarchy-shell.desktop"
+  install -Dm0644 "$srcdir/frankenstein-kde-soft-defaults.desktop" \
+    "$pkgdir/usr/share/frankenstein/templates/frankenstein-kde-soft-defaults.desktop"
   install -Dm0644 "$srcdir/frankenstein-omarchy-menu.desktop" \
     "$pkgdir/usr/share/frankenstein/templates/frankenstein-omarchy-menu.desktop"
   install -Dm0644 "$srcdir/zzzz-frankenstein.conf" \

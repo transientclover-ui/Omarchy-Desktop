@@ -8,6 +8,7 @@ outside the sandbox. The host filesystem is read-only; only temporary fixtures
 are writable. No root privileges, package transactions, or real services run.
 """
 import os
+import json
 from pathlib import Path
 import shutil
 import subprocess
@@ -56,6 +57,15 @@ def fixture(root, existed, standalone=False):
         'shell.qml': 'property PluginRegistry pluginRegistry',
         'services/PluginRegistry.qml': 'function isEnabled(id)',
         'plugins/menu/Menu.qml': 'function rebuildItemsFromSources()',
+        'plugins/bar/Bar.qml': '''import Quickshell
+import Quickshell.Hyprland
+Item {
+  function focusedScreenName() {
+    var monitor = Hyprland.focusedMonitor
+    return monitor ? String(monitor.name || "") : ""
+  }
+}
+''',
     }.items():
         put(root, 'usr/share/omarchy/shell/' + name, content + '\n')
     for source, destination in {
@@ -65,30 +75,45 @@ def fixture(root, existed, standalone=False):
         'src/lib/shell-profile.sh': 'usr/lib/frankenstein/shell-profile',
         'src/libexec/frankenstein-state': 'usr/lib/frankenstein/state',
         'src/libexec/frankenstein-diagnostics': 'usr/lib/frankenstein/diagnostics',
+        'src/libexec/frankenstein-adopt-kde-shell': 'usr/lib/frankenstein/adopt-kde-shell',
         'src/libexec/frankenstein-sddm-validate': 'usr/lib/frankenstein/sddm-validate',
         'src/bin/frankenstein-shell-adapter': 'usr/bin/frankenstein-shell-adapter',
         'src/bin/frankenstein-settings': 'usr/bin/frankenstein-settings',
+        'src/bin/frankenstein-kde-soft-defaults': 'usr/bin/frankenstein-kde-soft-defaults',
         'src/bin/frankenstein-background': 'usr/bin/frankenstein-background',
         'src/libexec/frankenstein-background-writer': 'usr/libexec/frankenstein-background-writer',
         'src/bin/omarchy-default-desktop': 'usr/bin/omarchy-default-desktop',
         'src/frankenstein/plasma-shell-profile.json': 'usr/share/frankenstein/profiles/plasma.json',
         'src/frankenstein/plasma-menu.jsonc': 'usr/share/frankenstein/profiles/plasma-menu.jsonc',
+        'src/frankenstein/presets/dusk-9x.json': 'usr/share/frankenstein/presets/dusk-9x.json',
+        'src/frankenstein/themes/dusk/FrankensteinDusk.colors': 'usr/share/color-schemes/FrankensteinDusk.colors',
+        'src/frankenstein/themes/dusk/colors.toml': 'usr/share/frankenstein/themes/dusk/colors.toml',
+        'src/frankenstein/themes/dusk/shell.toml': 'usr/share/frankenstein/themes/dusk/shell.toml',
+        'src/frankenstein/themes/dusk/wallpaper/metadata.json': 'usr/share/wallpapers/FrankensteinDusk/metadata.json',
         'src/frankenstein/zzzz-frankenstein.conf': 'usr/share/frankenstein/templates/zzzz-omarchy-desktop-manager.conf',
         'src/sddm/frankenstein/Main.qml': 'usr/share/sddm/themes/frankenstein/Main.qml',
         'src/sddm/frankenstein/metadata.desktop': 'usr/share/sddm/themes/frankenstein/metadata.desktop',
         'src/sddm/frankenstein/theme.conf': 'usr/share/sddm/themes/frankenstein/theme.conf',
-        'src/sddm/frankenstein/backgrounds/vaporwave-default.png': 'usr/share/sddm/themes/frankenstein/backgrounds/vaporwave-default.png',
+        'src/sddm/frankenstein/backgrounds/vaporwave-default.png': 'usr/share/wallpapers/FrankensteinDusk/contents/images/1672x941.png',
         'src/frankenstein/frankenstein-omarchy-shell-autostart.desktop': 'usr/share/frankenstein/templates/frankenstein-omarchy-shell.desktop',
+        'src/frankenstein/frankenstein-kde-soft-defaults.desktop': 'usr/share/frankenstein/templates/frankenstein-kde-soft-defaults.desktop',
         'src/frankenstein/frankenstein-omarchy-menu.desktop': 'usr/share/frankenstein/templates/frankenstein-omarchy-menu.desktop',
         'src/systemd/frankenstein-omarchy-shell.service': 'usr/share/frankenstein/templates/frankenstein-omarchy-shell.service',
     }.items():
         copy(root, source, destination)
+    copy(root, 'src/sddm/frankenstein/backgrounds/vaporwave-default.png',
+         'usr/share/sddm/themes/frankenstein/backgrounds/vaporwave-default.png')
+    for role in ('left_ptr', 'hand2', 'xterm', 'watch', 'left_ptr_watch'):
+        put(root, 'usr/share/icons/whiteglass/cursors/' + role,
+            'fixture XCursor data\n')
     for unit in ('path', 'service'):
         name = 'omarchy-desktop-manager-default.' + unit
         copy(root, 'src/systemd/' + name, 'usr/lib/systemd/system/' + name)
     for name in ('shell.qml', 'services/PluginRegistry.qml', 'plugins/menu/Menu.qml'):
         copy(root, 'src/frankenstein/omarchy-shell/' + name,
              'usr/share/frankenstein/omarchy-shell/' + name)
+    put(root, 'usr/share/frankenstein/omarchy-shell/plugins/bar/Bar.qml',
+        'import Quickshell\nItem { function focusedScreenName() { return "" } }\n')
     state = root / 'var/lib/sddm/state.conf'
     if existed:
         state.write_text('[Last]\nSession=original.desktop\nUser=original\n')
@@ -104,6 +129,7 @@ esac
 ''', True)
     put(root, 'mock/sudo', '''#!/bin/bash
 [[ $1 == -v ]] && exit 0
+[[ $1 == -n && $2 == true ]] && exit 0
 if [[ $1 == /usr/lib/frankenstein/set-default ]]; then
   shift
   exec /opt/set-default "$@"
@@ -137,6 +163,8 @@ case "$*" in
   '--user is-active omarchy-shell.service')
     [[ -e /var/original-shell-active ]] && { echo active; exit 0; }
     echo inactive; exit 3;;
+  '--user is-active frankenstein-omarchy-shell.service')
+    echo active; exit 0;;
 esac
 printf '%s\\n' "$*" >>/var/service-calls
 case "$*" in
@@ -157,6 +185,8 @@ case "$*" in
   '--user start omarchy-shell.service') touch /var/original-shell-active;;
   '--user start frankenstein-omarchy-shell.service')
     [[ ${FAIL_SETUP:-0} == 1 ]] && exit 42;;
+  '--user restart frankenstein-omarchy-shell.service')
+    [[ ${FAIL_SETUP:-0} == 1 ]] && exit 42;;
   '--user daemon-reload'|'--user stop frankenstein-omarchy-shell.service'|'daemon-reload') ;;
   *) echo "Unexpected service call: $*" >&2; exit 92;;
 esac
@@ -171,7 +201,30 @@ echo "$1" >/var/lib/omarchy-desktop-manager/default-session
 exit 0
 ''', True)
     shutil.copy2(root / 'usr/lib/frankenstein/set-default', root / 'mock/set-default')
-    for name in ('quickshell', 'qs', 'systemsettings', 'xdg-terminal-exec', 'qdbus6'):
+    put(root, 'mock/pgrep', '''#!/bin/bash
+case "$*" in
+  *'quickshell -n -p /usr/share/frankenstein/omarchy-shell'*) echo 1;;
+  *'polkit'*|*'polkit-kde-authentication-agent'*) echo 1;;
+  *) exit 1;;
+esac
+''', True)
+    put(root, 'mock/qs', '''#!/bin/bash
+case "$*" in
+  *' call -- shell ping') echo ok;;
+  *' call -- shell listPlugins') echo '[]';;
+  *' call -- shell barStatus')
+    panel=$(jq -r '.shell.panel // "native"' \
+      /home/test/.config/frankenstein/plasma.json 2>/dev/null || echo native)
+    if [[ $panel == omarchy ]]; then
+      echo '{"loaded":true,"hidden":false}'
+    else
+      echo '{"loaded":false,"hidden":false}'
+    fi;;
+  *) exit 93;;
+esac
+''', True)
+    for name in ('quickshell', 'systemsettings', 'xdg-terminal-exec', 'qdbus6',
+                 'plasma-apply-colorscheme', 'plasma-apply-wallpaperimage'):
         put(root, 'mock/' + name, '#!/bin/bash\nexit 93\n', True)
 
     validator = '''#!/bin/bash
@@ -187,6 +240,11 @@ echo validate-sddm >>/var/operation-order
                  'powermanagementprofilesrc', 'Trolltech.conf',
                  'plasma-org.kde.plasma.desktop-appletsrc'):
         put(root, 'home/test/.config/' + name, 'original KDE configuration: ' + name + '\n')
+    put(root, 'home/test/.config/kdeglobals',
+        '[General]\nColorScheme=Custom\n[KDE]\nwidgetStyle=Breeze\n[Icons]\nTheme=Custom\n')
+    put(root, 'home/test/.config/kcminputrc', '[Mouse]\ncursorTheme=Custom\n')
+    put(root, 'home/test/.config/plasma-org.kde.plasma.desktop-appletsrc',
+        '[Containments][1][Wallpaper]\nwallpaperplugin=org.kde.image\nImage=file:///custom.png\n')
     put(root, 'home/test/.local/share/plasma/look-and-feel/custom/metadata.json',
         '{"KPlugin": {"Id": "custom"}}\n')
     put(root, 'home/test/.local/share/color-schemes/custom.colors',
@@ -202,6 +260,7 @@ echo validate-sddm >>/var/operation-order
             'frankenstein-shell-adapter',
             'omarchy-default-desktop',
             'frankenstein-settings',
+            'frankenstein-kde-soft-defaults',
             'frankenstein-background',
         ):
             (root / 'usr/bin' / name).unlink()
@@ -217,6 +276,7 @@ def run(root, script, fail=False, fail_stop="", fail_restore="", preflight=False
         fail_default=False, fail_watch=False, fail_sddm_validation=False, arguments=None):
     standalone = (root / 'home/source').exists()
     entry = ('/usr/bin/frankenstein-shell-adapter' if script == 'adapter' else
+             '/usr/lib/frankenstein/adopt-kde-shell' if script == 'migration' else
              '/home/source/' + script if standalone else
              '/usr/lib/frankenstein/' + {'install.sh': 'setup', 'uninstall.sh': 'uninstall'}[script])
     command = ['bwrap', '--ro-bind', '/', '/', '--unshare-all', '--die-with-parent',
@@ -279,12 +339,27 @@ def test(existed, failed_setup, fail_stop="", fail_restore="", standalone=False)
             check('changed.desktop' in state.read_text(), 'setup did not mutate SDDM state', result)
             check('Initial default:       plasma.desktop' in result.stdout,
                   'active KDE default was not preserved', result)
+            record_id = (root / 'var/lib/frankenstein/current').read_text().strip()
+            record = root / f'var/lib/frankenstein/installations/{record_id}.env'
+            check('SHELL_MODE=filtered' in record.read_text(),
+                  'clean install did not select the KDE-compatible shell', result)
+            check((root / 'home/test/.config/systemd/user/'
+                   'frankenstein-omarchy-shell.service').is_file(),
+                  'KDE shell user service was not installed', result)
+            check((root / 'home/test/.config/autostart/'
+                   'frankenstein-omarchy-shell.desktop').is_file(),
+                  'KDE shell autostart was not installed', result)
+            calls = (root / 'var/service-calls').read_text().splitlines()
+            check('--user start frankenstein-omarchy-shell.service' in calls,
+                  'KDE shell did not start in the active Plasma fixture', result)
             check(('  /home/source/uninstall.sh' if standalone else '  frankenstein uninstall')
                   in result.stdout, 'invalid rollback command', result)
             if standalone:
                 bar = root / 'usr/share/frankenstein/omarchy-shell/plugins/bar'
-                check(bar.is_symlink() and os.readlink(bar) == '/usr/share/omarchy/shell/plugins/bar',
-                      'standalone payload missing required QML bar import', result)
+                check(bar.is_dir() and not bar.is_symlink() and
+                      not (bar / 'Bar.qml').is_symlink() and
+                      'Quickshell.Hyprland' not in (bar / 'Bar.qml').read_text(),
+                      'standalone payload missing KDE-compatible QML bar', result)
             result = run(root, 'uninstall.sh', fail_stop=fail_stop, fail_restore=fail_restore)
             check(result.returncode == (1 if fail_stop or fail_restore else 0), 'unexpected uninstall status', result)
         for path, content in preserved.items():
@@ -489,6 +564,75 @@ def test_frankenstein_theme_round_trip(standalone):
         print('PASS: Frankenstein SDDM round trip preserves Plasma appearance')
 
 
+def test_fresh_shell_soft_default(user_disables):
+    with tempfile.TemporaryDirectory(prefix='frankenstein-fresh-shell-') as directory:
+        root = Path(directory)
+        fixture(root, True, False)
+        applets = root / 'home/test/.config/plasma-org.kde.plasma.desktop-appletsrc'
+        applets.unlink()
+        result = run(root, 'install.sh')
+        check(result.returncode == 0, 'fresh-profile setup failed', result)
+        profile = root / 'home/test/.config/frankenstein/plasma.json'
+        check(profile.is_file() and
+              json.loads(profile.read_text())['shell']['panel'] == 'omarchy',
+              'fresh profile did not receive the Omarchy top-bar soft default', result)
+        record_id = (root / 'var/lib/frankenstein/current').read_text().strip()
+        record = root / f'var/lib/frankenstein/installations/{record_id}.env'
+        check('SHELL_PROFILE_DEFAULT_CREATED=true' in record.read_text(),
+              'top-bar soft-default ownership was not recorded', result)
+        check(not applets.exists(),
+              'fresh shell default created or replaced a Plasma panel layout', result)
+
+        if user_disables:
+            profile.write_text(
+                '{\n  "schemaVersion": 1,\n  "shell": {\n    "panel": "native"\n  }\n}\n'
+            )
+        uninstall = run(root, 'uninstall.sh')
+        check(uninstall.returncode == 0, 'fresh-profile uninstall failed', uninstall)
+        check(profile.exists() == user_disables,
+              'uninstall did not respect the user shell-profile choice', uninstall)
+        if user_disables:
+            check(json.loads(profile.read_text())['shell']['panel'] == 'native',
+                  'uninstall changed the disabled bar choice', uninstall)
+        print(f'PASS: fresh Omarchy bar soft default, user_disables={user_disables}')
+
+
+def test_bar_control():
+    with tempfile.TemporaryDirectory(prefix='frankenstein-bar-control-') as directory:
+        root = Path(directory)
+        fixture(root, True, False)
+        profile = root / 'home/test/.config/frankenstein/plasma.json'
+        applets = root / 'home/test/.config/plasma-org.kde.plasma.desktop-appletsrc'
+        applets_before = applets.read_bytes()
+
+        enabled = run(root, 'adapter', arguments=['bar', 'enable'])
+        check(enabled.returncode == 0, 'bar enable failed', enabled)
+        check(json.loads(profile.read_text())['shell']['panel'] == 'omarchy',
+              'bar enable did not select the Omarchy panel', enabled)
+        check(applets.read_bytes() == applets_before,
+              'bar enable changed the Plasma panel layout', enabled)
+
+        disabled = run(root, 'adapter', arguments=['bar', 'disable'])
+        check(disabled.returncode == 0, 'bar disable failed', disabled)
+        check(json.loads(profile.read_text())['shell']['panel'] == 'native',
+              'bar disable did not select the native panel', disabled)
+        check(applets.read_bytes() == applets_before,
+              'bar disable changed the Plasma panel layout', disabled)
+
+        before_failure = profile.read_bytes()
+        failed = run(root, 'adapter', fail=True, arguments=['bar', 'enable'])
+        check(failed.returncode != 0, 'failed bar restart was accepted', failed)
+        check(profile.read_bytes() == before_failure,
+              'failed bar restart did not restore the prior profile', failed)
+        check(applets.read_bytes() == applets_before,
+              'failed bar restart changed the Plasma panel layout', failed)
+
+        status = run(root, 'adapter', arguments=['bar', 'status'])
+        check(status.returncode == 0 and status.stdout.strip() == 'native',
+              'bar status did not report the restored native mode', status)
+        print('PASS: bar enable, disable, status, and rollback')
+
+
 if __name__ == '__main__':
     if not shutil.which('bwrap'):
         raise SystemExit('bwrap is required; refusing to run unsandboxed')
@@ -512,3 +656,6 @@ if __name__ == '__main__':
             test_sddm_precedence(standalone, scenario)
         test_sddm_validation_failure(standalone)
         test_frankenstein_theme_round_trip(standalone)
+    test_fresh_shell_soft_default(False)
+    test_fresh_shell_soft_default(True)
+    test_bar_control()

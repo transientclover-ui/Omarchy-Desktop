@@ -1,0 +1,44 @@
+# SPDX-FileCopyrightText: 2026 Frankenstein contributors
+# SPDX-License-Identifier: MIT
+
+[bar]
+background = "#181624"
+background-alpha = 0.96
+text = "#d7cfe2"
+active = "#a9859d"
+
+[popups]
+background = "#201c2c"
+background-alpha = 0.98
+text = "#d7cfe2"
+border = "#574b6a"
+border-alpha = 0.9
+
+[tooltip]
+background = "#201c2c"
+background-alpha = 0.98
+text = "#d7cfe2"
+border = "#574b6a"
+border-alpha = 0.8
+
+[notifications]
+background = "#201c2c"
+background-alpha = 0.98
+text = "#d7cfe2"
+border = "#8b7aa8"
+border-alpha = 0.75
+countdown = "#76a6aa"
+
+[menu]
+background = "#181624"
+background-alpha = 0.98
+text = "#d7cfe2"
+border = "#574b6a"
+border-alpha = 0.85
+scrim = "#11131f"
+scrim-alpha = 0.64
+selected-background = "#4f3d60"
+selected-background-alpha = 0.55
+selected-text = "#e7deef"
+selected-border = "#8b7aa8"
+selected-border-alpha = 0.7

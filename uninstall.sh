@@ -173,6 +173,7 @@ if [[ ${PACKAGE_MANAGED:-false} != true ]]; then
     /usr/lib/frankenstein/installer-state \
     /usr/lib/frankenstein/state \
     /usr/lib/frankenstein/diagnostics \
+    /usr/lib/frankenstein/sddm-validate \
     /usr/lib/frankenstein/shell-profile \
     /usr/lib/frankenstein/set-default \
     /usr/share/frankenstein/profiles/plasma.json \

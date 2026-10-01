@@ -4,17 +4,34 @@ Frankenstein v1 supports Omarchy 4.0.4, SDDM 0.21, KDE Plasma Wayland, and the
 existing Omarchy/Hyprland session. Other detected SDDM sessions appear in
 diagnostics and the theme selector, but are not automatically declared working.
 
-## Package and inspect
+## Update, package, and inspect
 
-Install matching package revisions:
+Use the release installer with matching package revisions:
 
 ```bash
-sudo pacman -U ./frankenstein-core-<version>-x86_64.pkg.tar.zst \
-  ./frankenstein-kde-<version>-x86_64.pkg.tar.zst
+./install-frankenstein.sh \
+  ./frankenstein-core-<version>-x86_64.pkg.tar.zst \
+  ./frankenstein-kde-<version>-x86_64.pkg.tar.zst \
+  -- --login frankenstein
 ```
 
-Package installation is inert. It does not change SDDM, user configuration, or
-service state. Inspect first:
+This is the normal installation path. It invokes Omarchy's supported
+full-system updater as `omarchy update -y`; it does not run `pacman -Sy` or
+otherwise create a partial-upgrade state. Update download, dependency,
+signature, lock, migration, and transaction failures propagate and stop the
+installer before Frankenstein packages or configuration are changed.
+
+After a successful update, the installer checks `/run/reboot-required` and the
+running kernel's module directory. It also substitutes a report-only handler
+for Omarchy's final restart prompt so the update cannot reboot or restart SDDM
+or other desktop services during this workflow. If Omarchy or those checks
+indicate a reboot boundary, the installer exits with status 75 and asks the
+user to reboot and rerun it. Otherwise it installs both local packages together
+with `pacman -U`, then invokes `frankenstein install`.
+
+The package transaction itself is inert: it only places payload files under
+`/usr`; activation remains in the separately rollback-protected setup stage.
+Neither stage restarts SDDM. Inspect after installation:
 
 ```bash
 frankenstein inspect
@@ -52,6 +69,11 @@ The installer refuses higher-precedence SDDM settings that would defeat its
 proposed fragment. It never rewrites those administrator-owned files to force a
 result.
 
+Before a Frankenstein theme can be selected, setup validates `QtVersion=6`,
+the Qt 6 greeter's linked libraries, all QML imports, the theme entry points,
+configuration, and referenced backgrounds. Validation happens before backup
+creation, package installation, or SDDM configuration mutation.
+
 Before mutation it creates:
 
 - `~/.local/state/frankenstein/backups/<UTC timestamp>/`
@@ -60,7 +82,9 @@ Before mutation it creates:
 The backups include relevant SDDM files and state, both session entries, the
 complete Omarchy configuration tree, and selected KDE configuration. Setup does
 not modify KDE panels, wallpaper, shortcuts, KWin, lock-screen, or input
-settings.
+settings. SDDM activation and rollback never call Plasma theme tools or write
+`kdeglobals`, `plasmarc`, `plasma-org.kde.plasma.desktop-appletsrc`,
+look-and-feel packages, color schemes, or icon themes.
 
 Setup never restarts SDDM, logs out, or reboots. Save work, then log out
 normally and choose a desktop using the prominent session selector.

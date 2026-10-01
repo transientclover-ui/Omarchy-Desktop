@@ -37,16 +37,33 @@ API for safely browsing a logged-in user's private home or running an arbitrary
 helper. File selection therefore occurs after login under the user's authority;
 the unauthenticated greeter only selects validated staged files.
 
+## Known-bad release candidate
+
+`v0.1.0-rc.1` is unsafe and must not be activated. Its SDDM metadata omitted
+`QtVersion=6`, so SDDM selected the optional Qt 5 greeter on the dogfood host.
+That host had the supported Qt 6 runtime but not the optional Qt 5 runtime;
+`sddm-greeter` exited because `libQt5Quick.so.5` was unavailable, producing a
+black screen. The tag and commits remain preserved as failure evidence.
+
 ## Quick start
 
-Package installation only places payload files under `/usr`:
+Use the release installer with both matching local packages. It runs
+`omarchy update -y` before pacman or desktop configuration, stops on any update
+failure, and stops with exit 75 when a reboot boundary is detected. It never
+reboots or restarts SDDM:
 
 ```bash
-sudo pacman -U ./frankenstein-core-*.pkg.tar.zst \
-  ./frankenstein-kde-*.pkg.tar.zst
+./install-frankenstein.sh \
+  ./frankenstein-core-*.pkg.tar.zst \
+  ./frankenstein-kde-*.pkg.tar.zst \
+  -- --login frankenstein
+```
+
+After installation, the read-only checks remain available:
+
+```bash
 frankenstein inspect
 frankenstein preflight --login frankenstein
-frankenstein install --login frankenstein
 ```
 
 The preflight is read-only. Installation prints the complete plan and requires
@@ -91,8 +108,8 @@ See:
 - [`COMPATIBILITY-JOURNAL.md`](COMPATIBILITY-JOURNAL.md) for implementation and
   validation evidence
 
-This checkout is a release candidate, not a published GitHub Release or
-OmaStore package.
+The `v0.1.0-rc.1` GitHub prerelease is preserved as known-bad evidence. This
+checkout contains unpublished containment fixes and is not an OmaStore package.
 
 ## Development model
 

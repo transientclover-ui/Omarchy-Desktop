@@ -71,20 +71,19 @@ SigLevel = Required DatabaseRequired
 Server = https://example.invalid/frankenstein/$arch
 ```
 
-Then synchronize and install:
+Never synchronize a package database without upgrading the system. First run
+Omarchy's supported full-system update and allow any advised reboot before
+installing from the repository:
 
 ```bash
-sudo pacman -Sy
+omarchy update -y
 sudo pacman -S frankenstein-core frankenstein-kde
 frankenstein preflight
 frankenstein setup
 ```
 
-For normal full-system upgrades, use Omarchy's supported update entry point:
-
-```bash
-omarchy update
-```
+For local package artifacts, `install-frankenstein.sh` enforces that update,
+reboot-boundary check, package installation, and setup order automatically.
 
 The VM integration test exercises a direct `pacman -Syu` only with Omarchy's
 explicit `OMARCHY_ALLOW_DIRECT_PACMAN=1` test override.

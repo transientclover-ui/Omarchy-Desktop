@@ -1,5 +1,73 @@
 # Omarchy Desktop Compatibility Journal
 
+## 2026-10-01 — `v0.1.0-rc.1` known-bad SDDM dogfood result
+
+`v0.1.0-rc.1` (`503c440e85a8dc4d180519a90c22f165866f8339`,
+checkpoint `29937f0d8f34001b681b7718dc3cb4e15586aea4`) must not be activated.
+The host journal proves that SDDM selected
+`/usr/share/sddm/themes/frankenstein/theme.conf`, started the greeter session,
+then `/usr/bin/sddm-greeter` exited with:
+
+```text
+error while loading shared libraries: libQt5Quick.so.5: cannot open shared object file
+```
+
+The theme metadata omitted `QtVersion=6`. SDDM 0.21 therefore selected its Qt
+5 greeter, while the host had `qt6-declarative` and the working
+`sddm-greeter-qt6` but not optional `qt5-declarative`. The greeter failed
+before `Main.qml` could load. This is the supported root cause of the black
+screen, not a speculative QML rendering failure.
+
+The failure tail shows `sddm-greeter` exiting normally with process status 127,
+after which SDDM stopped `start-hyprland`. During that teardown Hyprland
+segfaulted in Aquamarine's DRM backend (`flushAsyncCommitEvents` followed by
+`cancelAsyncOutput` and connector disconnect/destruction). Equivalent Hyprland
+cores occurred around adjacent greeter attempts. This compositor teardown crash
+is secondary to the missing greeter library: the greeter had already failed and
+SDDM had already begun shutdown. No OOM event occurred; the host had about
+11 GiB available and unused swap. A concurrent `dnsmasq` port-53 conflict is
+also unrelated to greeter rendering.
+
+The package log shows the RC packages and `kdialog` installed at 07:07 without
+a preceding full-system update. That stale-host condition justified adding an
+update boundary, but it does not replace the proven metadata/runtime cause:
+even an otherwise current Qt 6 host can omit optional `qt5-declarative`.
+
+The RC's SDDM path writes or owns:
+
+- `/usr/share/sddm/themes/frankenstein/` and its QML, metadata, configuration,
+  bundled background, and optional `theme.conf.user`
+- `/etc/sddm.conf.d/zzzz-frankenstein.conf`
+- `/var/lib/sddm/state.conf`
+- `/var/lib/sddm/.config/frankenstein/background.ini`
+- `/var/lib/frankenstein/`, `/var/lib/omarchy-desktop-manager/`, and the
+  default-session synchronization units
+- `~/.local/state/frankenstein/` evidence and backups
+
+It installs the Breeze package dependency but does not apply a Plasma global
+theme, color scheme, icon theme, or look-and-feel package. No
+`plasma-apply-*`, `lookandfeeltool`, or `kwriteconfig` command exists in the
+activation or rollback path. The user-level writes are limited to the
+Frankenstein shell service/autostart/application entries when that explicit
+shell mode is selected. `kdeglobals`, `plasmarc`,
+`plasma-org.kde.plasma.desktop-appletsrc`, `~/.local/share/plasma`,
+`~/.local/share/color-schemes`, and `~/.local/share/icons` are preservation
+inputs only.
+
+The pre-install backup from `20261001T110950Z` and the recovered host have
+byte-identical `kdeglobals`, `plasmarc`, desktop applet configuration,
+look-and-feel files, and color schemes. The source contains no write to those
+paths. Frankenstein therefore did not directly overwrite the observed Plasma
+appearance state; whether recovery-session behavior temporarily changed the
+visible theme cannot be proven from retained evidence.
+
+Containment adds `QtVersion=6` plus fail-closed validation of greeter linkage,
+QML modules, metadata entry points, configuration, and referenced assets before
+any activation mutation. SDDM round-trip tests snapshot Plasma appearance and
+require exact preservation. The normal local-package installer now runs
+`omarchy update -y` before pacman/setup, propagates update failures, stops with
+status 75 on a reboot boundary, and never reboots or restarts SDDM.
+
 ## 2026-09-22 — Clean Omarchy baseline established
 
 ### VM boundary and configuration

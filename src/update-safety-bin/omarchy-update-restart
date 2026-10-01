@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 Frankenstein contributors
+# SPDX-License-Identifier: MIT
+#
+# Frankenstein's installation update must report restart boundaries without
+# rebooting or restarting desktop services during the transaction.
+
+set -euo pipefail
+
+readonly advisory=${FRANKENSTEIN_UPDATE_ADVISORY:?}
+reasons=()
+running_kernel=$(uname -r)
+kernel_updated=true
+
+for kernel in /usr/lib/modules/*/vmlinuz; do
+  if [[ -f $kernel ]] && pacman -Qo "$kernel" &>/dev/null; then
+    installed_kernel=$(basename "$(dirname "$kernel")")
+    if [[ $installed_kernel == "$running_kernel" ]]; then
+      kernel_updated=false
+      break
+    fi
+  fi
+done
+[[ $kernel_updated != true ]] || reasons+=("Linux kernel was updated")
+[[ ! -f $HOME/.local/state/omarchy/reboot-required ]] ||
+  reasons+=("Omarchy marked the update as requiring reboot")
+
+running_hyprland=$(readlink "/proc/$(pgrep -x Hyprland)/exe" 2>/dev/null || true)
+[[ $running_hyprland != *"(deleted)"* ]] ||
+  reasons+=("the running Hyprland executable was replaced")
+
+if ((${#reasons[@]})); then
+  : >"$advisory"
+  printf 'Update restart deferred: %s.\n' "${reasons[*]}"
+else
+  echo "Update completed without a detected reboot boundary; restart actions deferred to the user."
+fi

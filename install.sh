@@ -102,6 +102,7 @@ rollback_partial_install() {
       /usr/lib/frankenstein/installer-state \
       /usr/lib/frankenstein/state \
       /usr/lib/frankenstein/diagnostics \
+      /usr/lib/frankenstein/sddm-validate \
       /usr/lib/frankenstein/shell-profile \
       /usr/lib/systemd/system/omarchy-desktop-manager-default.path \
       /usr/lib/systemd/system/omarchy-desktop-manager-default.service
@@ -227,6 +228,7 @@ if [[ $package_managed == true ]]; then
   menu_desktop_source=$installed_share/templates/frankenstein-omarchy-menu.desktop
   sddm_override_source=$installed_share/templates/zzzz-omarchy-desktop-manager.conf
   state_writer=/usr/lib/frankenstein/state
+  sddm_validator=/usr/lib/frankenstein/sddm-validate
   payload_files=(
     /usr/bin/frankenstein-shell-adapter
     /usr/bin/omarchy-default-desktop
@@ -236,6 +238,7 @@ if [[ $package_managed == true ]]; then
     /usr/lib/frankenstein/set-default
     /usr/lib/frankenstein/state
     /usr/lib/frankenstein/diagnostics
+    /usr/lib/frankenstein/sddm-validate
     "$installed_share/omarchy-shell/shell.qml"
     "$installed_share/omarchy-shell/services/PluginRegistry.qml"
     "$installed_share/omarchy-shell/plugins/menu/Menu.qml"
@@ -260,6 +263,7 @@ else
   menu_desktop_source=$project_dir/src/frankenstein/frankenstein-omarchy-menu.desktop
   sddm_override_source=$project_dir/src/frankenstein/zzzz-frankenstein.conf
   state_writer=$project_dir/src/libexec/frankenstein-state
+  sddm_validator=$project_dir/src/libexec/frankenstein-sddm-validate
   payload_files=(
     "$project_dir/src/bin/frankenstein-shell-adapter"
     "$project_dir/src/bin/omarchy-default-desktop"
@@ -279,6 +283,7 @@ else
     "$project_dir/src/lib/installer-state.sh"
     "$project_dir/src/libexec/frankenstein-state"
     "$project_dir/src/libexec/frankenstein-diagnostics"
+    "$project_dir/src/libexec/frankenstein-sddm-validate"
     "$project_dir/src/lib/shell-profile.sh"
     "$shell_service_source"
     "$shell_autostart_source"
@@ -442,6 +447,7 @@ system_conflicting_paths=(
   /usr/lib/frankenstein/installer-state
   /usr/lib/frankenstein/state
   /usr/lib/frankenstein/diagnostics
+  /usr/lib/frankenstein/sddm-validate
   /usr/lib/frankenstein/shell-profile
   /usr/share/frankenstein/omarchy-shell
   /usr/share/frankenstein/profiles/plasma.json
@@ -482,6 +488,16 @@ if [[ $requested_login == chooser && ( $sddm_theme != breeze || -n $autologin_us
   sddm_action=add-reversible-breeze-override
 elif [[ $requested_login == frankenstein && ( $sddm_theme != frankenstein || -n $autologin_user || -n $autologin_session ) ]]; then
   sddm_action=add-reversible-frankenstein-override
+fi
+
+# Theme validation is independent from Plasma appearance and must complete
+# before backups, package installation, or SDDM configuration changes begin.
+if [[ $requested_login == frankenstein ]]; then
+  if [[ $package_managed == true ]]; then
+    "$sddm_validator" /usr/share/sddm/themes/frankenstein
+  else
+    "$sddm_validator" "$project_dir/src/sddm/frankenstein"
+  fi
 fi
 
 # Refuse configurations whose higher-precedence settings defeat our fragment.
@@ -634,7 +650,8 @@ for relative in \
   .config/systemd/user/omarchy-shell.service \
   .config/autostart \
   .local/share/plasma \
-  .local/share/color-schemes; do
+  .local/share/color-schemes \
+  .local/share/icons; do
   [[ -e $HOME/$relative ]] && user_paths+=("$relative")
 done
 printf '%s\n' "${user_paths[@]}" >"$user_backup/paths"
@@ -711,6 +728,8 @@ if [[ $package_managed != true ]]; then
     /usr/lib/frankenstein/state
   sudo install -m 0755 "$project_dir/src/libexec/frankenstein-diagnostics" \
     /usr/lib/frankenstein/diagnostics
+  sudo install -m 0755 "$project_dir/src/libexec/frankenstein-sddm-validate" \
+    /usr/lib/frankenstein/sddm-validate
   sudo install -m 0644 "$project_dir/src/lib/shell-profile.sh" \
     /usr/lib/frankenstein/shell-profile
   sudo install -m 0644 "$project_dir/src/frankenstein/plasma-shell-profile.json" \

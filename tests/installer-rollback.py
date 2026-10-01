@@ -65,6 +65,7 @@ def fixture(root, existed, standalone=False):
         'src/lib/shell-profile.sh': 'usr/lib/frankenstein/shell-profile',
         'src/libexec/frankenstein-state': 'usr/lib/frankenstein/state',
         'src/libexec/frankenstein-diagnostics': 'usr/lib/frankenstein/diagnostics',
+        'src/libexec/frankenstein-sddm-validate': 'usr/lib/frankenstein/sddm-validate',
         'src/bin/frankenstein-shell-adapter': 'usr/bin/frankenstein-shell-adapter',
         'src/bin/frankenstein-settings': 'usr/bin/frankenstein-settings',
         'src/bin/frankenstein-background': 'usr/bin/frankenstein-background',
@@ -173,9 +174,25 @@ exit 0
     for name in ('quickshell', 'qs', 'systemsettings', 'xdg-terminal-exec', 'qdbus6'):
         put(root, 'mock/' + name, '#!/bin/bash\nexit 93\n', True)
 
-    for name in ('kwinoutputconfig.json', 'ksmserverrc', 'powermanagementprofilesrc',
-                 'Trolltech.conf', 'plasma-org.kde.plasma.desktop-appletsrc'):
+    validator = '''#!/bin/bash
+echo validate-sddm >>/var/operation-order
+[[ ${FAIL_SDDM_VALIDATION:-0} == 0 ]] || {
+  echo 'INJECTED SDDM VALIDATION FAILURE' >&2
+  exit 46
+}
+'''
+    put(root, 'usr/lib/frankenstein/sddm-validate', validator, True)
+
+    for name in ('kdeglobals', 'plasmarc', 'kwinoutputconfig.json', 'ksmserverrc',
+                 'powermanagementprofilesrc', 'Trolltech.conf',
+                 'plasma-org.kde.plasma.desktop-appletsrc'):
         put(root, 'home/test/.config/' + name, 'original KDE configuration: ' + name + '\n')
+    put(root, 'home/test/.local/share/plasma/look-and-feel/custom/metadata.json',
+        '{"KPlugin": {"Id": "custom"}}\n')
+    put(root, 'home/test/.local/share/color-schemes/custom.colors',
+        '[General]\nName=Custom\n')
+    put(root, 'home/test/.local/share/icons/custom/index.theme',
+        '[Icon Theme]\nName=Custom\n')
     if standalone:
         shutil.rmtree(root / 'usr/lib/frankenstein')
         shutil.rmtree(root / 'usr/share/frankenstein')
@@ -191,11 +208,13 @@ exit 0
         (root / 'usr/libexec/frankenstein-background-writer').unlink()
         shutil.rmtree(root / 'usr/share/sddm/themes/frankenstein')
         shutil.copytree(PROJECT / 'src', root / 'home/source/src')
+        put(root, 'home/source/src/libexec/frankenstein-sddm-validate', validator, True)
         for name in ('install.sh', 'uninstall.sh'):
             copy(root, name, 'home/source/' + name)
 
 
-def run(root, script, fail=False, fail_stop="", fail_restore="", preflight=False, fail_default=False, fail_watch=False, arguments=None):
+def run(root, script, fail=False, fail_stop="", fail_restore="", preflight=False,
+        fail_default=False, fail_watch=False, fail_sddm_validation=False, arguments=None):
     standalone = (root / 'home/source').exists()
     entry = ('/usr/bin/frankenstein-shell-adapter' if script == 'adapter' else
              '/home/source/' + script if standalone else
@@ -211,6 +230,7 @@ def run(root, script, fail=False, fail_stop="", fail_restore="", preflight=False
                '--setenv', 'FAIL_SETUP', str(int(fail)),
                '--setenv', 'FAIL_DEFAULT', str(int(fail_default)),
                '--setenv', 'FAIL_WATCH', str(int(fail_watch)),
+               '--setenv', 'FAIL_SDDM_VALIDATION', str(int(fail_sddm_validation)),
                '--setenv', 'FAIL_STOP', fail_stop,
                '--setenv', 'FAIL_RESTORE', fail_restore,
                '--setenv', 'STANDALONE', str(int(standalone)),
@@ -228,7 +248,24 @@ def test(existed, failed_setup, fail_stop="", fail_restore="", standalone=False)
     with tempfile.TemporaryDirectory(prefix='frankenstein-rollback-') as directory:
         root = Path(directory)
         fixture(root, existed, standalone)
-        preserved = {p: p.read_bytes() for p in (root / 'home/test/.config').iterdir()}
+        appearance_roots = (
+            root / 'home/test/.config/kdeglobals',
+            root / 'home/test/.config/plasmarc',
+            root / 'home/test/.config/plasma-org.kde.plasma.desktop-appletsrc',
+            root / 'home/test/.local/share/plasma',
+            root / 'home/test/.local/share/color-schemes',
+            root / 'home/test/.local/share/icons',
+        )
+        preserved = {
+            path: path.read_bytes()
+            for appearance_root in appearance_roots
+            for path in (
+                [appearance_root]
+                if appearance_root.is_file()
+                else list(appearance_root.rglob('*'))
+            )
+            if path.is_file()
+        }
         state = root / 'var/lib/sddm/state.conf'
         before = (state.read_bytes(), state.stat().st_mode, state.stat().st_mtime_ns,
                   state.stat().st_uid, state.stat().st_gid) if existed else None
@@ -382,6 +419,76 @@ def test_sddm_precedence(standalone, scenario):
         print('PASS: SDDM preflight precedence:', scenario)
 
 
+def appearance_snapshot(root):
+    appearance_roots = (
+        root / 'home/test/.config/kdeglobals',
+        root / 'home/test/.config/plasmarc',
+        root / 'home/test/.config/plasma-org.kde.plasma.desktop-appletsrc',
+        root / 'home/test/.local/share/plasma',
+        root / 'home/test/.local/share/color-schemes',
+        root / 'home/test/.local/share/icons',
+    )
+    return {
+        path: path.read_bytes()
+        for appearance_root in appearance_roots
+        for path in (
+            [appearance_root]
+            if appearance_root.is_file()
+            else list(appearance_root.rglob('*'))
+        )
+        if path.is_file()
+    }
+
+
+def test_sddm_validation_failure(standalone):
+    with tempfile.TemporaryDirectory(prefix='frankenstein-sddm-invalid-') as directory:
+        root = Path(directory)
+        fixture(root, True, standalone)
+        before = appearance_snapshot(root)
+        result = run(
+            root,
+            'install.sh',
+            fail_sddm_validation=True,
+            arguments=['--yes', '--login', 'frankenstein', '--default', 'keep'],
+        )
+        check(result.returncode == 46, 'invalid SDDM theme did not fail closed', result)
+        check('INJECTED SDDM VALIDATION FAILURE' in result.stderr,
+              'missing SDDM validation diagnostic', result)
+        check(not (root / 'var/lib/frankenstein').exists(),
+              'validation failed only after installer mutation', result)
+        check(not (root / 'etc/sddm.conf.d/zzzz-frankenstein.conf').exists(),
+              'invalid SDDM theme became active', result)
+        check(before == appearance_snapshot(root), 'appearance changed on validation failure', result)
+        print('PASS: invalid SDDM theme fails before mutation')
+
+
+def test_frankenstein_theme_round_trip(standalone):
+    with tempfile.TemporaryDirectory(prefix='frankenstein-sddm-round-trip-') as directory:
+        root = Path(directory)
+        fixture(root, True, standalone)
+        before = appearance_snapshot(root)
+        install_result = run(
+            root,
+            'install.sh',
+            arguments=['--yes', '--login', 'frankenstein', '--default', 'keep'],
+        )
+        check(install_result.returncode == 0, 'Frankenstein theme setup failed', install_result)
+        override = root / 'etc/sddm.conf.d/zzzz-frankenstein.conf'
+        check('Current=frankenstein' in override.read_text(),
+              'Frankenstein theme was not selected', install_result)
+        uninstall_result = run(root, 'uninstall.sh')
+        check(uninstall_result.returncode == 0, 'Frankenstein theme rollback failed',
+              uninstall_result)
+        check(not override.exists(), 'Frankenstein SDDM override remains after rollback',
+              uninstall_result)
+        check((root / 'etc/sddm.conf.d/original.conf').read_text()
+              == '[Theme]\nCurrent=omarchy\n',
+              'previous SDDM theme was disturbed', uninstall_result)
+        check(before == appearance_snapshot(root), 'appearance changed during SDDM round trip',
+              uninstall_result)
+        print('PASS: Frankenstein SDDM round trip preserves Plasma appearance')
+
+
 if __name__ == '__main__':
     if not shutil.which('bwrap'):
         raise SystemExit('bwrap is required; refusing to run unsandboxed')
@@ -403,3 +510,5 @@ if __name__ == '__main__':
                 test_conflict(standalone, path, dangling)
         for scenario in ('local', 'main', 'main-conflict', 'late-conflict'):
             test_sddm_precedence(standalone, scenario)
+        test_sddm_validation_failure(standalone)
+        test_frankenstein_theme_round_trip(standalone)

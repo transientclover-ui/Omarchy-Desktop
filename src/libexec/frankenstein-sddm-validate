@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 Frankenstein contributors
+# SPDX-License-Identifier: MIT
+
+set -euo pipefail
+
+theme_dir=${1:-/usr/share/sddm/themes/frankenstein}
+readonly greeter=${2:-/usr/bin/sddm-greeter-qt6}
+readonly scanner=${3:-/usr/lib/qt6/qmlimportscanner}
+readonly qml_root=${4:-/usr/lib/qt6/qml}
+
+fail() {
+  echo "SDDM theme validation failed: $*" >&2
+  exit 1
+}
+
+ini_value() {
+  local file=$1 section=$2 key=$3
+  awk -F= -v section="$section" -v key="$key" '
+    /^[[:space:]]*[#;]/ { next }
+    { sub(/\r$/, "") }
+    $0 ~ "^[[:space:]]*\\[" section "\\][[:space:]]*$" { active=1; next }
+    /^[[:space:]]*\[/ { active=0 }
+    active {
+      name=$1
+      sub(/^[[:space:]]+/, "", name)
+      sub(/[[:space:]]+$/, "", name)
+      if (name == key) {
+        sub(/^[^=]*=[[:space:]]*/, "")
+        sub(/[[:space:]]+$/, "")
+        print
+        exit
+      }
+    }
+  ' "$file"
+}
+
+safe_theme_file() {
+  local reference=$1 candidate
+  [[ -n $reference && $reference != /* && $reference != *..* ]] ||
+    fail "unsafe or empty theme path: ${reference:-<empty>}"
+  candidate=$theme_dir/$reference
+  [[ -f $candidate && ! -L $candidate && -r $candidate ]] ||
+    fail "required theme file is missing, linked, or unreadable: $candidate"
+}
+
+[[ -d $theme_dir && ! -L $theme_dir ]] ||
+  fail "theme directory is missing or linked: $theme_dir"
+metadata=$theme_dir/metadata.desktop
+[[ -f $metadata && ! -L $metadata && -r $metadata ]] ||
+  fail "metadata.desktop is missing, linked, or unreadable"
+
+qt_version=$(ini_value "$metadata" SddmGreeterTheme QtVersion)
+[[ $qt_version == 6 ]] ||
+  fail "metadata.desktop must declare QtVersion=6 (found ${qt_version:-unset})"
+
+main_script=$(ini_value "$metadata" SddmGreeterTheme MainScript)
+config_file=$(ini_value "$metadata" SddmGreeterTheme ConfigFile)
+safe_theme_file "$main_script"
+safe_theme_file "$config_file"
+
+default_background=$(ini_value "$theme_dir/$config_file" General defaultBackground)
+safe_theme_file "$default_background"
+while IFS= read -r background; do
+  [[ -z $background ]] || safe_theme_file "$background"
+done < <(
+  ini_value "$theme_dir/$config_file" General backgrounds |
+    tr ',' '\n' |
+    sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
+)
+
+[[ -x $greeter ]] || fail "required Qt 6 greeter is unavailable: $greeter"
+missing_libraries=$(ldd "$greeter" 2>&1 | awk '/not found/ { print $1 }')
+[[ -z $missing_libraries ]] ||
+  fail "Qt 6 greeter has unresolved libraries: $(tr '\n' ' ' <<<"$missing_libraries")"
+[[ -x $scanner ]] || fail "required QML import scanner is unavailable: $scanner"
+[[ -d $qml_root ]] || fail "Qt 6 QML module root is unavailable: $qml_root"
+
+imports=$("$scanner" -rootPath "$theme_dir") ||
+  fail "QML import scanning failed"
+jq -e 'type == "array" and all(.[]; .type == "module" and (.name | type == "string"))' \
+  >/dev/null <<<"$imports" || fail "QML import scanner returned invalid output"
+while IFS= read -r module; do
+  module_path=${module//.//}
+  [[ -f $qml_root/$module_path/qmldir ]] ||
+    fail "required Qt 6 QML module is unavailable: $module"
+done < <(jq -r '.[].name' <<<"$imports" | LC_ALL=C sort -u)
+
+echo "SDDM theme validation passed: $theme_dir"

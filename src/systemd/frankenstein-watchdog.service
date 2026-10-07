@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: MIT
+[Unit]
+DefaultDependencies=no
+Conflicts=shutdown.target
+Before=shutdown.target
+Description=Frankenstein login health check and flight recorder
+PartOf=graphical-session.target
+After=graphical-session.target omarchy-shell.service frankenstein-omarchy-shell.service
+ConditionEnvironment=XDG_SESSION_TYPE=wayland
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/frankenstein/watchdog run
+Restart=no
+TimeoutStartSec=180
+UMask=0077

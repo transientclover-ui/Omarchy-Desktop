@@ -1,0 +1,235 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
+"""Bounded login health check and private, local flight recorder."""
+import datetime
+import fcntl
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import resource
+import subprocess
+import sys
+import time
+
+UNIT = 'frankenstein-omarchy-shell.service'
+MAX_BYTES = 65536
+MAX_INCIDENTS = 10
+MAX_AGE = 30 * 86400
+
+
+def now():
+    return datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+
+def command(args):
+    # Spool to a bounded reader rather than retaining arbitrary subprocess output.
+    import tempfile
+    with tempfile.TemporaryFile() as output:
+        try:
+            p = subprocess.run(args, stdout=output, stderr=subprocess.STDOUT,
+                               timeout=8, check=False,
+                               preexec_fn=lambda: resource.setrlimit(resource.RLIMIT_FSIZE, (1048576, 1048576)))
+            output.seek(0)
+            return p.returncode, redact(output.read(2048).decode('utf-8', 'replace'))
+        except (OSError, subprocess.TimeoutExpired):
+            return 124, 'command unavailable or timed out'
+
+
+def redact(text):
+    lines = []
+    for line in text.splitlines():
+        if re.search(r'(?i)token|secret|password|passwd|authorization|cookie|bearer|private.key|credential|api.key', line):
+            lines.append('[sensitive line omitted]')
+            continue
+        line = re.sub(r'https?://\S+', '[URL omitted]', line)
+        line = re.sub(r'\b[A-Za-z0-9_+/=-]{32,}\b', '[opaque value omitted]', line)
+        line = line.replace(str(Path.home()), '~')
+        lines.append(line[:512])
+    return '\n'.join(lines).encode('utf-8')[:2048].decode('utf-8', 'ignore')
+
+
+def installation():
+    root = Path('/var/lib/frankenstein')
+    try:
+        ident = (root / 'current').read_text().strip()
+        if not re.fullmatch(r'\d{8}T\d{6}Z', ident):
+            return None
+        data = dict(line.split('=', 1) for line in
+                    (root / 'installations' / (ident + '.env')).read_text().splitlines()
+                    if '=' in line)
+        if data.get('INSTALL_HOME') != str(Path.home()) or data.get('INSTALL_USER') != os.environ.get('USER'):
+            return None
+        return data.get('SHELL_MODE', 'filtered')
+    except (OSError, ValueError):
+        return None
+
+
+class Plasma:
+    diagnostics = ['plasma-kwin_wayland.service', 'plasma-plasmashell.service']
+
+    def check(self):
+        rc, output = command(['/usr/bin/frankenstein-shell-adapter', 'check'])
+        return {'check': 'plasma-shell-adapter', 'healthy': rc == 0, 'details': output}
+
+    def recovery(self, mode):
+        if mode == 'preserve':
+            unit = 'omarchy-shell.service'
+            rc, fragment = command(['systemctl', '--user', 'show', unit, '--property=FragmentPath', '--value'])
+            enabled, _ = command(['systemctl', '--user', 'is-enabled', unit])
+            try:
+                import configparser
+                config = configparser.ConfigParser(interpolation=None, strict=True)
+                config.read_string(Path(fragment.strip()).read_text())
+                # Only the known shell launcher, no overrides or auxiliary commands.
+                drops, drop_paths = command(['systemctl', '--user', 'show', unit, '--property=DropInPaths', '--value'])
+                service = config['Service']
+                unsafe = [key for key in service if key.lower().startswith('exec') and key.lower() != 'execstart']
+                if rc == 0 and enabled == 0 and drops == 0 and not drop_paths.strip() and not unsafe and service.get('ExecStart') == '/usr/bin/quickshell -n -p /usr/share/omarchy/shell':
+                    return ['systemctl', '--user', 'restart', unit]
+            except (OSError, ValueError, KeyError, configparser.Error):
+                pass
+            return None
+        if mode != 'filtered' or (Path(os.environ.get('XDG_CONFIG_HOME', str(Path.home() / '.config'))) / 'frankenstein/shell-disabled').exists():
+            return None
+        rc, fragment = command(['systemctl', '--user', 'show', UNIT, '--property=FragmentPath', '--value'])
+        try:
+            # Refuse modified, stock, or unknown services even in filtered mode.
+            template = Path('/usr/share/frankenstein/templates/' + UNIT)
+            drops, drop_paths = command(['systemctl', '--user', 'show', UNIT, '--property=DropInPaths', '--value'])
+            enabled, _ = command(['systemctl', '--user', 'is-enabled', UNIT])
+            if rc == 0 and drops == 0 and not drop_paths.strip() and enabled == 0 and Path(fragment.strip()).read_bytes() == template.read_bytes():
+                return ['systemctl', '--user', 'restart', UNIT]
+        except OSError:
+            pass
+        return None
+
+
+def adapter(desktop, session):
+    return Plasma() if 'KDE' in desktop.split(':') and session == 'wayland' else None
+
+
+def prune(root):
+    files = sorted(root.glob('incident-*.json'), reverse=True)
+    total = 0
+    for i, path in enumerate(files):
+        if path.is_symlink() or not path.is_file():
+            continue
+        size = path.stat().st_size
+        total += size
+        if i >= MAX_INCIDENTS or size > MAX_BYTES or total > MAX_BYTES * MAX_INCIDENTS or time.time() - path.stat().st_mtime > MAX_AGE:
+            path.unlink()
+
+
+def save(path, record):
+    payload = json.dumps(record, indent=2, ensure_ascii=False).encode()
+    if len(payload) > MAX_BYTES:
+        raise ValueError('incident exceeded size bound')
+    temporary = path.with_suffix('.tmp')
+    with temporary.open('wb') as output:
+        os.chmod(temporary, 0o600)
+        output.write(payload)
+        output.flush()
+        os.fsync(output.fileno())
+    os.replace(temporary, path)
+    fd = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
+def run(root, selected, mode, identity):
+    runtime = Path(os.environ.get('XDG_RUNTIME_DIR', '/nonexistent'))
+    # A runtime marker survives service re-entry within this login; no polling.
+    session_key = identity.get('session_id') or command(['systemctl', '--user', 'show', 'graphical-session.target', '-p', 'ActiveEnterTimestampMonotonic', '--value'])[1]
+    key = hashlib.sha256(session_key.encode()).hexdigest()[:16]
+    with (runtime / ('frankenstein-watchdog-' + key)).open('a+') as lock:
+        os.chmod(lock.name, 0o600)
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return 0
+        lock.seek(0)
+        if lock.read():
+            return 0
+        lock.write('checked\n')
+        lock.flush()
+        checks = []
+        for attempt in range(3):
+            check = selected.check()
+            checks.append(check)
+            if check['healthy']:
+                return 0
+            if attempt < 2:
+                time.sleep(2)
+        root.mkdir(parents=True, exist_ok=True, mode=0o700)
+        if root.is_symlink():
+            raise OSError('incident directory must not be a symlink')
+        os.chmod(root, 0o700)
+        prune(root)
+        record = {'schema': 1, 'captured_at': now(), 'identity': identity, 'mode': mode,
+                  'failed_checks': checks, 'components': {}, 'journal': {},
+                  'recovery': {'attempted': False, 'outcome': 'pending'}}
+        for unit in [UNIT, 'omarchy-shell.service'] + selected.diagnostics:
+            record['components'][unit] = command(['systemctl', '--user', 'show', unit,
+                '-p', 'ActiveState', '-p', 'SubState', '-p', 'Result', '-p', 'NRestarts'])[1]
+            record['journal'][unit] = command(['journalctl', '--user', '-b', '-u', unit,
+                '--since=-2min', '-n', '30', '--no-pager', '-o', 'short-iso'])[1]
+        path = root / ('incident-' + datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%S%fZ') + '.json')
+        save(path, record)  # Durable forensic evidence BEFORE any mutation.
+        action = selected.recovery(mode)
+        if action:
+            record['recovery'] = {'attempted': True, 'action': action, 'started_at': now(), 'outcome': 'in-progress'}
+            save(path, record)  # Crash/re-entry cannot trigger another attempt.
+            rc, output = command(action)
+            time.sleep(2)
+            health = selected.check()
+            record['recovery'].update(returncode=rc, details=output, health=health,
+                                       outcome='healthy' if health['healthy'] else 'unhealthy')
+        else:
+            record['recovery']['outcome'] = 'not permitted; diagnostic only'
+        record['finished_at'] = now()
+        save(path, record)
+        prune(root)
+        return 0
+
+
+def main():
+    root = Path(os.environ.get('XDG_STATE_HOME', str(Path.home() / '.local/state'))) / 'frankenstein/watchdog/incidents'
+    operation = sys.argv[1] if len(sys.argv) == 2 else 'help'
+    if operation in ('incidents', 'tail'):
+        if root.exists():
+            prune(root)
+        files = sorted(root.glob('incident-*.json'))
+        if operation == 'incidents':
+            for path in files:
+                print(path)
+        elif files:
+            print(files[-1].read_text())
+        return 0
+    if operation != 'run':
+        print('Usage: frankenstein watchdog {incidents|tail}')
+        return 0 if operation in ('help', '--help') else 2
+    mode = installation()
+    identity = {key: redact(os.environ.get(env, '')[:256]) for key, env in
+                [('desktop', 'XDG_CURRENT_DESKTOP'), ('session_type', 'XDG_SESSION_TYPE'),
+                 ('session_id', 'XDG_SESSION_ID')]}
+    selected = adapter(identity['desktop'], identity['session_type'])
+    if mode not in ('preserve', 'filtered') or selected is None:
+        return 0
+    if mode == 'filtered' and (Path(os.environ.get('XDG_CONFIG_HOME', str(Path.home() / '.config'))) / 'frankenstein/shell-disabled').exists():
+        return 0
+    if mode == 'preserve' and command(['systemctl', '--user', 'is-enabled', 'omarchy-shell.service'])[0] != 0:
+        return 0
+    return run(root, selected, mode, identity)
+
+
+if __name__ == '__main__':
+    try:
+        sys.exit(main())
+    except (OSError, ValueError) as error:
+        # Never recover when evidence cannot be saved.
+        print('Frankenstein watchdog: ' + str(error), file=sys.stderr)
+        sys.exit(1)

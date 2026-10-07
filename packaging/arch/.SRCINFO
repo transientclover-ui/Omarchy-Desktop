@@ -1,10 +1,13 @@
 pkgbase = frankenstein
 	pkgdesc = Reversible Omarchy desktop compatibility manager
 	pkgver = 0.1.0
-	pkgrel = 11
+	pkgrel = 12
 	arch = x86_64
 	license = MIT
 	options = !strip
+	source = WATCHDOG.md
+	source = frankenstein-watchdog
+	source = frankenstein-watchdog.service
 	source = install.sh
 	source = uninstall.sh
 	source = frankenstein
@@ -50,9 +53,12 @@ pkgbase = frankenstein
 	source = LICENSE
 	source = MIT.txt
 	source = THIRD_PARTY_NOTICES.md
+	sha256sums = 2328a0f12e729b7bdce158761edd48e8970c502353b77550a5d1f80cd78952e8
+	sha256sums = 70100af2d8d74758badb3cd9cd3cb5a3eeeb4373d19181551fd2f22d4538a4e3
+	sha256sums = 60dfc2abbba3a8034588c505eba0641e2475bd0383452e8cd2d773708044af9c
 	sha256sums = 33ad6a7e594687ea7328176c0b010985ea380228c9bd6cf243c68da314d5db4f
 	sha256sums = 00ad10f4abc61d32c59ac0c1a7f28269e799fdaeef095c09c0fb89428020fd4d
-	sha256sums = 53308358d9b20b688753de6d1775399b803913d117a8b62d8001754805e3409a
+	sha256sums = b86f1a32880ab7de996704b08e4cb378bdf0f1e59442abed23f742027b343b13
 	sha256sums = 5993843c05b1631623e4ab7a4e4feb08096488c4593e0c555c772b760713b5ad
 	sha256sums = 43954dac80b5618babe0e56c85562ac89d75e1359edb718b21df3598a580442e
 	sha256sums = a027b97907dcfbecf655892208531468cc0b9fc2047cfffe17d75aa11614bb92
@@ -117,7 +123,7 @@ pkgname = frankenstein-core
 
 pkgname = frankenstein-kde
 	pkgdesc = KDE Plasma adapter for Frankenstein
-	depends = frankenstein-core=0.1.0-11
+	depends = frankenstein-core=0.1.0-12
 	depends = breeze
 	depends = file
 	depends = imagemagick

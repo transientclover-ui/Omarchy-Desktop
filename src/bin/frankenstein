@@ -9,6 +9,7 @@ usage() {
 Usage: frankenstein COMMAND [OPTIONS]
 
 Commands:
+  watchdog      List incidents or show the latest flight recorder (tail)
   inspect       Read-only desktop, SDDM, ownership, and state inventory
   doctor        Diagnose configuration without changing the system
   verify        Require a valid installed theme and verified desktop session
@@ -43,6 +44,12 @@ command_name=${1:-}
 [[ -z $command_name ]] || shift
 
 case $command_name in
+  watchdog)
+    if [[ -x /usr/lib/frankenstein/watchdog ]]; then
+      exec /usr/lib/frankenstein/watchdog "$@"
+    fi
+    exec "$script_dir/../libexec/frankenstein-watchdog" "$@"
+    ;;
   inspect|doctor|verify)
     exec "$diagnostics" "$command_name" "$@"
     ;;

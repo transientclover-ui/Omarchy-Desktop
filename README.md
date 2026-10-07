@@ -133,3 +133,7 @@ checkout contains unpublished containment fixes and is not an OmaStore package.
 This project is “2D-printed”: behavior is specified, implementation is
 fabricated with AI assistance, and the result is tested, inspected, and
 iterated against conservative safety contracts.
+
+The [login watchdog](docs/WATCHDOG.md) records startup failures before one bounded
+shell recovery attempt. Use `frankenstein watchdog incidents` or
+`frankenstein watchdog tail` to inspect local flight recorders.

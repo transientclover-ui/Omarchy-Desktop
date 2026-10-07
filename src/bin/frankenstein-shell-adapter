@@ -30,7 +30,7 @@ desktop_environment() {
 
 profile_for_desktop() {
   case "$(desktop_environment)" in
-    KDE|KDE:*) echo plasma ;;
+    KDE|KDE:*|*:KDE|*:KDE:*) echo plasma ;;
     *) return 1 ;;
   esac
 }
@@ -58,7 +58,7 @@ run_shell() {
 
   local expected_desktop allow_plugins no_bar
   expected_desktop=$(profile_value "$profile" '.desktop')
-  [[ $(desktop_environment) == "$expected_desktop" ]] || {
+  [[ :$(desktop_environment): == *":$expected_desktop:"* ]] || {
     echo "Profile $profile requires $expected_desktop." >&2
     return 1
   }
@@ -81,11 +81,9 @@ run_shell() {
 ipc() {
   local timeout=${FRANKENSTEIN_SHELL_IPC_TIMEOUT:-2s}
   if [[ -z ${WAYLAND_DISPLAY:-} ]]; then
-    local socket
-    socket=$(find "${XDG_RUNTIME_DIR:-/run/user/$UID}" -maxdepth 1 -type s \
-      -name 'wayland-[0-9]*' -printf '%T@ %f\n' 2>/dev/null |
-      sort -n | tail -n 1 | cut -d' ' -f2-)
-    [[ -n $socket ]] && export WAYLAND_DISPLAY=$socket
+    # A user can have multiple Wayland compositors. Never guess a socket.
+    echo "WAYLAND_DISPLAY is unavailable; refusing cross-session IPC." >&2
+    return 1
   fi
   timeout --kill-after=1s "$timeout" qs ipc -n -p "${ipc_shell_dir:-$shell_dir}" call -- "$@"
 }
@@ -97,7 +95,7 @@ open_terminal() {
     return 2
   }
   case "$(desktop_environment)" in
-    KDE|KDE:*)
+    KDE|KDE:*|*:KDE|*:KDE:*)
       setsid xdg-terminal-exec --app-id=org.omarchy.terminal --title=Omarchy \
         -e bash -lc "$command" >/dev/null 2>&1 &
       ;;
@@ -121,9 +119,10 @@ open_settings() {
 }
 
 check() {
-  local profile desktop expected state count ping active_plugins allowed_plugins
+  local profile desktop expected state count ping active_plugins allowed_plugins_json
+  local allowed_plugins
   local unexpected_plugins panel_mode bar_status bar_loaded bar_hidden bar_ready
-  local notification_owner polkit_count
+  local notification_owner plugin_status plugins_ready polkit_count
   profile=$(profile_for_desktop) || {
     echo "unsupported desktop: $(desktop_environment)"
     return 1
@@ -134,15 +133,25 @@ check() {
   [[ ! -e $disabled_file ]] && state=enabled
   count=$(pgrep -fc "quickshell -n -p $shell_dir" || true)
   ping=$(ipc shell ping 2>/dev/null || true)
-  active_plugins=$(ipc shell listPlugins 2>/dev/null |
-    jq -r '[.[] | select(.enabled == true) | .id] | sort | join(",")' 2>/dev/null || true)
-  allowed_plugins=$(profile_value "$profile" '.shell.enabledPlugins | sort | join(",")')
-  unexpected_plugins=$(ipc shell listPlugins 2>/dev/null |
-    jq -r --argjson allowed "$(profile_value "$profile" '.shell.enabledPlugins')" '
+  panel_mode=$(profile_value "$profile" '.shell.panel')
+  allowed_plugins_json=$(profile_value "$profile" '.shell.enabledPlugins')
+  if [[ $panel_mode == omarchy ]]; then
+    allowed_plugins_json=$(jq -c '. + ["omarchy.bar"] | unique' <<<"$allowed_plugins_json")
+  fi
+  allowed_plugins=$(jq -r 'sort | join(",")' <<<"$allowed_plugins_json")
+  plugin_status=$(ipc shell listPlugins 2>/dev/null || true)
+  plugins_ready=false
+  active_plugins=unavailable
+  unexpected_plugins=unavailable
+  if jq -e 'type == "array"' <<<"$plugin_status" >/dev/null 2>&1; then
+    plugins_ready=true
+    active_plugins=$(jq -r \
+      '[.[] | select(.enabled == true) | .id] | sort | join(",")' <<<"$plugin_status")
+    unexpected_plugins=$(jq -r --argjson allowed "$allowed_plugins_json" '
       [.[] | select(.enabled == true and .firstParty == true)
        | select((.id as $id | $allowed | index($id)) == null) | .id]
-      | sort | join(",")' 2>/dev/null || true)
-  panel_mode=$(profile_value "$profile" '.shell.panel')
+      | sort | join(",")' <<<"$plugin_status")
+  fi
   bar_status=$(ipc shell barStatus 2>/dev/null || true)
   bar_loaded=$(jq -r '.loaded' <<<"$bar_status" 2>/dev/null || true)
   bar_hidden=$(jq -r '.hidden' <<<"$bar_status" 2>/dev/null || true)
@@ -163,9 +172,11 @@ check() {
   printf 'service=%s\n' "$(systemctl --user is-active "$service" 2>/dev/null || true)"
   printf 'shell_instances=%s\n' "$count"
   printf 'shell_ipc=%s\n' "${ping:-unavailable}"
-  printf 'enabled_plugins=%s\n' "${active_plugins:-unavailable}"
-  printf 'allowed_first_party_plugins=%s\n' "$allowed_plugins"
-  printf 'unexpected_first_party_plugins=%s\n' "${unexpected_plugins:-unavailable}"
+  printf 'enabled_plugins=%s\n' \
+    "$([[ $plugins_ready == true ]] && echo "${active_plugins:-none}" || echo unavailable)"
+  printf 'allowed_first_party_plugins=%s\n' "${allowed_plugins:-none}"
+  printf 'unexpected_first_party_plugins=%s\n' \
+    "$([[ $plugins_ready == true ]] && echo "${unexpected_plugins:-none}" || echo unavailable)"
   printf 'panel_mode=%s\n' "$panel_mode"
   printf 'bar_loaded=%s\n' "${bar_loaded:-unavailable}"
   printf 'bar_hidden=%s\n' "${bar_hidden:-unavailable}"
@@ -175,8 +186,9 @@ check() {
   printf 'notification_owner=%s\n' "${notification_owner:-none}"
   printf 'polkit_agent_processes=%s\n' "$polkit_count"
 
-  [[ $desktop == "$expected" && $state == enabled && $count -eq 1 &&
-    $ping == ok && -z $unexpected_plugins && $bar_ready == true ]]
+  [[ :$desktop: == *":$expected:"* && $state == enabled && $count -eq 1 &&
+    $ping == ok && $plugins_ready == true && -z $unexpected_plugins &&
+    $bar_ready == true ]]
 }
 
 set_bar_mode() {

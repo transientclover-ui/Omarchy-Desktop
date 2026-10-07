@@ -211,7 +211,14 @@ esac
     put(root, 'mock/qs', '''#!/bin/bash
 case "$*" in
   *' call -- shell ping') echo ok;;
-  *' call -- shell listPlugins') echo '[]';;
+  *' call -- shell listPlugins')
+    panel=$(jq -r '.shell.panel // "native"' \
+      /home/test/.config/frankenstein/plasma.json 2>/dev/null || echo native)
+    if [[ $panel == omarchy ]]; then
+      echo '[{"id":"omarchy.bar","enabled":true,"firstParty":true}]'
+    else
+      echo '[]'
+    fi;;
   *' call -- shell barStatus')
     panel=$(jq -r '.shell.panel // "native"' \
       /home/test/.config/frankenstein/plasma.json 2>/dev/null || echo native)
@@ -287,6 +294,7 @@ def run(root, script, fail=False, fail_stop="", fail_restore="", preflight=False
                '--clearenv', '--setenv', 'PATH', '/opt:/usr/bin',
                '--setenv', 'HOME', '/home/test', '--setenv', 'USER', 'test',
                '--setenv', 'XDG_CURRENT_DESKTOP', 'KDE', '--setenv', 'DESKTOP_SESSION', 'plasma',
+               '--setenv', 'WAYLAND_DISPLAY', 'wayland-test',
                '--setenv', 'FAIL_SETUP', str(int(fail)),
                '--setenv', 'FAIL_DEFAULT', str(int(fail_default)),
                '--setenv', 'FAIL_WATCH', str(int(fail_watch)),
@@ -611,6 +619,11 @@ def test_bar_control():
               'bar enable did not select the Omarchy panel', enabled)
         check(applets.read_bytes() == applets_before,
               'bar enable changed the Plasma panel layout', enabled)
+        health = run(root, 'adapter', arguments=['check'])
+        check(health.returncode == 0, 'healthy Omarchy bar was rejected', health)
+        check('allowed_first_party_plugins=omarchy.bar' in health.stdout and
+              'unexpected_first_party_plugins=none' in health.stdout,
+              'health output did not treat the core bar as implicitly allowed', health)
 
         disabled = run(root, 'adapter', arguments=['bar', 'disable'])
         check(disabled.returncode == 0, 'bar disable failed', disabled)

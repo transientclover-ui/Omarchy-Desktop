@@ -1,7 +1,7 @@
 pkgbase = frankenstein
 	pkgdesc = Reversible Omarchy desktop compatibility manager
 	pkgver = 0.1.0
-	pkgrel = 10
+	pkgrel = 11
 	arch = x86_64
 	license = MIT
 	options = !strip
@@ -66,7 +66,7 @@ pkgbase = frankenstein
 	sha256sums = f608cd9d92b74d3463a14a8cd85d3eb4862b0f9ae2589475071d40627748ecef
 	sha256sums = 2548486b601283e05c6b65b993dd25181372786f6abb3b3b19ff7e6680eae44c
 	sha256sums = bbbe60b05867f23e8c6691ab42c51883ff26fe956e15914d96ac495828464823
-	sha256sums = a085f5715fd488a5f9eb0a6c3880455cc403d567fb41da07e012e9639548b3d1
+	sha256sums = 49e8bbcef1a6acd31a04f4475c8817fc78fd78737cd34c497bfa5d263e046131
 	sha256sums = 614cad60a53be3559c84ece8df0e5dcb7802496e76e5e49c39ad7b20113bc04f
 	sha256sums = 9e5b35f9095ca6b73c1e7cb31b1fa1e710eb39324a9baae829b3e7047e7989f4
 	sha256sums = 8cc0ad6c87bbf5f06bd2f28ce9e4c6e1827536ed9918356271ff2fee00d917bb
@@ -117,7 +117,7 @@ pkgname = frankenstein-core
 
 pkgname = frankenstein-kde
 	pkgdesc = KDE Plasma adapter for Frankenstein
-	depends = frankenstein-core=0.1.0-10
+	depends = frankenstein-core=0.1.0-11
 	depends = breeze
 	depends = file
 	depends = imagemagick

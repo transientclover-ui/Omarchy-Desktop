@@ -2692,3 +2692,43 @@ dogfooding is never approval. This checkout has no remote, so repository
 identity and visibility must be confirmed before the prerelease can be
 published. Theme activation also requires separate moment-of-action approval
 after installation and rollback verification.
+
+
+## 2026-10-07 — Live Plasma reconnaissance and adapter hotfix
+
+Integrated the saved compositor-adapter fixes into the original experimental
+checkout, preserving its existing packaging and installer-test work. Complete
+original-file backups are held in the October 7 Codex task work directory.
+Desktop detection now recognizes KDE anywhere in XDG_CURRENT_DESKTOP's colon
+list, launch and health checks agree on that identity, and IPC refuses to guess
+a Wayland socket when WAYLAND_DISPLAY is missing. The existing health changes
+recognize the implicit core bar and reject unavailable plugin observations.
+The isolated installer fixture now supplies an explicit mock Wayland display.
+
+Validated five session-boundary tests, preserved-shell health, shell-profile
+and KDE bar suites, all packaged/standalone installer rollback scenarios,
+bar-enable/disable/status rollback, shell syntax, and diff whitespace. Both
+repository 0.1.0-11 packages built and passed source checksums.
+
+Read-only live inspection found one KWin Plasma compositor, one preserved
+Omarchy shell, active KDE portal and no service restart loop. Display-loss and
+layer-shell warnings correlate with earlier suspend/output transitions; they
+are not proof of flicker causation. The user reports flickering is currently
+absent. No compositor settings or service lifecycle were changed to mask it.
+
+The reported two password screens match encrypted-root Plymouth (Omarchy
+artwork) followed by Frankenstein SDDM. Root is LUKS encrypted, the active
+Plymouth theme is omarchy, and recent SDDM logs load Frankenstein only.
+No boot, encryption, login or SDDM configuration change is justified here.
+
+A narrower 0.1.0-9.1 host hotfix was built from installed-version commit 6318693
+with the corrected adapter. Comparing package payloads against installed files
+shows only /usr/bin/frankenstein-shell-adapter differs. This avoids installing
+the broader theme/preset changes in the repository 0.1.0-11 packages. Installation
+and post-install result are recorded separately after administrator authentication.
+
+Host result: authenticated package transaction installed both 0.1.0-9.1
+packages. Package verification reports zero altered files; installed adapter
+matches repaired source. Preserve-existing health reports one active shell and
+working IPC. KWin and shell PIDs and restart counts are unchanged. Original
+0.1.0-9 rollback packages and repair report are retained in task outputs.

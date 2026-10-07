@@ -137,3 +137,7 @@ iterated against conservative safety contracts.
 The [login watchdog](docs/WATCHDOG.md) records startup failures before one bounded
 shell recovery attempt. Use `frankenstein watchdog incidents` or
 `frankenstein watchdog tail` to inspect local flight recorders.
+
+KDE System Settings now includes an [Omarchy Shell page](docs/SHELL-SETTINGS.md)
+with a persistent shell toggle and widget/plugin checkboxes for preserved shells.
+Search for **Omarchy Shell**, or open `systemsettings kcm_frankenstein_shell`.

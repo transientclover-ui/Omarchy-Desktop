@@ -309,6 +309,26 @@ check_preserved_shell() {
 }
 
 shell_mode=$(installed_shell_mode) || exit 1
+case ${1:-} in
+  shell-mode) echo "$shell_mode"; exit 0 ;;
+  shell-status)
+    target=$service
+    [[ $shell_mode != preserve ]] || target=omarchy-shell.service
+    state=$(systemctl --user is-active "$target" 2>/dev/null || true)
+    case $state in active) echo active ;; inactive|failed) echo inactive ;; *) echo "Shell state unavailable: $state" >&2; exit 1 ;; esac
+    exit 0 ;;
+  shell-enable|shell-disable)
+    if [[ $shell_mode == preserve ]]; then
+      if [[ $1 == shell-enable ]]; then
+        systemctl --user enable --now omarchy-shell.service
+      else
+        systemctl --user disable --now omarchy-shell.service
+      fi
+      exit $?
+    fi
+    if [[ $1 == shell-enable ]]; then set -- enable; else set -- disable; fi
+    ;;
+esac
 ipc_shell_dir=$shell_dir
 if [[ $shell_mode == preserve ]]; then
   ipc_shell_dir=/usr/share/omarchy/shell

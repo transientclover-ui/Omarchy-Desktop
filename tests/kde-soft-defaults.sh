@@ -14,6 +14,7 @@ run_defaults() {
     XDG_CONFIG_HOME="$1/home/.config" \
     XDG_STATE_HOME="$1/home/.local/state" \
     XDG_DATA_HOME="$1/data" \
+    XDG_DATA_DIRS="$1/data" \
     XDG_CURRENT_DESKTOP="${2:-}" \
     PATH="$work_dir/bin:/usr/bin" \
     "$project_dir/src/bin/frankenstein-kde-soft-defaults" "$3"

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+NoDisplay=true
+X-KDE-AliasFor=systemsettings
+Exec=systemsettings kcm_frankenstein_shell
+Icon=preferences-desktop
+Name=Omarchy Shell
+Comment=Enable the Omarchy shell and choose its widgets and plugins

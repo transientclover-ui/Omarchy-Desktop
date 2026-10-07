@@ -9,6 +9,7 @@ usage() {
 Usage: frankenstein COMMAND [OPTIONS]
 
 Commands:
+  shell         Turn the Omarchy shell on/off or inspect its status
   watchdog      List incidents or show the latest flight recorder (tail)
   inspect       Read-only desktop, SDDM, ownership, and state inventory
   doctor        Diagnose configuration without changing the system
@@ -44,6 +45,15 @@ command_name=${1:-}
 [[ -z $command_name ]] || shift
 
 case $command_name in
+  shell)
+    case ${1:-} in
+      on) exec /usr/bin/frankenstein-shell-adapter shell-enable ;;
+      off) exec /usr/bin/frankenstein-shell-adapter shell-disable ;;
+      status) exec /usr/bin/frankenstein-shell-adapter shell-status ;;
+      mode) exec /usr/bin/frankenstein-shell-adapter shell-mode ;;
+      *) echo 'Usage: frankenstein shell {on|off|status}'; exit 2 ;;
+    esac
+    ;;
   watchdog)
     if [[ -x /usr/lib/frankenstein/watchdog ]]; then
       exec /usr/lib/frankenstein/watchdog "$@"

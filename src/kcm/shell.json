@@ -1,0 +1,6 @@
+{
+ "KPlugin": {"Name": "Omarchy Shell", "Description": "Enable the Omarchy shell and choose its widgets and plugins", "Icon": "preferences-desktop", "Id": "kcm_frankenstein_shell"},
+ "X-KDE-System-Settings-Parent-Category": "desktopbehavior",
+ "X-KDE-Keywords": "Omarchy,Frankenstein,shell,bar,widgets,plugins",
+ "X-KDE-Weight": 90
+}

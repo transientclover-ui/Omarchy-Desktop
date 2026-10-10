@@ -173,3 +173,10 @@ bypasses modified Frankenstein-file checks after manual review.
 
 Display-manager restart, logout, and reboot are always separate user actions
 after work has been saved.
+
+### Preserved stock shell wallpaper ownership
+
+If the stock Omarchy wallpaper competes with Plasma on KDE Wayland, use the
+opt-in `frankenstein-plasma-wallpaper install` repair as the desktop user.
+See [Plasma wallpaper ownership](docs/PLASMA-WALLPAPER.md) for backups, session
+scoping, verification and removal.

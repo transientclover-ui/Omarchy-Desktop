@@ -3,7 +3,7 @@
 pkgbase=frankenstein
 pkgname=(frankenstein-core frankenstein-kde)
 pkgver=0.1.0
-pkgrel=13
+pkgrel=14
 pkgdesc='Reversible Omarchy desktop compatibility manager'
 arch=(x86_64)
 license=(MIT)
@@ -63,6 +63,7 @@ _local_sources=(
   "LICENSE::../../LICENSE"
   "MIT.txt::../../LICENSES/MIT.txt"
   "THIRD_PARTY_NOTICES.md::../../THIRD_PARTY_NOTICES.md"
+  "frankenstein-plasma-wallpaper::../../src/bin/frankenstein-plasma-wallpaper"
 )
 source=()
 for _source_spec in "${_local_sources[@]}"; do
@@ -132,12 +133,13 @@ sha256sums=('37173d533de6a1a9a736b37bd086debe88f7cd1a08e7a5b12a76afe3e21e9b63'
             '116a89c31283e8a6b3803a7058ba78cd8fd6ef7df3d7a84b20a829c8f56e9f8a'
             '49e9cb294beec3db540aa6d0e5c7609951f7ff3c71bba2d646212438ce776458'
             'a48edade017ac1417e88d485cbc0d46ce0d907b6565730cee4520715e39890a2'
-            '5421e049dcb0fa03b64b3b03e2b37c3472223323f684028bf8723f516d2ecd43'
+            '2ce02ef00225eb2493a0b653841b24feb2c65f3f6b0ea0a3c50205c8a62159e3'
             'eac402fd4d58098607ca2b4d6e46cf554e2488355bae62aeef78c04429752ce1'
             '8b7168a05acabc6652081a996fc5d44ebab8f2bdf43c175b4b589f57e7e2e00b'
             '9c6cab6fc2ed586d11cc4468235c35d927b9e8cd2fc434a017837b67360df0e9'
             'f18861fdf84c2a227febb8d7152b0e29f720d6c59bc93517eac7d0fd8af3def9'
-            '4499531c979c3435f0788f8a1b50a8db8ce85c2305064d9abddfd53a04ea4609')
+            '4499531c979c3435f0788f8a1b50a8db8ce85c2305064d9abddfd53a04ea4609'
+            '343201e882cd75629b499e50a38d10a8757a667591e148f0b8b9f610dd1bda2c')
 
 package_frankenstein-core() {
   pkgdesc='Common CLI and default-session manager for Frankenstein'
@@ -202,6 +204,8 @@ package_frankenstein-kde() {
     "$pkgdir/usr/bin/frankenstein-shell-adapter"
   install -Dm0755 "$srcdir/frankenstein-kde-soft-defaults" \
     "$pkgdir/usr/bin/frankenstein-kde-soft-defaults"
+  install -Dm0755 "$srcdir/frankenstein-plasma-wallpaper" \
+    "$pkgdir/usr/bin/frankenstein-plasma-wallpaper"
   install -Dm0755 "$srcdir/frankenstein-background" \
     "$pkgdir/usr/bin/frankenstein-background"
   install -Dm0755 "$srcdir/frankenstein-background-writer" \

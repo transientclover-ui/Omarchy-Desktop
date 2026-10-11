@@ -1,0 +1,129 @@
+#!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 Frankenstein contributors
+# SPDX-License-Identifier: MIT
+"""Give Plasma wallpaper ownership while preserving the stock Omarchy shell."""
+import json
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+import tempfile
+from datetime import datetime, timezone
+
+PLUGIN = 'omarchy.background'
+CONFIG = Path(os.environ.get('XDG_CONFIG_HOME', Path.home() / '.config'))
+STATE = Path(os.environ.get('XDG_STATE_HOME', Path.home() / '.local/state')) / 'frankenstein/plasma-wallpaper'
+SHELL = CONFIG / 'omarchy/shell.json'
+MARKER = STATE / 'owned-disable.json'
+DROPIN = CONFIG / 'systemd/user/omarchy-shell.service.d/50-frankenstein-wallpaper.conf'
+
+
+def atomic(path, content, mode=0o600):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, name = tempfile.mkstemp(prefix='.' + path.name, dir=path.parent)
+    try:
+        with os.fdopen(fd, 'w') as stream:
+            stream.write(content)
+        os.chmod(name, mode)
+        os.replace(name, path)
+    finally:
+        if os.path.exists(name):
+            os.unlink(name)
+
+
+def read_config():
+    data = json.loads(SHELL.read_text())
+    if not isinstance(data, dict) or not isinstance(data.get('disabledPlugins', []), list):
+        raise ValueError('shell.json must contain an object and a disabledPlugins array')
+    if not all(isinstance(value, str) for value in data.get('disabledPlugins', [])):
+        raise ValueError('disabledPlugins must contain strings')
+    return data
+
+
+def write_config(data):
+    atomic(SHELL, json.dumps(data, indent=2) + '\n', SHELL.stat().st_mode & 0o777)
+
+
+def is_plasma():
+    return 'KDE' in os.environ.get('XDG_CURRENT_DESKTOP', '').split(':') and os.environ.get('XDG_SESSION_TYPE') == 'wayland'
+
+
+def disable():
+    data = read_config()
+    if PLUGIN in data.get('disabledPlugins', []):
+        return
+    STATE.mkdir(parents=True, exist_ok=True, mode=0o700)
+    backup = STATE / ('shell-' + datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ') + '.json')
+    shutil.copy2(SHELL, backup)
+    # Record ownership before editing so interruption remains recoverable.
+    atomic(MARKER, json.dumps({'backup': str(backup), 'hadDisabledPlugins': 'disabledPlugins' in data}))
+    data.setdefault('disabledPlugins', []).append(PLUGIN)
+    write_config(data)
+    print('Plasma wallpaper ownership enabled; backup: ' + str(backup))
+
+
+def restore():
+    if not MARKER.exists():
+        return
+    marker = json.loads(MARKER.read_text())
+    data = read_config()
+    data['disabledPlugins'] = [value for value in data.get('disabledPlugins', []) if value != PLUGIN]
+    if not data['disabledPlugins'] and not marker['hadDisabledPlugins']:
+        del data['disabledPlugins']
+    write_config(data)
+    MARKER.unlink()
+    print('Restored the background plugin preference owned by this fix.')
+
+
+def run(*args):
+    subprocess.run(args, check=True)
+
+
+def main():
+    if len(sys.argv) != 2 or sys.argv[1] not in ('install', 'session', 'restore', 'remove'):
+        raise ValueError('Usage: frankenstein-plasma-wallpaper install|session|restore|remove')
+    command = sys.argv[1]
+    if command == 'session':
+        if is_plasma():
+            disable()
+        else:
+            restore()
+    elif command == 'restore':
+        restore()
+    elif command == 'install':
+        if not is_plasma():
+            raise ValueError('Install requires an active KDE Plasma Wayland session')
+        read_config()  # Validate before installing anything.
+        executable = str(Path(__file__).resolve())
+        if any(character in executable for character in '\n\r%"\\'):
+            raise ValueError('Unsupported executable path for systemd')
+        content = ('# Managed by frankenstein-plasma-wallpaper\n[Service]\n'
+                   f'ExecStartPre="{executable}" session\n'
+                   f'ExecStopPost="{executable}" restore\n')
+        if DROPIN.exists() and DROPIN.read_text() != content:
+            raise ValueError('Wallpaper drop-in already exists with different contents')
+        atomic(DROPIN, content, 0o644)
+        run('systemctl', '--user', 'daemon-reload')
+        disable()
+        # setPluginEnabled notifies the registry, which destroys the service.
+        result = subprocess.run(['omarchy-shell', 'shell', 'setPluginEnabled', PLUGIN, 'false'],
+                                check=True, text=True, capture_output=True)
+        if result.stdout.strip() != 'ok':
+            raise ValueError('Live plugin unload was not acknowledged: ' + result.stdout.strip())
+        print('Stock shell retained; background plugin disabled for Plasma Wayland.')
+    else:
+        if DROPIN.exists() and not DROPIN.read_text().startswith('# Managed by frankenstein-plasma-wallpaper\n'):
+            raise ValueError('Refusing to remove an unmanaged drop-in')
+        restore()
+        DROPIN.unlink(missing_ok=True)
+        run('systemctl', '--user', 'daemon-reload')
+        print('Fix removed; restart the shell to reload the restored plugin preference.')
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except (OSError, ValueError, subprocess.CalledProcessError) as error:
+        print(str(error), file=sys.stderr)
+        sys.exit(1)

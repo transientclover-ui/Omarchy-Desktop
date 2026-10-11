@@ -179,3 +179,10 @@ after work has been saved.
 Use `frankenstein shell restart` for desktop-aware restart. To route existing
 Omarchy restart menu commands too, opt in with `frankenstein-shell-restart install`.
 See [SHELL-RESTART.md](docs/SHELL-RESTART.md) for PATH behavior, rollback, and tested targets.
+
+### Preserved stock shell wallpaper ownership
+
+If the stock Omarchy wallpaper competes with Plasma on KDE Wayland, use the
+opt-in `frankenstein-plasma-wallpaper install` repair as the desktop user.
+See [Plasma wallpaper ownership](docs/PLASMA-WALLPAPER.md) for backups, session
+scoping, verification and removal.

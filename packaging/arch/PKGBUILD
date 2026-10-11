@@ -3,7 +3,7 @@
 pkgbase=frankenstein
 pkgname=(frankenstein-core frankenstein-kde)
 pkgver=0.1.0
-pkgrel=13
+pkgrel=14
 pkgdesc='Reversible Omarchy desktop compatibility manager'
 arch=(x86_64)
 license=(MIT)
@@ -21,6 +21,7 @@ _local_sources=(
   "install.sh::../../install.sh"
   "uninstall.sh::../../uninstall.sh"
   "frankenstein::../../src/bin/frankenstein"
+  "frankenstein-shell-restart::../../src/bin/frankenstein-shell-restart"
   "frankenstein-settings::../../src/bin/frankenstein-settings"
   "frankenstein-kde-soft-defaults::../../src/bin/frankenstein-kde-soft-defaults"
   "omarchy-default-desktop::../../src/bin/omarchy-default-desktop"
@@ -95,7 +96,8 @@ sha256sums=('37173d533de6a1a9a736b37bd086debe88f7cd1a08e7a5b12a76afe3e21e9b63'
             '60dfc2abbba3a8034588c505eba0641e2475bd0383452e8cd2d773708044af9c'
             '33ad6a7e594687ea7328176c0b010985ea380228c9bd6cf243c68da314d5db4f'
             '00ad10f4abc61d32c59ac0c1a7f28269e799fdaeef095c09c0fb89428020fd4d'
-            '044c29fab32f9f2b584735000d124cebe7e4840de16857dcbd780c675f88048d'
+            '65d10444bd5f2336971bab878662f4f5825b48f9bd14e3b317644ee85329e110'
+            '79e2c184441225b32846c215cbc63d7dd2491d19047dc1d86b514ffffaee24bf'
             '5993843c05b1631623e4ab7a4e4feb08096488c4593e0c555c772b760713b5ad'
             '43954dac80b5618babe0e56c85562ac89d75e1359edb718b21df3598a580442e'
             'a027b97907dcfbecf655892208531468cc0b9fc2047cfffe17d75aa11614bb92'
@@ -132,7 +134,7 @@ sha256sums=('37173d533de6a1a9a736b37bd086debe88f7cd1a08e7a5b12a76afe3e21e9b63'
             '116a89c31283e8a6b3803a7058ba78cd8fd6ef7df3d7a84b20a829c8f56e9f8a'
             '49e9cb294beec3db540aa6d0e5c7609951f7ff3c71bba2d646212438ce776458'
             'a48edade017ac1417e88d485cbc0d46ce0d907b6565730cee4520715e39890a2'
-            '5421e049dcb0fa03b64b3b03e2b37c3472223323f684028bf8723f516d2ecd43'
+            'a0fb0fb915177b13fc6fb3ec25b9d9c5cbb205618758960d5a9c625eac774955'
             'eac402fd4d58098607ca2b4d6e46cf554e2488355bae62aeef78c04429752ce1'
             '8b7168a05acabc6652081a996fc5d44ebab8f2bdf43c175b4b589f57e7e2e00b'
             '9c6cab6fc2ed586d11cc4468235c35d927b9e8cd2fc434a017837b67360df0e9'
@@ -152,6 +154,7 @@ package_frankenstein-core() {
   install -d "$pkgdir/usr/lib/systemd/user/graphical-session.target.wants"
   ln -s ../frankenstein-watchdog.service "$pkgdir/usr/lib/systemd/user/graphical-session.target.wants/frankenstein-watchdog.service"
   install -Dm0755 "$srcdir/frankenstein" "$pkgdir/usr/bin/frankenstein"
+  install -Dm0755 "$srcdir/frankenstein-shell-restart" "$pkgdir/usr/bin/frankenstein-shell-restart"
   install -Dm0755 "$srcdir/frankenstein-settings" "$pkgdir/usr/bin/frankenstein-settings"
   install -Dm0755 "$srcdir/install.sh" "$pkgdir/usr/lib/frankenstein/setup"
   install -Dm0755 "$srcdir/uninstall.sh" "$pkgdir/usr/lib/frankenstein/uninstall"

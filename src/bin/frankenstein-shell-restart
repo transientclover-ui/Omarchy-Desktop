@@ -1,0 +1,116 @@
+#!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 Frankenstein contributors
+# SPDX-License-Identifier: MIT
+# Managed by frankenstein-shell-restart
+"""Restart the existing KDE shell service; preserve stock Hyprland behavior."""
+import argparse
+import os
+from pathlib import Path
+import shlex
+import shutil
+import subprocess
+import sys
+import time
+
+MARKER = '# Managed by frankenstein-shell-restart'
+SERVICES = ('omarchy-shell.service', 'frankenstein-omarchy-shell.service')
+
+
+def query(unit):
+    r = subprocess.run(['systemctl', '--user', 'show', unit, '--property=LoadState,ActiveState'], capture_output=True, text=True, timeout=5)
+    if r.returncode:
+        raise RuntimeError(r.stderr.strip() or 'User service manager unavailable')
+    return dict(line.split('=', 1) for line in r.stdout.splitlines() if '=' in line)
+
+
+def choose(states):
+    active = [u for u, p in states.items() if p.get('ActiveState') in ('active', 'activating', 'reloading')]
+    if len(active) == 1:
+        return active[0]
+    if len(active) > 1:
+        raise RuntimeError('Both shell services are active; resolve duplicate ownership before restarting')
+    loaded = [u for u, p in states.items() if p.get('LoadState') == 'loaded']
+    if len(loaded) == 1:
+        return loaded[0]
+    raise RuntimeError('No unambiguous installed shell service; select the existing shell mode first')
+
+
+def restart():
+    kde = 'KDE' in os.environ.get('XDG_CURRENT_DESKTOP', '').split(':')
+    if not kde or os.environ.get('XDG_SESSION_TYPE') != 'wayland':
+        # Keep all upstream lock/relock checks and canonical Hyprland launch behavior.
+        os.execv('/usr/bin/omarchy-restart-shell', ['/usr/bin/omarchy-restart-shell'])
+    unit = choose({u: query(u) for u in SERVICES})
+    subprocess.run(['systemctl', '--user', 'restart', unit], check=True, timeout=30)
+    ping = ['omarchy-shell', 'shell', 'ping'] if unit == SERVICES[0] else [
+        'qs', 'ipc', '-n', '-p', '/usr/share/frankenstein/omarchy-shell', 'call', '--', 'shell', 'ping']
+    deadline = time.monotonic() + 20
+    while time.monotonic() < deadline:
+        state = query(unit).get('ActiveState')
+        if state == 'failed':
+            raise RuntimeError(f'{unit} failed; inspect journalctl --user -u {unit}')
+        r = subprocess.run(ping, capture_output=True, text=True, timeout=2)
+        if state == 'active' and r.returncode == 0 and r.stdout.strip() == 'ok':
+            print(f'Restarted {unit}; shell IPC ready')
+            return
+        time.sleep(.2)
+    raise RuntimeError(f'{unit} did not report readiness within 20 seconds; inspect its journal')
+
+
+def paths():
+    base = Path.home() / '.local/bin'
+    return base, base / 'frankenstein-shell-restart'
+
+
+def install():
+    base, helper = paths()
+    source = Path(__file__).read_text()
+    quoted = shlex.quote(str(helper))
+    env_file = Path(os.environ.get('XDG_CONFIG_HOME', Path.home() / '.config')) / 'environment.d/60-frankenstein-shell-restart.conf'
+    files = {
+        env_file: MARKER + '\nPATH=${HOME}/.local/bin:${PATH}\n',
+        helper: source,
+        base / 'omarchy': '#!/bin/sh\n' + MARKER + '\nif [ "$#" = 2 ] && [ "$1" = restart ] && [ "$2" = shell ]; then\n  exec ' + quoted + ' restart\nfi\nexec /usr/bin/omarchy "$@"\n',
+        base / 'omarchy-restart-shell': '#!/bin/sh\n' + MARKER + '\nif [ "$#" = 0 ]; then\n  exec ' + quoted + ' restart\nfi\nexec /usr/bin/omarchy-restart-shell "$@"\n',
+    }
+    for p in files:
+        if p.exists() and (p.is_symlink() or MARKER not in p.read_text()):
+            raise RuntimeError(f'Refusing to overwrite an existing user command: {p}')
+    backup = Path(os.environ.get('XDG_STATE_HOME', Path.home() / '.local/state')) / 'frankenstein/shell-restart/backups' / str(time.time_ns())
+    base.mkdir(parents=True, exist_ok=True)
+    for p, text in files.items():
+        if p.exists():
+            backup.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(p, backup / p.name)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        temp = p.with_name(p.name + '.tmp')
+        temp.write_text(text)
+        temp.chmod(0o644 if p.suffix == '.conf' else 0o755)
+        temp.replace(p)
+    print(f'Installed user commands in {base}; PATH preference takes effect on next login')
+    print('No shell restart or service enablement was performed by installation')
+
+
+def remove():
+    base, helper = paths()
+    env_file = Path(os.environ.get('XDG_CONFIG_HOME', Path.home() / '.config')) / 'environment.d/60-frankenstein-shell-restart.conf'
+    for p in (base / 'omarchy', base / 'omarchy-restart-shell', helper, env_file):
+        if p.exists() and not p.is_symlink() and MARKER in p.read_text():
+            p.unlink()
+    print('Removed owned user restart commands; packaged Omarchy commands are unchanged')
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument('action', nargs='?', default='restart', choices=['restart', 'install', 'remove'])
+    a = ap.parse_args()
+    try:
+        {'restart': restart, 'install': install, 'remove': remove}[a.action]()
+    except Exception as e:
+        print(f'Frankenstein shell restart: {e}', file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

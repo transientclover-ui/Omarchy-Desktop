@@ -173,3 +173,9 @@ bypasses modified Frankenstein-file checks after manual review.
 
 Display-manager restart, logout, and reboot are always separate user actions
 after work has been saved.
+
+## Shell restart compatibility
+
+Use `frankenstein shell restart` for desktop-aware restart. To route existing
+Omarchy restart menu commands too, opt in with `frankenstein-shell-restart install`.
+See [SHELL-RESTART.md](docs/SHELL-RESTART.md) for PATH behavior, rollback, and tested targets.

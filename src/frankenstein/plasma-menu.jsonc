@@ -49,23 +49,23 @@
     "action": "frankenstein-shell-adapter settings input"
   },
   "setup.plugin": {
-    "when": "[[ ${XDG_CURRENT_DESKTOP:-} == Hyprland ]]"
+    "when": "[[ $(frankenstein-capabilities session-name) == hyprland ]]"
   },
   "setup.config.hyprland": {
-    "when": "[[ ${XDG_CURRENT_DESKTOP:-} == Hyprland ]]"
+    "when": "[[ $(frankenstein-capabilities session-name) == hyprland ]]"
   },
   "setup.config.hyprsunset": {
-    "when": "[[ ${XDG_CURRENT_DESKTOP:-} == Hyprland ]]"
+    "when": "[[ $(frankenstein-capabilities session-name) == hyprland ]]"
   },
   "setup.network.qr": {
-    "when": "[[ ${XDG_CURRENT_DESKTOP:-} == Hyprland ]] && [[ $(omarchy-network-status) == wifi* ]]"
+    "when": "[[ $(frankenstein-capabilities session-name) == hyprland ]] && [[ $(omarchy-network-status) == wifi* ]]"
   },
   "setup.frankenstein-shell": {
     "icon": "󰆍",
     "label": "Omarchy Shell Integration",
     "title": "Omarchy Shell Integration",
     "description": "Desktop-specific compatibility controls",
-    "when": "[[ ${XDG_CURRENT_DESKTOP:-} == KDE* ]]"
+    "when": "[[ $(frankenstein-capabilities session-name) == plasma ]]"
   },
   "setup.frankenstein-shell.check": {
     "icon": "󰄬",

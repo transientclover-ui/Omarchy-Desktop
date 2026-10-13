@@ -4,6 +4,7 @@
 # Managed by frankenstein-shell-restart
 """Restart the existing KDE shell service; preserve stock Hyprland behavior."""
 import argparse
+import runpy
 import os
 from pathlib import Path
 import shlex
@@ -36,7 +37,14 @@ def choose(states):
 
 
 def restart():
-    kde = 'KDE' in os.environ.get('XDG_CURRENT_DESKTOP', '').split(':')
+    provider = Path(__file__).resolve().with_name('frankenstein-capabilities')
+    if not provider.is_file():
+        provider = Path('/usr/bin/frankenstein-capabilities')
+    normalize = runpy.run_path(str(provider))['normalize']
+    desktop = normalize(os.environ.get('XDG_CURRENT_DESKTOP', ''))
+    if desktop in ('ambiguous', 'gnome'):
+        raise RuntimeError('No shell restart provider for this desktop')
+    kde = desktop == 'plasma'
     if not kde or os.environ.get('XDG_SESSION_TYPE') != 'wayland':
         # Keep all upstream lock/relock checks and canonical Hyprland launch behavior.
         os.execv('/usr/bin/omarchy-restart-shell', ['/usr/bin/omarchy-restart-shell'])

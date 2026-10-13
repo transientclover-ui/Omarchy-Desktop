@@ -198,6 +198,7 @@ if [[ ${PACKAGE_MANAGED:-false} != true ]]; then
   sudo rm -f \
     /usr/lib/systemd/system/omarchy-desktop-manager-default.path \
     /usr/lib/systemd/system/omarchy-desktop-manager-default.service \
+    /usr/bin/frankenstein-capabilities \
     /usr/bin/frankenstein-shell-adapter \
     /usr/bin/omarchy-default-desktop \
     /usr/bin/frankenstein-settings \

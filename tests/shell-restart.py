@@ -38,6 +38,13 @@ class RestartTests(unittest.TestCase):
             self.assertEqual(run.call_args_list[0].args[0],['systemctl','--user','restart',m.SERVICES[0]])
             self.assertEqual(run.call_args_list[-1].args[0],['omarchy-shell','shell','ping'])
 
+    def test_shared_normalization_and_ambiguous_refusal(self):
+        with patch.dict(os.environ, {'XDG_CURRENT_DESKTOP':'Other:KDE','XDG_SESSION_TYPE':'wayland'}), patch.object(m,'query',return_value={'LoadState':'not-found','ActiveState':'inactive'}):
+            with self.assertRaisesRegex(RuntimeError, 'unambiguous'): m.restart()
+        with patch.dict(os.environ, {'XDG_CURRENT_DESKTOP':'KDE:Hyprland'}), patch.object(m.os,'execv') as execute:
+            with self.assertRaisesRegex(RuntimeError, 'provider'): m.restart()
+            execute.assert_not_called()
+
     def test_user_wrapper_lifecycle_and_existing_command(self):
         with tempfile.TemporaryDirectory() as d, patch.dict(os.environ, {'HOME':d,'XDG_STATE_HOME':d+'/state','XDG_CONFIG_HOME':d+'/config'}):
             m.install(); m.install()

@@ -101,6 +101,7 @@ rollback_partial_install() {
 
   if [[ $payload_installed == true ]]; then
     sudo rm -f \
+      /usr/bin/frankenstein-capabilities \
       /usr/bin/frankenstein-shell-adapter \
       /usr/bin/omarchy-default-desktop \
       /usr/bin/frankenstein-settings \
@@ -246,6 +247,7 @@ if [[ $package_managed == true ]]; then
   state_writer=/usr/lib/frankenstein/state
   sddm_validator=/usr/lib/frankenstein/sddm-validate
   payload_files=(
+    /usr/bin/frankenstein-capabilities
     /usr/bin/frankenstein-shell-adapter
     /usr/bin/omarchy-default-desktop
     /usr/bin/frankenstein-settings
@@ -297,6 +299,7 @@ else
   state_writer=$project_dir/src/libexec/frankenstein-state
   sddm_validator=$project_dir/src/libexec/frankenstein-sddm-validate
   payload_files=(
+    "$project_dir/src/bin/frankenstein-capabilities"
     "$project_dir/src/bin/frankenstein-shell-adapter"
     "$project_dir/src/bin/omarchy-default-desktop"
     "$project_dir/src/bin/frankenstein-settings"
@@ -477,6 +480,7 @@ fi
 }
 
 system_conflicting_paths=(
+  /usr/bin/frankenstein-capabilities
   /usr/bin/frankenstein-shell-adapter
   /usr/bin/omarchy-default-desktop
   /usr/bin/frankenstein-settings
@@ -769,6 +773,8 @@ if [[ $package_managed != true ]]; then
     /usr/share/sddm/themes/frankenstein/backgrounds \
     /usr/lib/systemd/system
 
+  sudo install -m 0755 "$project_dir/src/bin/frankenstein-capabilities" \
+    /usr/bin/frankenstein-capabilities
   sudo install -m 0755 "$project_dir/src/bin/frankenstein-shell-adapter" \
     /usr/bin/frankenstein-shell-adapter
   sudo install -m 0755 "$project_dir/src/bin/frankenstein-settings" \

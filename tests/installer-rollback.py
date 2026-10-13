@@ -77,6 +77,7 @@ Item {
         'src/libexec/frankenstein-diagnostics': 'usr/lib/frankenstein/diagnostics',
         'src/libexec/frankenstein-adopt-kde-shell': 'usr/lib/frankenstein/adopt-kde-shell',
         'src/libexec/frankenstein-sddm-validate': 'usr/lib/frankenstein/sddm-validate',
+        'src/bin/frankenstein-capabilities': 'usr/bin/frankenstein-capabilities',
         'src/bin/frankenstein-shell-adapter': 'usr/bin/frankenstein-shell-adapter',
         'src/bin/frankenstein-settings': 'usr/bin/frankenstein-settings',
         'src/bin/frankenstein-kde-soft-defaults': 'usr/bin/frankenstein-kde-soft-defaults',
@@ -264,6 +265,7 @@ echo validate-sddm >>/var/operation-order
         shutil.rmtree(root / 'usr/lib/systemd/system')
         (root / 'usr/lib/systemd/system').mkdir()
         for name in (
+            'frankenstein-capabilities',
             'frankenstein-shell-adapter',
             'omarchy-default-desktop',
             'frankenstein-settings',

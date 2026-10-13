@@ -19,20 +19,24 @@ else
   source "$script_dir/../lib/shell-profile.sh"
 fi
 
-desktop_environment() {
-  local desktop=${XDG_CURRENT_DESKTOP:-}
-  if [[ -z $desktop ]]; then
-    desktop=$(systemctl --user show-environment 2>/dev/null |
-      sed -n 's/^XDG_CURRENT_DESKTOP=//p' | tail -n 1)
+capabilities() {
+  local sibling
+  sibling=$(dirname -- "${BASH_SOURCE[0]}")/frankenstein-capabilities
+  if [[ -x $sibling ]]; then
+    "$sibling" "$@"
+  else
+    /usr/bin/frankenstein-capabilities "$@"
   fi
-  printf '%s\n' "$desktop"
+}
+
+desktop_environment() {
+  # Never borrow the user manager's potentially stale desktop environment.
+  printf '%s\n' "${XDG_CURRENT_DESKTOP:-}"
 }
 
 profile_for_desktop() {
-  case "$(desktop_environment)" in
-    KDE|KDE:*|*:KDE|*:KDE:*) echo plasma ;;
-    *) return 1 ;;
-  esac
+  [[ $(capabilities session-name) == plasma ]] || return 1
+  echo plasma
 }
 
 profile_value() {
@@ -58,7 +62,7 @@ run_shell() {
 
   local expected_desktop allow_plugins no_bar
   expected_desktop=$(profile_value "$profile" '.desktop')
-  [[ :$(desktop_environment): == *":$expected_desktop:"* ]] || {
+  [[ $expected_desktop == KDE && $(capabilities session-name) == plasma ]] || {
     echo "Profile $profile requires $expected_desktop." >&2
     return 1
   }
@@ -94,8 +98,8 @@ open_terminal() {
     echo "A command is required." >&2
     return 2
   }
-  case "$(desktop_environment)" in
-    KDE|KDE:*|*:KDE|*:KDE:*)
+  case "$(capabilities session-name)" in
+    plasma)
       setsid xdg-terminal-exec --app-id=org.omarchy.terminal --title=Omarchy \
         -e bash -lc "$command" >/dev/null 2>&1 &
       ;;
@@ -106,16 +110,9 @@ open_terminal() {
 }
 
 open_settings() {
-  local page=${1:-} profile
-  profile=$(profile_for_desktop) || profile=
-  case "$profile:$page" in
-    plasma:displays) systemsettings kcm_kscreen ;;
-    plasma:shortcuts) systemsettings kcm_keys ;;
-    plasma:input) systemsettings kcm_mouse ;;
-    *:displays) omarchy-launch-config-editor "$HOME/.config/hypr/monitors.lua" ;;
-    *:shortcuts) omarchy-launch-config-editor "$HOME/.config/hypr/bindings.lua" ;;
-    *:input) omarchy-launch-config-editor "$HOME/.config/hypr/input.lua" ;;
-    *) echo "Unknown settings page: $page" >&2; return 2 ;;
+  case ${1:-} in
+    displays|shortcuts|input) capabilities action "$1" ;;
+    *) echo "Unknown settings page: ${1:-}" >&2; return 2 ;;
   esac
 }
 

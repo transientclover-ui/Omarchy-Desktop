@@ -7,7 +7,9 @@ import tempfile
 import unittest
 
 SOURCE = (Path(__file__).resolve().parents[1] / 'src/bin/frankenstein-shell-adapter').read_text()
-FUNCTIONS = SOURCE[SOURCE.index('desktop_environment() {'):SOURCE.index('open_terminal() {')]
+FUNCTIONS = SOURCE[SOURCE.index('capabilities() {'):SOURCE.index('open_terminal() {')]
+
+FUNCTIONS = FUNCTIONS.replace('sibling=$(dirname -- \"${BASH_SOURCE[0]}\")/frankenstein-capabilities', 'sibling=' + str(Path(__file__).resolve().parents[1] / 'src/bin/frankenstein-capabilities'))
 
 class SessionBoundaries(unittest.TestCase):
     def run_bash(self, desktop, body, display=None):
@@ -80,22 +82,15 @@ ipc() {
             result = subprocess.run(['bash', '-c', 'set -euo pipefail\n' + FUNCTIONS + check_function + mocks + '\ncheck'], env=env, text=True, capture_output=True)
             self.assertEqual(result.returncode == 0, healthy, result.stdout + result.stderr)
 
-    def test_settings_routing_uses_profile_detection(self):
+    def test_settings_routes_through_capability_provider(self):
         functions = SOURCE[SOURCE.index('open_settings() {'):SOURCE.index('check() {')]
-        mocks = '\nsystemsettings() { echo "kde:$*"; }\nomarchy-launch-config-editor() { echo "editor:${1##*/}"; }\n'
-        for desktop in ('KDE', 'KDE:Other', 'Other:KDE', 'Other:KDE:Extra'):
-            for page, module in (('displays', 'kcm_kscreen'), ('shortcuts', 'kcm_keys'), ('input', 'kcm_mouse')):
-                result = self.run_bash(desktop, functions + mocks + f'open_settings {page}')
-                self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertEqual(result.stdout.strip(), 'kde:' + module)
-        for desktop in ('Hyprland', 'KDEish', 'Other:KDEish'):
-            for page, filename in (('displays', 'monitors.lua'), ('shortcuts', 'bindings.lua'), ('input', 'input.lua')):
-                result = self.run_bash(desktop, functions + mocks + f'open_settings {page}')
-                self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertEqual(result.stdout.strip(), 'editor:' + filename)
+        mocks = '\ncapabilities() { echo "provider:$*"; }\n'
+        for page in ('displays', 'shortcuts', 'input'):
+            result = self.run_bash('Other:KDE', functions + mocks + f'open_settings {page}')
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout.strip(), 'provider:action ' + page)
         result = self.run_bash('Other:KDE', functions + mocks + 'open_settings unknown')
         self.assertEqual(result.returncode, 2)
-        self.assertEqual(result.stdout, '')
 
     def test_missing_display_does_not_call_ipc(self):
         result = self.run_bash('KDE', 'timeout() { echo unsafe; }; ipc shell ping')

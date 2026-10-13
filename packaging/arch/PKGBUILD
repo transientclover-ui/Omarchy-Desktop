@@ -3,7 +3,7 @@
 pkgbase=frankenstein
 pkgname=(frankenstein-core frankenstein-kde)
 pkgver=0.1.0
-pkgrel=15
+pkgrel=16
 pkgdesc='Reversible Omarchy desktop compatibility manager'
 arch=(x86_64)
 license=(MIT)
@@ -20,6 +20,8 @@ _local_sources=(
   "frankenstein-watchdog.service::../../src/systemd/frankenstein-watchdog.service"
   "install.sh::../../install.sh"
   "uninstall.sh::../../uninstall.sh"
+  "frankenstein-capabilities::../../src/bin/frankenstein-capabilities"
+  "DESKTOP-CAPABILITIES.md::../../docs/DESKTOP-CAPABILITIES.md"
   "frankenstein::../../src/bin/frankenstein"
   "frankenstein-shell-restart::../../src/bin/frankenstein-shell-restart"
   "frankenstein-settings::../../src/bin/frankenstein-settings"
@@ -93,12 +95,14 @@ sha256sums=('37173d533de6a1a9a736b37bd086debe88f7cd1a08e7a5b12a76afe3e21e9b63'
             '1d7b8e66f077ccb5a569aa0c1a8068dac8001e7fceb226b3338604a549f9d1d2'
             'd1575d5b3cb6e9b2123ed255843b509bd423b439500245e543bb0db45b0ff52c'
             '2328a0f12e729b7bdce158761edd48e8970c502353b77550a5d1f80cd78952e8'
-            '70100af2d8d74758badb3cd9cd3cb5a3eeeb4373d19181551fd2f22d4538a4e3'
+            'c7c82d0910d060066243fc45221d4c842976960ad2eab05df39ac9661d8f2ce7'
             '60dfc2abbba3a8034588c505eba0641e2475bd0383452e8cd2d773708044af9c'
-            '33ad6a7e594687ea7328176c0b010985ea380228c9bd6cf243c68da314d5db4f'
-            '00ad10f4abc61d32c59ac0c1a7f28269e799fdaeef095c09c0fb89428020fd4d'
-            '65d10444bd5f2336971bab878662f4f5825b48f9bd14e3b317644ee85329e110'
-            '79e2c184441225b32846c215cbc63d7dd2491d19047dc1d86b514ffffaee24bf'
+            '502074ffd044c7268446cd887be15a45e5e00402cacf4a9bc1585d14936b1cef'
+            '1e44b44178c544f0a2d83264361c7b7b567335bd37fe64e8b8a867a4140d34bf'
+            '098c163ace001166dcf7b5767204f2a7b5898935a1ba4b5377d66ce36baec128'
+            '983d9c725d2716452f81a93b8fbaaa92b31e582569a594d8865b2e2c03dded62'
+            'f7a99f27c951ff8321cc38df100f91ec2ffae0ba23fc2adae71c7efb6042c5cd'
+            '7d5d614566c812f5b3ddf21b626218fa07d2e00b53debc25d8f1047edf3892af'
             '5993843c05b1631623e4ab7a4e4feb08096488c4593e0c555c772b760713b5ad'
             '43954dac80b5618babe0e56c85562ac89d75e1359edb718b21df3598a580442e'
             'a027b97907dcfbecf655892208531468cc0b9fc2047cfffe17d75aa11614bb92'
@@ -112,7 +116,7 @@ sha256sums=('37173d533de6a1a9a736b37bd086debe88f7cd1a08e7a5b12a76afe3e21e9b63'
             'f608cd9d92b74d3463a14a8cd85d3eb4862b0f9ae2589475071d40627748ecef'
             '2548486b601283e05c6b65b993dd25181372786f6abb3b3b19ff7e6680eae44c'
             'bbbe60b05867f23e8c6691ab42c51883ff26fe956e15914d96ac495828464823'
-            '5ecfba5ce6a25cd450df54628b001bd4a924c226f3e20900aa09859f3ae02db7'
+            '1929a38d3e4c8a8fc3359f7bdb650025c6b4923406d17648a1af7854f2cd78ce'
             '614cad60a53be3559c84ece8df0e5dcb7802496e76e5e49c39ad7b20113bc04f'
             '9e5b35f9095ca6b73c1e7cb31b1fa1e710eb39324a9baae829b3e7047e7989f4'
             '8cc0ad6c87bbf5f06bd2f28ce9e4c6e1827536ed9918356271ff2fee00d917bb'
@@ -121,7 +125,7 @@ sha256sums=('37173d533de6a1a9a736b37bd086debe88f7cd1a08e7a5b12a76afe3e21e9b63'
             '60184748efe78a685f341e785eb8b8ba4d2e4081c5f9518396a0682977f61423'
             '26c2d258222df2a3556b8512fe042beb17f9f929157bc6a17b0a610ae009e926'
             '82e50f4ea1a5e2b5eee093eb83e92e1137ef5f41281a1608d2cd310bb71caee4'
-            '3d0228bced73441f3286af63d2e233208b882ecb5eacab28233a3fdd714fc916'
+            '54b825baa3a678f40326a6b1d7ced3c6f4d9f0528312e5071a2e359a8e108e0f'
             '2b625ba59e2ecae06b9e5de2fda4d0d914fc2a321a57ce6361a437469d1553bd'
             '6f372b657d6062d3c06035ff0031a42c95c4493bb6b4b07568472b3b4bb9aded'
             'b3e7bc0c34221a4ce2d2df0fbd40496c95b5fec786556c5aee884b967641d9b9'
@@ -155,6 +159,8 @@ package_frankenstein-core() {
   install -Dm0644 "$srcdir/frankenstein-watchdog.service" "$pkgdir/usr/lib/systemd/user/frankenstein-watchdog.service"
   install -d "$pkgdir/usr/lib/systemd/user/graphical-session.target.wants"
   ln -s ../frankenstein-watchdog.service "$pkgdir/usr/lib/systemd/user/graphical-session.target.wants/frankenstein-watchdog.service"
+  install -Dm0755 "$srcdir/frankenstein-capabilities" "$pkgdir/usr/bin/frankenstein-capabilities"
+  install -Dm0644 "$srcdir/DESKTOP-CAPABILITIES.md" "$pkgdir/usr/share/doc/frankenstein/DESKTOP-CAPABILITIES.md"
   install -Dm0755 "$srcdir/frankenstein" "$pkgdir/usr/bin/frankenstein"
   install -Dm0755 "$srcdir/frankenstein-shell-restart" "$pkgdir/usr/bin/frankenstein-shell-restart"
   install -Dm0755 "$srcdir/frankenstein-settings" "$pkgdir/usr/bin/frankenstein-settings"

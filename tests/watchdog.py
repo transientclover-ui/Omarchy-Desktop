@@ -91,6 +91,41 @@ class Tests(unittest.TestCase):
             with patch.object(w, 'command', side_effect=lambda args: (0, str(unit)) if '--property=FragmentPath' in args else (0, 'override.conf') if '--property=DropInPaths' in args else (0, '')):
                 self.assertIsNone(w.Plasma().recovery('preserve'))
 
+    def test_managed_wallpaper_dropin_is_the_only_exception(self):
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, XDG_CONFIG_HOME=directory):
+            unit = Path(directory) / 'omarchy-shell.service'
+            unit.write_text('[Service]\nExecStart=/usr/bin/quickshell -n -p /usr/share/omarchy/shell\n')
+            drop = Path(directory) / 'systemd/user/omarchy-shell.service.d/50-frankenstein-wallpaper.conf'
+            drop.parent.mkdir(parents=True)
+            helper = Path('/usr/bin/frankenstein-plasma-wallpaper').resolve()
+            content = ('# Managed by frankenstein-plasma-wallpaper\n[Service]\n'
+                       f'ExecStartPre="{helper}" session\nExecStopPost="{helper}" restore\n')
+            def command(args):
+                if '--property=FragmentPath' in args:
+                    return 0, str(unit)
+                if '--property=DropInPaths' in args:
+                    return 0, paths
+                return 0, ''
+            paths = str(drop)
+            with patch.object(w, 'command', side_effect=command):
+                self.assertIsNone(w.Plasma().recovery('preserve'))  # missing file
+                drop.write_text(content)
+                self.assertEqual(w.Plasma().recovery('preserve'),
+                                 ['systemctl', '--user', 'restart', 'omarchy-shell.service'])
+                for changed in (content + 'ExecStartPost=/bin/true\n',
+                                content.replace(' session', ' restore'),
+                                content.replace(str(helper), '/tmp/custom-helper')):
+                    drop.write_text(changed)
+                    self.assertIsNone(w.Plasma().recovery('preserve'))
+                drop.write_text(content)
+                for paths in (str(drop) + ' /unknown.conf', '/unknown.conf'):
+                    self.assertIsNone(w.Plasma().recovery('preserve'))
+                paths = str(drop)
+                target = drop.with_name('target')
+                drop.rename(target)
+                drop.symlink_to(target)
+                self.assertIsNone(w.Plasma().recovery('preserve'))
+
     def test_success_keeps_original_failure(self):
         class Recovering(Fake):
             def recovery(self, mode):

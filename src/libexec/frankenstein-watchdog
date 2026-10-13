@@ -66,6 +66,22 @@ def installation():
         return None
 
 
+def managed_wallpaper_dropin(drop_paths):
+    """Allow only the exact drop-in emitted by the packaged wallpaper helper."""
+    config = Path(os.environ.get('XDG_CONFIG_HOME', str(Path.home() / '.config')))
+    path = config / 'systemd/user/omarchy-shell.service.d/50-frankenstein-wallpaper.conf'
+    if drop_paths.strip() != str(path) or path.is_symlink():
+        return False
+    helper = Path('/usr/bin/frankenstein-plasma-wallpaper').resolve()
+    expected = ('# Managed by frankenstein-plasma-wallpaper\n[Service]\n'
+                f'ExecStartPre="{helper}" session\n'
+                f'ExecStopPost="{helper}" restore\n')
+    try:
+        return path.is_file() and path.read_text() == expected
+    except OSError:
+        return False
+
+
 class Plasma:
     diagnostics = ['plasma-kwin_wayland.service', 'plasma-plasmashell.service']
 
@@ -82,11 +98,11 @@ class Plasma:
                 import configparser
                 config = configparser.ConfigParser(interpolation=None, strict=True)
                 config.read_string(Path(fragment.strip()).read_text())
-                # Only the known shell launcher, no overrides or auxiliary commands.
+                # Only the known shell launcher and the exact managed wallpaper hooks.
                 drops, drop_paths = command(['systemctl', '--user', 'show', unit, '--property=DropInPaths', '--value'])
                 service = config['Service']
                 unsafe = [key for key in service if key.lower().startswith('exec') and key.lower() != 'execstart']
-                if rc == 0 and enabled == 0 and drops == 0 and not drop_paths.strip() and not unsafe and service.get('ExecStart') == '/usr/bin/quickshell -n -p /usr/share/omarchy/shell':
+                if rc == 0 and enabled == 0 and drops == 0 and (not drop_paths.strip() or managed_wallpaper_dropin(drop_paths)) and not unsafe and service.get('ExecStart') == '/usr/bin/quickshell -n -p /usr/share/omarchy/shell':
                     return ['systemctl', '--user', 'restart', unit]
             except (OSError, ValueError, KeyError, configparser.Error):
                 pass

@@ -1,0 +1,250 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
+"""Versioned, read-only runtime registry and fixed desktop action providers."""
+import argparse
+import json
+import os
+from pathlib import Path
+import shlex
+import shutil
+import socket
+import stat
+import struct
+import subprocess
+import sys
+
+
+def normalize(desktop):
+    tokens = {t.casefold() for t in desktop.split(':') if t}
+    names = tokens & {'kde', 'hyprland', 'gnome'}
+    if len(names) > 1:
+        return 'ambiguous'
+    return {'kde': 'plasma', 'hyprland': 'hyprland', 'gnome': 'gnome'}.get(next(iter(names), ''), 'unknown')
+
+
+class Probe:
+    def __init__(self, env=None):
+        self.env = dict(os.environ if env is None else env)
+        self.wayland_peer = None
+
+    def utility(self, name):
+        return shutil.which(name, path=self.env.get('PATH', os.defpath))
+
+    def run(self, argv):
+        if not self.utility(argv[0]):
+            return None
+        try:
+            r = subprocess.run(argv, env=self.env, capture_output=True, text=True, timeout=2)
+            return r.stdout.strip() if r.returncode == 0 else None
+        except (OSError, subprocess.TimeoutExpired, UnicodeError):
+            return None
+
+    def owner(self, name):
+        result = self.run(['busctl', '--user', 'call', 'org.freedesktop.DBus',
+                           '/org/freedesktop/DBus', 'org.freedesktop.DBus', 'GetNameOwner', 's', name])
+        try:
+            fields = shlex.split(result or '')
+            return fields[1] if len(fields) == 2 and fields[0] == 's' else None
+        except ValueError:
+            return None
+
+    def wayland(self):
+        runtime = self.env.get('XDG_RUNTIME_DIR', '')
+        display = self.env.get('WAYLAND_DISPLAY', '')
+        if not runtime or not display:
+            return False
+        path = Path(display) if display.startswith('/') else Path(runtime) / display
+        try:
+            info = path.stat()
+            if not stat.S_ISSOCK(info.st_mode) or info.st_uid != os.getuid():
+                return False
+            with socket.socket(socket.AF_UNIX) as client:
+                client.settimeout(.25)
+                client.connect(str(path))
+                self.wayland_peer = struct.unpack("3i", client.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, 12))
+            return True
+        except OSError:
+            return False
+
+    def kwin_matches_wayland(self):
+        """Bind the bus provider to this socket, including Plasma's known wrapper."""
+        result = self.run(['busctl', '--user', 'call', 'org.freedesktop.DBus',
+                           '/org/freedesktop/DBus', 'org.freedesktop.DBus',
+                           'GetConnectionUnixProcessID', 's', 'org.kde.KWin'])
+        try:
+            fields = (result or '').split()
+            if len(fields) != 2 or fields[0] != 'u' or not self.wayland_peer:
+                return False
+            pid = int(fields[1])
+            peer_pid, peer_uid, _ = self.wayland_peer
+            if peer_uid != os.getuid():
+                return False
+            if pid == peer_pid:
+                return True
+            status = dict(line.split(':', 1) for line in Path(f'/proc/{pid}/status').read_text().splitlines() if ':' in line)
+            wrapper = Path(f'/proc/{peer_pid}/comm').read_text().strip()
+            return int(status['PPid']) == peer_pid and wrapper == 'kwin_wayland_wr'
+        except (OSError, ValueError, KeyError):
+            return False
+
+    def session(self):
+        session = self.env.get('XDG_SESSION_ID', '')
+        if not session or not session.isalnum():
+            return {}
+        data = self.run(['loginctl', 'show-session', session, '-p', 'Desktop', '-p', 'Type', '-p', 'Active', '-p', 'User'])
+        return dict(line.split('=', 1) for line in (data or '').splitlines() if '=' in line)
+
+    def hyprland(self):
+        signature = self.env.get('HYPRLAND_INSTANCE_SIGNATURE', '')
+        runtime = self.env.get('XDG_RUNTIME_DIR', '')
+        if not signature or '/' in signature or not runtime:
+            return False
+        # hyprctl selects the exact signature from this process; never consult manager environment.
+        path = Path(runtime) / 'hypr' / signature / '.socket.sock'
+        try:
+            info = path.stat()
+            if not stat.S_ISSOCK(info.st_mode) or info.st_uid != os.getuid():
+                return False
+            instances = json.loads(self.run(['hyprctl', '-j', 'instances']) or 'null')
+            display = self.env.get('WAYLAND_DISPLAY', '')
+            if not isinstance(instances, list) or not any(
+                    i.get('instance') == signature and i.get('wl_socket') == display
+                    for i in instances if isinstance(i, dict)):
+                return False
+            result = json.loads(self.run(['hyprctl', '-j', 'monitors']) or 'null')
+            return isinstance(result, list) and bool(result)
+        except (OSError, ValueError):
+            return False
+
+
+def detect(probe):
+    env = probe.env
+    hint = normalize(env.get('XDG_CURRENT_DESKTOP', ''))
+    session = probe.session()
+    live = normalize(session.get('Desktop', ''))
+    wayland = env.get('XDG_SESSION_TYPE') == 'wayland' and probe.wayland()
+    session_ok = (session.get('Active') == 'yes' and session.get('Type') == 'wayland'
+                  and session.get('User') == str(os.getuid()))
+    kwin = probe.owner('org.kde.KWin')
+    hypr = probe.hyprland() if wayland else False
+    desktop, reason = 'unknown', 'No verified active Wayland session'
+    if wayland:
+        if hint == 'ambiguous' or (kwin and hypr):
+            desktop, reason = 'ambiguous', 'Conflicting desktop hints or compositor providers'
+        elif session_ok and live in ('plasma', 'hyprland') and hint not in ('unknown', live):
+            desktop, reason = 'ambiguous', 'Process environment disagrees with active logind session'
+        elif session_ok and live == 'plasma' and kwin and not hypr and probe.kwin_matches_wayland():
+            desktop, reason = 'plasma', 'Active logind Plasma session and KWin owner matching Wayland socket'
+        elif session_ok and live == 'hyprland' and hypr and not kwin:
+            desktop, reason = 'hyprland', 'Active logind Hyprland session and responsive instance IPC'
+        elif not session and hint == 'hyprland' and hypr and not kwin:
+            desktop, reason = 'hyprland', 'Responsive explicitly selected Hyprland instance; logind unavailable'
+        elif live == 'gnome' or hint == 'gnome':
+            desktop, reason = 'gnome', 'GNOME identified; adapter not implemented'
+    notification_owner = probe.owner('org.freedesktop.Notifications')
+    caps = {}
+
+    def cap(name, provider=None, utilities=(), available=True, detail=''):
+        missing = [u for u in utilities if not probe.utility(u)]
+        supported = desktop in ('plasma', 'hyprland') and available and not missing
+        caps[name] = {'state': 'supported' if supported else 'unavailable' if provider else 'unsupported',
+                      'provider': provider, 'missing_utilities': missing,
+                      'reason': detail or ('Required utility unavailable' if missing else reason)}
+
+    kde, hyp = desktop == 'plasma', desktop == 'hyprland'
+    modules = {line.split()[0] for line in (probe.run(['kcmshell6', '--list']) or '').splitlines() if line.split()} if kde else set()
+    try:
+        plugins = json.loads(probe.run(['qs', 'ipc', '-n', '-p', '/usr/share/omarchy/shell', 'call', '--', 'shell', 'listPlugins']) or '[]') if hyp else []
+        lock_ready = isinstance(plugins, list) and any(p.get('id') == 'omarchy.lock' and p.get('enabled') is True for p in plugins if isinstance(p, dict))
+    except ValueError:
+        lock_ready = False
+    cap('compositor_ipc', 'kwin-dbus' if kde else 'hyprctl' if hyp else None, ('busctl',) if kde else ('hyprctl',))
+    cap('notifications', 'session-dbus' if notification_owner else None, ('notify-send',), bool(notification_owner))
+    caps['notifications']['owner'] = notification_owner
+    agents = probe.run(['pgrep', '-u', str(os.getuid()), '-x', 'polkit-kde-auth|polkit-gnome-au|hyprpolkitagent'])
+    caps['polkit'] = {'state': 'unknown', 'provider': None, 'observed_agent_pids': (agents or '').splitlines(),
+                      'reason': 'Process presence does not prove Polkit agent registration; no standard ownership query'}
+    cap('locking', 'kde-screensaver' if kde else 'omarchy' if hyp else None,
+        ('busctl',) if kde else ('omarchy-system-lock', 'omarchy-shell', 'hyprctl'),
+        bool(probe.owner('org.freedesktop.ScreenSaver')) if kde else lock_ready)
+    cap('screenshots', 'spectacle' if kde else 'omarchy' if hyp else None,
+        ('spectacle',) if kde else ('omarchy-capture-screenshot', 'omarchy-capture-region', 'grim', 'slurp', 'jq', 'wl-copy'))
+    cap('clipboard', 'wl-clipboard', ('wl-copy', 'wl-paste'), wayland,
+        'Copy/read only; clipboard history and synthetic paste require separate adapters')
+    for name, module in [('monitors', 'kcm_kscreen'), ('workspaces', 'kcm_kwin_virtualdesktops'),
+                         ('night_light', 'kcm_nightlight'), ('shortcuts', 'kcm_keys'), ('input', 'kcm_mouse')]:
+        cap(name, module if kde else 'omarchy' if hyp else None,
+            ('systemsettings', 'kcmshell6') if kde else ('omarchy-launch-config-editor',) if name in ('monitors', 'shortcuts', 'input') else
+            ('omarchy-toggle-nightlight', 'hyprsunset', 'uwsm-app', 'omarchy-shell', 'jq') if name == 'night_light' else ('hyprctl',),
+            module in modules if kde else hyp,
+            'KCM module unavailable' if kde and module not in modules else '')
+    return {'schema_version': 1, 'desktop': desktop, 'hint': hint, 'session': session,
+            'wayland_connected': wayland, 'reason': reason, 'capabilities': caps}
+
+
+# Fixed argv only. No eval, shell commands, downloaded code, or arbitrary IPC methods.
+def plan(registry, action, home):
+    aliases = {'displays': 'monitors', 'night-light': 'night_light', 'lock': 'locking', 'screenshot': 'screenshots'}
+    name = aliases.get(action, action)
+    cap = registry['capabilities'].get(name)
+    if not cap or cap['state'] != 'supported':
+        return {'state': cap['state'] if cap else 'unsupported', 'action': action, 'reason': cap['reason'] if cap else 'Unknown action'}
+    kde = registry['desktop'] == 'plasma'
+    providers = {
+        'locking': (['busctl', '--user', 'call', 'org.freedesktop.ScreenSaver', '/ScreenSaver',
+                     'org.freedesktop.ScreenSaver', 'Lock'], ['omarchy-system-lock']),
+        'screenshots': (['spectacle'], ['omarchy-capture-screenshot']),
+        'monitors': (['systemsettings', 'kcm_kscreen'], ['omarchy-launch-config-editor', str(Path(home) / '.config/hypr/monitors.lua')]),
+        'shortcuts': (['systemsettings', 'kcm_keys'], ['omarchy-launch-config-editor', str(Path(home) / '.config/hypr/bindings.lua')]),
+        'input': (['systemsettings', 'kcm_mouse'], ['omarchy-launch-config-editor', str(Path(home) / '.config/hypr/input.lua')]),
+        'night_light': (['systemsettings', 'kcm_nightlight'], ['omarchy-toggle-nightlight']),
+        'workspaces': (['systemsettings', 'kcm_kwin_virtualdesktops'], ['hyprctl', '-j', 'workspaces']),
+    }
+    if name not in providers:
+        return {'state': 'unsupported', 'action': action, 'reason': 'Registry-only capability; no action provider yet'}
+    return {'state': 'supported', 'action': action, 'provider': cap['provider'], 'argv': providers[name][0 if kde else 1],
+            'mode': 'bounded' if name == 'locking' or (name == 'workspaces' and not kde) else 'launch'}
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('command', nargs='?', default='inspect', choices=['inspect', 'session-name', 'action'])
+    parser.add_argument('action', nargs='?')
+    parser.add_argument('--plan', action='store_true', help='Report action provider without executing it')
+    args = parser.parse_args()
+    if (args.command == 'action') != (args.action is not None):
+        parser.error('action requires one fixed action name; other commands accept no action name')
+    if args.plan and args.command != 'action':
+        parser.error('--plan applies only to action')
+    if args.command == 'session-name':
+        print(normalize(os.environ.get('XDG_CURRENT_DESKTOP', '')))
+        return 0
+    probe = Probe()
+    registry = detect(probe)
+    result = registry if args.command == 'inspect' else plan(registry, args.action, probe.env.get('HOME', str(Path.home())))
+    if args.command != 'action' or args.plan or result['state'] != 'supported':
+        print(json.dumps(result, indent=2))
+        return 0 if args.command != 'action' or result['state'] == 'supported' else 3
+    try:
+        argv = result['argv']
+        # Resolve once and execute the same executable checked for availability.
+        executable = probe.utility(argv[0])
+        if not executable:
+            raise OSError('Provider disappeared')
+        if result['mode'] == 'launch':
+            subprocess.Popen([executable, *argv[1:]], env=probe.env, stdin=subprocess.DEVNULL,
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+            result['state'] = 'dispatched'
+        else:
+            r = subprocess.run([executable, *argv[1:]], env=probe.env, capture_output=True, text=True, timeout=5)
+            result.update(state='completed' if r.returncode == 0 else 'failed', returncode=r.returncode,
+                          output=r.stdout, error=r.stderr)
+        print(json.dumps(result, indent=2))
+        return 0 if result['state'] in ('completed', 'dispatched') else 4
+    except (OSError, subprocess.TimeoutExpired, UnicodeError) as error:
+        print(json.dumps({'state': 'unavailable', 'action': args.action, 'reason': str(error)}))
+        return 4
+
+
+if __name__ == '__main__':
+    sys.exit(main())

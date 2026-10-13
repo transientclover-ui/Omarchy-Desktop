@@ -9,6 +9,8 @@ usage() {
 Usage: frankenstein COMMAND [OPTIONS]
 
 Commands:
+  capabilities  Inspect runtime providers (JSON)
+  action        Route a fixed desktop action; --plan previews without executing
   shell         Turn the Omarchy shell on/off, restart, or inspect its status
   watchdog      List incidents or show the latest flight recorder (tail)
   inspect       Read-only desktop, SDDM, ownership, and state inventory
@@ -45,6 +47,14 @@ command_name=${1:-}
 [[ -z $command_name ]] || shift
 
 case $command_name in
+  capabilities|action)
+    provider=$script_dir/frankenstein-capabilities
+    [[ -x $provider ]] || provider=/usr/bin/frankenstein-capabilities
+    if [[ $command_name == action ]]; then
+      exec "$provider" action "$@"
+    fi
+    exec "$provider" inspect "$@"
+    ;;
   shell)
     case ${1:-} in
       restart) exec /usr/bin/frankenstein-shell-restart restart ;;

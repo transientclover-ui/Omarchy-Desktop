@@ -106,11 +106,12 @@ open_terminal() {
 }
 
 open_settings() {
-  local page=${1:-}
-  case "$(desktop_environment):$page" in
-    KDE:displays|KDE:*:displays) systemsettings kcm_kscreen ;;
-    KDE:shortcuts|KDE:*:shortcuts) systemsettings kcm_keys ;;
-    KDE:input|KDE:*:input) systemsettings kcm_mouse ;;
+  local page=${1:-} profile
+  profile=$(profile_for_desktop) || profile=
+  case "$profile:$page" in
+    plasma:displays) systemsettings kcm_kscreen ;;
+    plasma:shortcuts) systemsettings kcm_keys ;;
+    plasma:input) systemsettings kcm_mouse ;;
     *:displays) omarchy-launch-config-editor "$HOME/.config/hypr/monitors.lua" ;;
     *:shortcuts) omarchy-launch-config-editor "$HOME/.config/hypr/bindings.lua" ;;
     *:input) omarchy-launch-config-editor "$HOME/.config/hypr/input.lua" ;;

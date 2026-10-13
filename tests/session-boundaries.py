@@ -80,6 +80,23 @@ ipc() {
             result = subprocess.run(['bash', '-c', 'set -euo pipefail\n' + FUNCTIONS + check_function + mocks + '\ncheck'], env=env, text=True, capture_output=True)
             self.assertEqual(result.returncode == 0, healthy, result.stdout + result.stderr)
 
+    def test_settings_routing_uses_profile_detection(self):
+        functions = SOURCE[SOURCE.index('open_settings() {'):SOURCE.index('check() {')]
+        mocks = '\nsystemsettings() { echo "kde:$*"; }\nomarchy-launch-config-editor() { echo "editor:${1##*/}"; }\n'
+        for desktop in ('KDE', 'KDE:Other', 'Other:KDE', 'Other:KDE:Extra'):
+            for page, module in (('displays', 'kcm_kscreen'), ('shortcuts', 'kcm_keys'), ('input', 'kcm_mouse')):
+                result = self.run_bash(desktop, functions + mocks + f'open_settings {page}')
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout.strip(), 'kde:' + module)
+        for desktop in ('Hyprland', 'KDEish', 'Other:KDEish'):
+            for page, filename in (('displays', 'monitors.lua'), ('shortcuts', 'bindings.lua'), ('input', 'input.lua')):
+                result = self.run_bash(desktop, functions + mocks + f'open_settings {page}')
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout.strip(), 'editor:' + filename)
+        result = self.run_bash('Other:KDE', functions + mocks + 'open_settings unknown')
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(result.stdout, '')
+
     def test_missing_display_does_not_call_ipc(self):
         result = self.run_bash('KDE', 'timeout() { echo unsafe; }; ipc shell ping')
         self.assertNotEqual(result.returncode, 0)

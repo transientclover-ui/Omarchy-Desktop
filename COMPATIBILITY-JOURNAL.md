@@ -2732,3 +2732,57 @@ packages. Package verification reports zero altered files; installed adapter
 matches repaired source. Preserve-existing health reports one active shell and
 working IPC. KWin and shell PIDs and restart counts are unchanged. Original
 0.1.0-9 rollback packages and repair report are retained in task outputs.
+
+## 2026-10-18 — Guarded Omarchy update candidate, live transition deferred
+
+Worked from experimental/kde-omarchy-bar at 7ce2364 in a separate clone. The
+original experimental checkout's three untracked theme-inheritance files were
+left untouched and their SHA-256 hashes rechecked. The main checkout was not
+changed. The existing pair is 0.1.0-15 and Omarchy 4.0.4-1; the existing
+experimental packaging revision was already 16.
+
+The original exact Omarchy pin dates to the initial split-package checkpoint
+1c5ccaa and the finite 4.0.4 verification boundary. The filtered shell really
+couples to upstream QML: a generated KDE bar plus symlinked shell resources.
+The candidate replaces the package pin with omarchy>=4.0.4 and retains exact
+core/KDE coordination. It adds a read-only version/capability/source-contract
+report and refusal gates for builds, setup, adoption, filtered launch and
+automatic watchdog recovery. Unknown stacks do not authorize configuration
+changes or automatic recovery. The existing preserved shell is not stopped.
+
+The 183-file source manifest matches all 183 shell SHA-256 entries in installed
+Omarchy's pacman mtree. This verifies against the installed record, not a newly
+fetched signature. Omarchy 4.0.5, Plasma 6.8, Qt 6.12 and Quickshell 0.3.2 are
+candidate versions only; the current development stack remains the only
+validated policy tuple. Detailed limits and the normal local-repository/full
+update transition, backup, verification, coordinated snapshot rollback and
+future delivery model are in docs/OMARCHY-UPDATES.md.
+
+Validation: 29 regression suites passed in the initial isolated sweep. Two
+lifecycle suites were blocked by the network-namespace restriction, then passed
+with an explicitly selected read-only-host bubblewrap fixture runner using
+private user/PID/IPC/UTS namespaces and hidden /run (no network namespace; service
+calls mocked). The desktop-capability suite passed nine test methods but its
+synthetic socket test is blocked by the platform. Current-stack KCM compiled
+and loaded offscreen against real Qt/KF libraries with simulated shell responses.
+The isolated Quickshell offscreen attempt failed on IPC and absent PanelWindow
+backend; it is not a runtime pass. New policy tests cover all 32 candidate
+version combinations synthetically, missing APIs, source drift and read-only
+refusal. Watchdog unknown-stack refusal is tested.
+
+A temporary local sync repository and copied pacman database resolve the pair
+and all pending upgrades as one 550-package transaction. The original database
+reproduces both exact-pin failures. Neither resolver ran hooks or migrations.
+Both packages built in bubblewrap with a read-only host, writable clone,
+temporary HOME and hidden live runtime sockets, using installed dependencies;
+this is not a clean target chroot build. No host packages, configuration or
+services changed. An 835-entry protected desktop hash inventory was rechecked
+without differences.
+
+Network access prevents target payload retrieval and remote verification:
+github.com fails DNS and web retrieval is disabled. The original configured
+remote is https://github.com/transientclover-ui/Omarchy-Desktop.git and the exact
+local experimental branch is experimental/kde-omarchy-bar. Do not claim remote
+push success or current remote-tip verification without an online check.
+No live installation or upgrade is approved; missing target runtime, hooks,
+migrations and recovery rehearsal remain prerequisites to live approval.

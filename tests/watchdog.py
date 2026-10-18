@@ -24,6 +24,13 @@ class Fake:
         return ['systemctl', '--user', 'restart', w.UNIT]
 
 class Tests(unittest.TestCase):
+    def test_unknown_compatibility_prevents_automatic_recovery(self):
+        with patch.object(w, 'command', return_value=(78, 'Unknown runtime')) as command:
+            for mode in ('preserve', 'filtered'):
+                self.assertIsNone(w.Plasma().recovery(mode))
+            self.assertTrue(all(call.args[0] == ['/usr/bin/frankenstein-compatibility', 'require', 'automatic-recovery']
+                                for call in command.call_args_list))
+
     def test_healthy_and_once(self):
         with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, XDG_RUNTIME_DIR=directory):
             root = Path(directory) / 'incidents'

@@ -50,6 +50,15 @@ effective_profile() {
 }
 
 run_shell() {
+  local compatibility
+  compatibility=$(dirname -- "${BASH_SOURCE[0]}")/frankenstein-compatibility
+  if [[ ! -x $compatibility ]]; then
+    echo "Frankenstein compatibility checker is unavailable; filtered shell disabled." >&2
+    return 0
+  fi
+  # Older user-owned units retain Restart=on-failure and must not be rewritten
+  # during a package update. A diagnosed no-op leaves them inactive, not looping.
+  "$compatibility" require filtered-shell || return 0
   local profile=${1:-}
   [[ -n $profile && -r $profile_dir/$profile.json ]] || {
     echo "No supported Omarchy Shell profile for $(desktop_environment)." >&2

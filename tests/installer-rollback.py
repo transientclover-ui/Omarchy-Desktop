@@ -8,6 +8,7 @@ outside the sandbox. The host filesystem is read-only; only temporary fixtures
 are writable. No root privileges, package transactions, or real services run.
 """
 import os
+import hashlib
 import json
 from pathlib import Path
 import shutil
@@ -77,6 +78,7 @@ Item {
         'src/libexec/frankenstein-diagnostics': 'usr/lib/frankenstein/diagnostics',
         'src/libexec/frankenstein-adopt-kde-shell': 'usr/lib/frankenstein/adopt-kde-shell',
         'src/libexec/frankenstein-sddm-validate': 'usr/lib/frankenstein/sddm-validate',
+        'src/bin/frankenstein-compatibility': 'usr/bin/frankenstein-compatibility',
         'src/bin/frankenstein-capabilities': 'usr/bin/frankenstein-capabilities',
         'src/bin/frankenstein-shell-adapter': 'usr/bin/frankenstein-shell-adapter',
         'src/bin/frankenstein-settings': 'usr/bin/frankenstein-settings',
@@ -123,6 +125,8 @@ Item {
     put(root, 'mock/pacman', '''#!/bin/bash
 case "$*" in
   '-Q omarchy') echo 'omarchy 4.0.4-1';;
+  '-Q omarchy plasma-workspace qt6-base qt6-declarative quickshell')
+    printf '%s\\n' 'omarchy 4.0.4-1' 'plasma-workspace 6.7.4-3' 'qt6-base 6.11.2-3' 'qt6-declarative 6.11.2-1' 'quickshell 0.3.1-1';;
   '-Q frankenstein-core'|'-Q frankenstein-kde') [[ ${STANDALONE:-0} == 0 ]];;
   '-Qq') printf '%s\\n' omarchy frankenstein-core frankenstein-kde;;
   *) exit 90;;
@@ -265,6 +269,7 @@ echo validate-sddm >>/var/operation-order
         shutil.rmtree(root / 'usr/lib/systemd/system')
         (root / 'usr/lib/systemd/system').mkdir()
         for name in (
+            'frankenstein-compatibility',
             'frankenstein-capabilities',
             'frankenstein-shell-adapter',
             'omarchy-default-desktop',
@@ -279,6 +284,20 @@ echo validate-sddm >>/var/operation-order
         put(root, 'home/source/src/libexec/frankenstein-sddm-validate', validator, True)
         for name in ('install.sh', 'uninstall.sh'):
             copy(root, name, 'home/source/' + name)
+
+
+    # Synthetic policy for the synthetic shell, not a claim that fixture QML
+    # is an actual upstream runtime. Exercise the real checker in both layouts.
+    shell = root / 'usr/share/omarchy/shell'
+    policy = json.loads((PROJECT / 'src/frankenstein/compatibility/omarchy.json').read_text())
+    # This fixture tests installer lifecycle, with only its available synthetic APIs.
+    policy['capabilities'] = {}
+    policy['shell_contracts'][0]['files'] = {
+        p.relative_to(shell).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
+        for p in shell.rglob('*') if p.is_file()}
+    destination = ('home/source/src/frankenstein/compatibility/omarchy.json' if standalone else
+                   'usr/share/frankenstein/compatibility/omarchy.json')
+    put(root, destination, json.dumps(policy))
 
 
 def run(root, script, fail=False, fail_stop="", fail_restore="", preflight=False,

@@ -9,6 +9,7 @@ usage() {
 Usage: frankenstein COMMAND [OPTIONS]
 
 Commands:
+  compatibility Inspect package versions, shell contracts and validation gaps (JSON)
   capabilities  Inspect runtime providers (JSON)
   action        Route a fixed desktop action; --plan previews without executing
   shell         Turn the Omarchy shell on/off, restart, or inspect its status
@@ -47,6 +48,9 @@ command_name=${1:-}
 [[ -z $command_name ]] || shift
 
 case $command_name in
+  compatibility)
+    exec "$script_dir/frankenstein-compatibility" "$@"
+    ;;
   capabilities|action)
     provider=$script_dir/frankenstein-capabilities
     [[ -x $provider ]] || provider=/usr/bin/frankenstein-capabilities

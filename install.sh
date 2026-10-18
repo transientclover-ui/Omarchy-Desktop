@@ -5,7 +5,6 @@
 set -Eeuo pipefail
 
 readonly project_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
-readonly supported_omarchy_version=4.0.4-1
 readonly system_state_dir=/var/lib/frankenstein
 readonly installed_share=/usr/share/frankenstein
 readonly sddm_state=/var/lib/sddm/state.conf
@@ -101,6 +100,8 @@ rollback_partial_install() {
 
   if [[ $payload_installed == true ]]; then
     sudo rm -f \
+      /usr/bin/frankenstein-compatibility \
+      /usr/share/frankenstein/compatibility/omarchy.json \
       /usr/bin/frankenstein-capabilities \
       /usr/bin/frankenstein-shell-adapter \
       /usr/bin/omarchy-default-desktop \
@@ -226,11 +227,10 @@ case " ${ID:-} ${ID_LIKE:-} " in
 esac
 
 omarchy_version=$(pacman -Q omarchy 2>/dev/null | awk '{print $2}')
-[[ $omarchy_version == "$supported_omarchy_version" ]] || {
-  echo "Unsupported Omarchy version: ${omarchy_version:-not installed}" >&2
-  echo "This installer is verified only with Omarchy $supported_omarchy_version." >&2
-  exit 1
-}
+compatibility=/usr/bin/frankenstein-compatibility
+[[ ! -x $project_dir/src/bin/frankenstein-compatibility ]] || \
+  compatibility=$project_dir/src/bin/frankenstein-compatibility
+"$compatibility" require setup || exit 78
 
 package_managed=false
 if pacman -Q frankenstein-core >/dev/null 2>&1 &&
@@ -247,6 +247,8 @@ if [[ $package_managed == true ]]; then
   state_writer=/usr/lib/frankenstein/state
   sddm_validator=/usr/lib/frankenstein/sddm-validate
   payload_files=(
+    /usr/bin/frankenstein-compatibility
+    "$installed_share/compatibility/omarchy.json"
     /usr/bin/frankenstein-capabilities
     /usr/bin/frankenstein-shell-adapter
     /usr/bin/omarchy-default-desktop
@@ -299,6 +301,8 @@ else
   state_writer=$project_dir/src/libexec/frankenstein-state
   sddm_validator=$project_dir/src/libexec/frankenstein-sddm-validate
   payload_files=(
+    "$project_dir/src/bin/frankenstein-compatibility"
+    "$project_dir/src/frankenstein/compatibility/omarchy.json"
     "$project_dir/src/bin/frankenstein-capabilities"
     "$project_dir/src/bin/frankenstein-shell-adapter"
     "$project_dir/src/bin/omarchy-default-desktop"
@@ -472,6 +476,9 @@ fi
 if [[ $requested_shell == preserve ]]; then
   shell_mode=preserve
 fi
+if [[ $shell_mode == filtered ]]; then
+  "$compatibility" require filtered-shell || exit 78
+fi
 
 [[ ! -e $system_state_dir/current && ! -L $system_state_dir/current ]] || {
   echo "Frankenstein already has an active installation record." >&2
@@ -480,6 +487,8 @@ fi
 }
 
 system_conflicting_paths=(
+  /usr/bin/frankenstein-compatibility
+  /usr/share/frankenstein/compatibility/omarchy.json
   /usr/bin/frankenstein-capabilities
   /usr/bin/frankenstein-shell-adapter
   /usr/bin/omarchy-default-desktop
@@ -773,6 +782,9 @@ if [[ $package_managed != true ]]; then
     /usr/share/sddm/themes/frankenstein/backgrounds \
     /usr/lib/systemd/system
 
+  sudo install -Dm0755 "$project_dir/src/bin/frankenstein-compatibility" /usr/bin/frankenstein-compatibility
+  sudo install -Dm0644 "$project_dir/src/frankenstein/compatibility/omarchy.json" \
+    "$installed_share/compatibility/omarchy.json"
   sudo install -m 0755 "$project_dir/src/bin/frankenstein-capabilities" \
     /usr/bin/frankenstein-capabilities
   sudo install -m 0755 "$project_dir/src/bin/frankenstein-shell-adapter" \

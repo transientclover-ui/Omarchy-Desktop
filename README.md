@@ -4,6 +4,11 @@ Frankenstein is a conservative Omarchy multi-desktop inspection, management,
 and recovery tool. Its verified v1 target is Omarchy 4.0.4 with KDE Plasma
 Wayland and Omarchy/Hyprland sessions managed by SDDM 0.21.
 
+For an existing installation blocked by an exact Omarchy dependency, see
+[the coordinated update plan and validation limits](docs/OMARCHY-UPDATES.md).
+The 0.1.0-16 candidate separates package dependencies from guarded integration
+support. Omarchy 4.0.5 is a candidate, not a validated runtime target.
+
 It preserves both desktops. Plasma starts through its packaged
 `plasma.desktop`; Frankenstein does not wrap Plasma in UWSM or remove
 Hyprland. Inspection comes before mutation, existing configuration wins over

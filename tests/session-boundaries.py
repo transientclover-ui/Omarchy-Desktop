@@ -11,6 +11,9 @@ FUNCTIONS = SOURCE[SOURCE.index('capabilities() {'):SOURCE.index('open_terminal(
 
 FUNCTIONS = FUNCTIONS.replace('sibling=$(dirname -- \"${BASH_SOURCE[0]}\")/frankenstein-capabilities', 'sibling=' + str(Path(__file__).resolve().parents[1] / 'src/bin/frankenstein-capabilities'))
 
+FUNCTIONS = FUNCTIONS.replace('compatibility=$(dirname -- \"${BASH_SOURCE[0]}\")/frankenstein-compatibility',
+    'compatibility=' + str(Path(__file__).resolve().parents[1] / 'src/bin/frankenstein-compatibility'))
+
 class SessionBoundaries(unittest.TestCase):
     def run_bash(self, desktop, body, display=None):
         env = dict(os.environ, XDG_CURRENT_DESKTOP=desktop)

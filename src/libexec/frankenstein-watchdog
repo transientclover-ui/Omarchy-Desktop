@@ -90,6 +90,10 @@ class Plasma:
         return {'check': 'plasma-shell-adapter', 'healthy': rc == 0, 'details': output}
 
     def recovery(self, mode):
+        rc, _ = command(['/usr/bin/frankenstein-compatibility', 'require', 'automatic-recovery'])
+        if rc != 0:
+            # Keep recording failures; do not restart a shell on an unknown stack.
+            return None
         if mode == 'preserve':
             unit = 'omarchy-shell.service'
             rc, fragment = command(['systemctl', '--user', 'show', unit, '--property=FragmentPath', '--value'])

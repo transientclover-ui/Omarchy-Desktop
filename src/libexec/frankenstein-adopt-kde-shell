@@ -42,6 +42,9 @@ restore_migration() {
   exit "$status"
 }
 
+# Check before registering rollback: a refused preflight must not stop a service.
+/usr/bin/frankenstein-compatibility require filtered-shell || exit 78
+
 trap restore_migration ERR INT TERM
 
 [[ $EUID -ne 0 ]] || {

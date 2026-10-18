@@ -1,0 +1,140 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
+"""Read-only compatibility gates. Unknown contracts never authorize integration."""
+import argparse
+import hashlib
+import json
+from pathlib import Path
+import re
+import subprocess
+import sys
+
+PACKAGES = ('omarchy', 'plasma-workspace', 'qt6-base', 'qt6-declarative', 'quickshell')
+
+
+def version(value):
+    # Arch epoch and pkgrel are not upstream versions. Reject malformed input.
+    match = re.fullmatch(r'(?:\d+:)?(\d+(?:\.\d+)+)(?:-[\w.]+)?', value or '')
+    return match[1] if match else None
+
+
+def installed_versions(root):
+    if root != Path('/'):
+        # Offline fixture/payload inspection only; never overrides live pacman.
+        return json.loads((root / 'var/lib/frankenstein/compat-versions.json').read_text())
+    result = subprocess.run(['pacman', '-Q', *PACKAGES], capture_output=True,
+                            text=True, timeout=10)
+    return dict(line.split(maxsplit=1) for line in result.stdout.splitlines()
+                if len(line.split()) == 2)
+
+
+def inspect(root, versions, policy):
+    if not isinstance(versions, dict) or policy.get('schema_version') != 1:
+        raise ValueError('Unsupported compatibility metadata schema')
+    issues = []
+    release = version(versions.get('omarchy'))
+    candidate = release in policy['omarchy_candidates']
+    if not candidate:
+        issues.append('Omarchy release is missing or outside the candidate matrix: ' + str(versions.get('omarchy')))
+    runtime = True
+    for package, candidates in policy['runtime_candidates'].items():
+        value = version(versions.get(package))
+        series = value if package == 'quickshell' else '.'.join((value or '').split('.')[:2])
+        if series not in candidates:
+            runtime = False
+            issues.append(f'{package} version is missing or outside the candidate matrix: {versions.get(package)}')
+    validation = next((item for item in policy['validated_stacks'] if item['versions'] == versions), None)
+    validated = validation is not None
+    if not validated:
+        issues.append('This exact runtime stack has not been validated; candidate versions are not test results')
+    capabilities = {}
+    for name, requirement in policy['capabilities'].items():
+        try:
+            source = (root / requirement['path']).read_text()
+            missing = [symbol for symbol in requirement['symbols'] if symbol not in source]
+        except (OSError, UnicodeError):
+            missing = requirement['symbols'] or ['readable source']
+        capabilities[name] = {'state': 'present' if not missing else 'unavailable',
+                              'path': requirement['path'], 'missing': missing}
+        if missing:
+            issues.append(f"Capability {name} unavailable at {requirement['path']}: {', '.join(missing)}")
+    shell = root / 'usr/share/omarchy/shell'
+    actual_hashes = {}
+    for path in shell.rglob('*'):
+        if path.is_file():
+            try:
+                actual_hashes[path.relative_to(shell).as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()
+            except OSError:
+                actual_hashes[path.relative_to(shell).as_posix()] = None
+    matched = None
+    closest_drift = None
+    for contract in policy['shell_contracts']:
+        expected = contract['files']
+        actual = set(actual_hashes)
+        drift = sorted(actual.symmetric_difference(expected))
+        drift += [name for name in sorted(actual.intersection(expected))
+                  if actual_hashes[name] != expected[name]]
+        if closest_drift is None or len(drift) < len(closest_drift):
+            closest_drift = drift
+        if not drift:
+            matched = contract['id']
+            break
+    drift = closest_drift or []
+    if not matched:
+        issues.append('Omarchy shell contract changed or is missing; review and test before enabling the filtered adapter')
+    if matched and validated and validation['shell_contract'] != matched:
+        issues.append('This stack was validated against a different shell source contract')
+    filtered = candidate and runtime and validated and bool(matched) and validation['shell_contract'] == matched and all(
+        item['state'] == 'present' for item in capabilities.values())
+    return {'schema_version': 1, 'versions': versions,
+            'omarchy_release_in_candidate_matrix': candidate, 'runtime_in_candidate_matrix': runtime,
+            'runtime_validation': 'validated-current' if validated else 'untested',
+            'shell_contract': matched or 'unknown', 'capabilities': capabilities,
+            'changed_shell_paths': sorted(set(drift)),
+            'integrations': {
+                'setup': {'state': 'supported' if filtered else 'disabled',
+                          'reason': 'Validated stack and matching shell contract' if filtered else '; '.join(issues)},
+                'automatic-recovery': {'state': 'supported' if filtered else 'disabled',
+                                       'reason': 'Validated stack and matching shell contract' if filtered else '; '.join(issues)},
+                'filtered-shell': {'state': 'supported' if filtered else 'disabled',
+                                   'reason': 'Validated stack and matching shell contract' if filtered else '; '.join(issues)},
+                'preserved-shell': {'state': 'external', 'reason':
+                    'Existing Omarchy service, user widgets and drop-ins stay under their existing owners; this gate neither stops nor modifies them'},
+            }, 'diagnostics': issues}
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('command', nargs='?', choices=('inspect', 'require'), default='inspect')
+    parser.add_argument('feature', nargs='?', choices=('filtered-shell', 'setup', 'automatic-recovery'))
+    parser.add_argument('--root', type=Path, default=Path('/'), help='Read an extracted offline root; no commands run there')
+    args = parser.parse_args()
+    if (args.command == 'require') != (args.feature is not None):
+        parser.error('require needs one feature; inspect takes none')
+    root = args.root.resolve()
+    policy_path = root / 'usr/share/frankenstein/compatibility/omarchy.json'
+    if root == Path('/'):
+        script = Path(__file__).resolve()
+        for bundled in (script.parents[1] / 'frankenstein/compatibility/omarchy.json',
+                        script.with_name('omarchy-compatibility.json')):
+            if bundled.is_file():
+                policy_path = bundled
+                break
+    try:
+        report = inspect(root, installed_versions(root), json.loads(policy_path.read_text()))
+    except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError) as error:
+        print('Frankenstein compatibility unavailable: ' + str(error), file=sys.stderr)
+        return 78
+    if args.command == 'inspect':
+        print(json.dumps(report, indent=2))
+        return 0
+    feature = report['integrations'][args.feature]
+    if feature['state'] != 'supported':
+        print(f"Frankenstein {args.feature} disabled: {feature['reason']}. "
+              'Run frankenstein-compatibility inspect for details. No configuration was changed.', file=sys.stderr)
+        return 78
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

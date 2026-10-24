@@ -49,8 +49,9 @@ class Compatibility(unittest.TestCase):
                 ['4.0.4-1', '4.0.5-1'], ['6.7.4-3', '6.8.0-1'],
                 ['6.11.2', '6.12.0'], ['6.11.2', '6.12.0'], ['0.3.1-1', '0.3.2-1']):
             with self.subTest(omarchy=omarchy, plasma=plasma, base=base, declarative=declarative, qs=qs):
-                self.versions = dict(zip(MODEL['PACKAGES'],
-                    [omarchy, plasma, base + '-3', declarative + '-1', qs]))
+                self.versions = dict(CURRENT, omarchy=omarchy, **{
+                    'plasma-workspace': plasma, 'qt6-base': base + '-3',
+                    'qt6-declarative': declarative + '-1', 'quickshell': qs})
                 report = self.report()
                 self.assertTrue(report['runtime_in_candidate_matrix'])
                 self.assertTrue(report['omarchy_release_in_candidate_matrix'])
@@ -82,6 +83,19 @@ class Compatibility(unittest.TestCase):
                 self.assertEqual(report['integrations']['filtered-shell']['state'], 'disabled')
                 self.assertEqual(report['integrations']['preserved-shell']['state'], 'external')
                 (self.shell / 'new.qml').unlink(missing_ok=True)
+
+    def test_offline_cli_accepts_validated_contract_quietly(self):
+        for relative, content in (
+                ('usr/share/frankenstein/compatibility/omarchy.json', self.policy),
+                ('var/lib/frankenstein/compat-versions.json', CURRENT)):
+            path = self.root / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(content))
+        result = subprocess.run([str(SCRIPT), 'require', 'filtered-shell', '--root', str(self.root)],
+                                capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, '')
+        self.assertEqual(result.stderr, '')
 
     def test_offline_cli_refuses_and_changes_no_files(self):
         for relative, content in (
@@ -135,6 +149,51 @@ class Compatibility(unittest.TestCase):
         for name in self.policy['capabilities']:
             self.assertEqual(report['capabilities'][name]['state'], 'unavailable')
             self.assertTrue(any(name in message for message in report['diagnostics']))
+
+    def test_kwin_upgrade_alone_requires_new_validation(self):
+        self.versions['kwin'] = '6.8.0-1'
+        report = self.report()
+        self.assertEqual(report['runtime_validation'], 'untested')
+        self.assertEqual(report['integrations']['filtered-shell']['state'], 'disabled')
+
+    def test_inventory_includes_the_compositor(self):
+        self.assertIn('kwin', MODEL['PACKAGES'])
+        self.assertIn('kwin', CURRENT)
+        for compositor in ('6.7.4-8', '6.8.0-1'):
+            self.versions['kwin'] = compositor
+            self.assertEqual(self.report()['runtime_validation'], 'untested')
+
+    def test_build_does_not_claim_runtime_validation(self):
+        self.versions['omarchy'] = '4.0.6-1'
+        report = self.report()
+        self.assertEqual(report['integrations']['build']['state'], 'supported')
+        self.assertEqual(report['runtime_validation'], 'untested')
+        for feature in ('setup', 'automatic-recovery', 'filtered-shell'):
+            self.assertEqual(report['integrations'][feature]['state'], 'disabled')
+        (self.shell / 'shell.qml').write_text('unreviewed upstream change')
+        self.assertEqual(self.report()['integrations']['build']['state'], 'disabled')
+
+    def test_build_requires_every_capability_and_candidate_version(self):
+        self.policy['capabilities'] = {'needed': {'path': 'missing', 'symbols': ['API']}}
+        self.assertEqual(self.report()['integrations']['build']['state'], 'disabled')
+        self.policy['capabilities'] = {}
+        self.versions['kwin'] = '999.0-1'
+        self.assertEqual(self.report()['integrations']['build']['state'], 'disabled')
+
+    def test_exact_post_migration_candidate_is_never_runtime_validation(self):
+        self.versions = {'omarchy': '4.0.6-1', 'plasma-workspace': '6.8.1-1',
+                         'kwin': '6.8.1-1', 'qt6-base': '6.12.0-3',
+                         'qt6-declarative': '6.12.0-2', 'quickshell': '0.3.2.r7.g2b4501a-1'}
+        report = self.report()
+        self.assertTrue(report['runtime_in_candidate_matrix'])
+        self.assertEqual(report['integrations']['build']['state'], 'supported')
+        for feature in ('setup', 'automatic-recovery', 'filtered-shell'):
+            self.assertEqual(report['integrations'][feature]['state'], 'disabled')
+        self.assertEqual(report['runtime_validation'], 'untested')
+        for version in ('0.3.2.r8.g2b4501a-1', '0.3.2.r7.g2b4501a-2'):
+            self.versions['quickshell'] = version
+            self.assertFalse(self.report()['runtime_in_candidate_matrix'])
+            self.assertEqual(self.report()['integrations']['build']['state'], 'disabled')
 
     def test_versions(self):
         self.assertEqual(MODEL['version']('2:4.0.5-2'), '4.0.5')

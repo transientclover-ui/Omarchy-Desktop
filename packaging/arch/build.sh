@@ -7,6 +7,17 @@ set -euo pipefail
 readonly script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 readonly repository_root=$(cd -- "$script_dir/../.." && pwd)
 
+# Source archives have no Git metadata. Accept an explicitly pinned epoch;
+# normal checkouts retain the commit-timestamp default.
+if [[ -z ${SOURCE_DATE_EPOCH:-} ]]; then
+  if [[ ! -e $repository_root/.git ]] || ! SOURCE_DATE_EPOCH=$(git -C "$repository_root" log -1 --format=%ct); then
+    echo "Set SOURCE_DATE_EPOCH when building a source archive without Git metadata." >&2
+    exit 1
+  fi
+fi
+[[ $SOURCE_DATE_EPOCH =~ ^[0-9]+$ ]] || { echo "SOURCE_DATE_EPOCH must be an integer." >&2; exit 1; }
+export SOURCE_DATE_EPOCH
+
 startdir=$script_dir
 # shellcheck disable=SC1091
 source "$script_dir/PKGBUILD"
@@ -29,9 +40,6 @@ for source_spec in "${_local_sources[@]}"; do
   source_path=${source_spec#*::}
   cp -- "$script_dir/$source_path" "$script_dir/$source_name"
 done
-
-export SOURCE_DATE_EPOCH
-SOURCE_DATE_EPOCH=$(git -C "$repository_root" log -1 --format=%ct)
 
 cd "$script_dir"
 makepkg --config "$script_dir/makepkg.conf" "$@"

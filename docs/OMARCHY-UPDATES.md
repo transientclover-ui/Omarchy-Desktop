@@ -1,3 +1,95 @@
+# Verified 4.0.6 source review — October 24 follow-up
+
+Both Omarchy4.0.6-1 and settings4.0.6-1 payloads matched fresh repository size/hash
+metadata and verified with VALIDSIG/TRUST_FULLY against a disposable copy of the
+host public keyring. No new keys were imported and package scripts were not run.
+
+**The first-stage package preview is not the final stack.** Migration
+1791403252.sh moves the Omarchy repository before extra and runs another full
+system update. Its marker was absent in the inspected user state. Modeling that
+order on copied package state resolves594 packages and changes Quickshell from
+extra/0.3.2-1 to omarchy/0.3.2.r7.g2b4501a-1. Plasma/KWin remain6.8.1-1,
+Qt base6.12.0-3 and declarative6.12.0-2. Actual migration execution is untested.
+The existing actual revision16 pair was used only for dependency resolution;
+revision17 remains source-only and requires its own final archive preview.
+
+The source candidate now preserves third-party manifest __sourceDir, matching
+upstream4.0.6, while still removing __isFirstParty and __hostCapabilities from
+the cloned public manifest. The old fork broke bundled-script path lookup.
+The behavioral test fails before this fix and passes afterward, including
+nonmutation and trust-marker assertions. The upstream OmarchyLoadPatch comment
+is retained at the fork's first line; behavior under the patched Quickshell
+loader remains a runtime test requirement. Commons.Color changes also match
+the exact current source. The menu/profile overlay and first-party filtering
+remain Frankenstein-owned modifications.
+
+A named183-file4.0.6 source contract is now available for STATIC BUILD eligibility.
+All four Omarchy-specific capability probes pass against the actual extracted
+source. The bar transform preserves every byte except its intended Hyprland
+import/focused-monitor substitutions, retaining upstream performance changes.
+The exact Git-derived Quickshell version is listed as a candidate without
+normalizing arbitrary Git builds to0.3.2. Different revisions remain unknown.
+**No newer validated_stacks entry was added.** Setup, filtered launch and recovery
+remain disabled for both pre- and post-migration target stacks. Source review is
+not a target Qt/KWin session, greeter or rollback pass.
+
+Of58 changed shell files,46 differ only by Color qualification. The remaining
+changes comprise comment/loader-marker changes, the manifest projection repair,
+bar ownership/coalescing and indicator lifecycle optimizations, agent quota reset,
+calendar DST correction, Hyprland monitor control, and lock/idle fixes. The
+unchanged registry/provider interfaces retain the adapter's integration surface.
+Hyprland-only lock/monitor providers remain outside the filtered Plasma profile.
+The preserved stock shell and user widgets need their own acceptance tests.
+
+Host approval must cover more than package versions: settings post_upgrade
+unconditionally resets several /etc overrides, including faillock/NSS/Plymouth
+and conditional CUPS configuration; migrations include repository ordering,
+boot-image rebuilds, browser settings, conditional service restarts and an
+OpenClaw move. Nothing was applied here. Record backups and review applicability
+before any normal Omarchy update; do not bypass migrations or weaken safeguards.
+
+---
+
+# October 24 continuation — uninstalled 0.1.0-17 source candidate
+
+The current development checkout is a source-only revision of the previous
+0.1.0-16 candidate. Neither revision is approved for host installation.
+The official latest Omarchy release is 4.0.6 (October 19), while cached
+repository data still offers 4.0.5. The attempted isolated metadata retrieval
+failed DNS resolution for pkgs.omarchy.org; no live pacman database was synced.
+
+Changes in revision 17:
+
+- Include KWin's exact package version in compatibility inventory and validation.
+  Plasma workspace alone does not identify the compositor. The recorded current
+  baseline additionally specifies KWin 6.7.4-7; changing KWin alone disables
+  runtime integration until that new tuple has its own validation.
+- Separate `require build` from `require filtered-shell`. A candidate test build
+  needs a known candidate stack, every source capability, and an exact reviewed
+  shell contract, but does not need a false runtime-validation declaration first.
+  Setup, automatic recovery, and filtered launch still require the validated
+  exact stack and its associated shell contract. This breaks the circular
+  requirement to validate an artifact before it can be built for testing.
+- List Omarchy 4.0.6 as a candidate only. No newer source contract or validated
+  runtime tuple was added. This does not enable 4.0.5 or 4.0.6 integration.
+- Qualify the Commons Color singleton in the two Frankenstein-owned QML forks,
+  following the actual cached Omarchy 4.0.5 shell/menu namespace convention.
+  Profile filtering and menu overlay behavior remain intact. This explicit
+  resolution removes dependence on unqualified imported type names; it is not
+  evidence of a reproduced runtime crash or a target runtime pass.
+- Advance both coordinated packages to revision 17 and refresh source hashes.
+  No packages were built or installed in this continuation.
+
+Latest release: https://github.com/omacom/omarchy/releases/tag/v4.0.6
+
+The sections below retain the October 18 proposal and historical evidence.
+Their 0.1.0-16/4.0.5 commands and version numbers are historical examples, not a
+current executable transaction. The complete target package set, build,
+runtime tests, migration audit, and rollback rehearsal must be refreshed before
+host approval. Do not deploy either candidate merely to clear the exact pin.
+
+---
+
 # Omarchy updates and Frankenstein 0.1.0-16
 
 This is a guarded development candidate. It removes the package solver's

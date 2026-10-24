@@ -3,13 +3,13 @@
 pkgbase=frankenstein
 pkgname=(frankenstein-core frankenstein-kde)
 pkgver=0.1.0
-pkgrel=16
+pkgrel=17
 pkgdesc='Reversible Omarchy desktop compatibility manager'
 arch=(x86_64)
 license=(MIT)
 options=(!strip)
 makedepends=(cmake gcc kcmutils qt6-base python 'omarchy>=4.0.4'
-             plasma-workspace qt6-declarative quickshell)
+             plasma-workspace kwin qt6-declarative quickshell)
 
 _local_sources=(
   "frankenstein-compatibility::../../src/bin/frankenstein-compatibility"
@@ -79,8 +79,8 @@ done
 unset _source_spec
 
 prepare() {
-  # The generated bar and linked QML must come from a validated source contract.
-  "$srcdir/frankenstein-compatibility" require filtered-shell
+  # Test builds require reviewed source; setup/launch separately require runtime validation.
+  "$srcdir/frankenstein-compatibility" require build
   "$srcdir/frankenstein-kde-bar-compat" \
     /usr/share/omarchy/shell/plugins/bar/Bar.qml \
     "$srcdir/kde-Bar.qml"
@@ -96,9 +96,9 @@ build() {
   cmake --build "$srcdir/kcm-build"
 }
 
-sha256sums=('8846b9ae03c4f16356feec5c1cc634e7519f2fb4e32d8bcb8971ba0744e1264d'
-            '2447fe73ddba6cd4ac845c96d9743d8a4dbc65aca2b7695b9c5f53af1dbb9c98'
-            '628690fdfb014bd04e9e5b6c66a9f9b6004683a1054576a81aa1007c690a109b'
+sha256sums=('9cfb615450384be18fb4367dd441f80872485603cf81699b0e8b018c66e6288c'
+            '9b8f9ba5e73b6f053db6b590676ecb6882b50867dcf817dc4bb774fc1bd0a783'
+            '0685453a1815a68115f679abb755da1e2a054cbddc7109cf9fc60ffd7410f2fc'
             '37173d533de6a1a9a736b37bd086debe88f7cd1a08e7a5b12a76afe3e21e9b63'
             'baeca230dc965ddd528cfbfd951c216797f7235f9b68e882e109c48d8b856e55'
             '1d7b8e66f077ccb5a569aa0c1a8068dac8001e7fceb226b3338604a549f9d1d2'
@@ -140,9 +140,9 @@ sha256sums=('8846b9ae03c4f16356feec5c1cc634e7519f2fb4e32d8bcb8971ba0744e1264d'
             'b3e7bc0c34221a4ce2d2df0fbd40496c95b5fec786556c5aee884b967641d9b9'
             'd596aa1b0120f3485a396cdc298d6ee9343972eb4a9bb24a389c0532642b88e1'
             'f00c28f1da472928e116e7178b2ad7f7e09a3fe3c613e2985bac401fa3a5e06d'
-            '8c8b817823e79377eb7aac8f380385492cdf3b8ad230b72f11c6497d1634a573'
+            'f9ce523796fc27e43cf741f7a323032f6eb033b6f94fea92cec8d48995a1208d'
             'ad6215ce0748fd692d79726c570baaaa0c22d7d275d0634904202b0f702e3c7c'
-            'eee1e163f3dfe7505818ac11bcca4e986b96627c7e64ff35921df38d8b5c71a6'
+            '94654c54ef7ca14c70efd50619aeceabd3843c039bc16aa851315648ee2b58af'
             '4c26e727818fd1d79c98d8a45ad95b6489aa1cc8194a45f4094f5fa5d156e6ae'
             '22cf52861b31434546f10c3b6ab475613085fcd70d4e0e50d2c7618c2a7efcbe'
             '116a89c31283e8a6b3803a7058ba78cd8fd6ef7df3d7a84b20a829c8f56e9f8a'

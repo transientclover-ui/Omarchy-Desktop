@@ -9,7 +9,7 @@ import re
 import subprocess
 import sys
 
-PACKAGES = ('omarchy', 'plasma-workspace', 'qt6-base', 'qt6-declarative', 'quickshell')
+PACKAGES = ('omarchy', 'plasma-workspace', 'kwin', 'qt6-base', 'qt6-declarative', 'quickshell')
 
 
 def version(value):
@@ -40,7 +40,8 @@ def inspect(root, versions, policy):
     for package, candidates in policy['runtime_candidates'].items():
         value = version(versions.get(package))
         series = value if package == 'quickshell' else '.'.join((value or '').split('.')[:2])
-        if series not in candidates:
+        exact_candidate = versions.get(package) in policy.get('runtime_exact_candidates', {}).get(package, [])
+        if series not in candidates and not exact_candidate:
             runtime = False
             issues.append(f'{package} version is missing or outside the candidate matrix: {versions.get(package)}')
     validation = next((item for item in policy['validated_stacks'] if item['versions'] == versions), None)
@@ -84,14 +85,20 @@ def inspect(root, versions, policy):
         issues.append('Omarchy shell contract changed or is missing; review and test before enabling the filtered adapter')
     if matched and validated and validation['shell_contract'] != matched:
         issues.append('This stack was validated against a different shell source contract')
-    filtered = candidate and runtime and validated and bool(matched) and validation['shell_contract'] == matched and all(
+    # Building a test artifact must not require declaring its runtime validated.
+    # Both gates still require reviewed source bytes and all named capabilities.
+    buildable = candidate and runtime and bool(matched) and all(
         item['state'] == 'present' for item in capabilities.values())
+    filtered = buildable and validated and validation['shell_contract'] == matched
     return {'schema_version': 1, 'versions': versions,
             'omarchy_release_in_candidate_matrix': candidate, 'runtime_in_candidate_matrix': runtime,
             'runtime_validation': 'validated-current' if validated else 'untested',
             'shell_contract': matched or 'unknown', 'capabilities': capabilities,
             'changed_shell_paths': sorted(set(drift)),
             'integrations': {
+                'build': {'state': 'supported' if buildable else 'disabled',
+                          'reason': 'Candidate build inputs and reviewed source contract; runtime validation is separate'
+                          if buildable else '; '.join(issues)},
                 'setup': {'state': 'supported' if filtered else 'disabled',
                           'reason': 'Validated stack and matching shell contract' if filtered else '; '.join(issues)},
                 'automatic-recovery': {'state': 'supported' if filtered else 'disabled',
@@ -106,7 +113,7 @@ def inspect(root, versions, policy):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('command', nargs='?', choices=('inspect', 'require'), default='inspect')
-    parser.add_argument('feature', nargs='?', choices=('filtered-shell', 'setup', 'automatic-recovery'))
+    parser.add_argument('feature', nargs='?', choices=('build', 'filtered-shell', 'setup', 'automatic-recovery'))
     parser.add_argument('--root', type=Path, default=Path('/'), help='Read an extracted offline root; no commands run there')
     args = parser.parse_args()
     if (args.command == 'require') != (args.feature is not None):

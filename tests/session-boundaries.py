@@ -12,7 +12,7 @@ FUNCTIONS = SOURCE[SOURCE.index('capabilities() {'):SOURCE.index('open_terminal(
 FUNCTIONS = FUNCTIONS.replace('sibling=$(dirname -- \"${BASH_SOURCE[0]}\")/frankenstein-capabilities', 'sibling=' + str(Path(__file__).resolve().parents[1] / 'src/bin/frankenstein-capabilities'))
 
 FUNCTIONS = FUNCTIONS.replace('compatibility=$(dirname -- \"${BASH_SOURCE[0]}\")/frankenstein-compatibility',
-    'compatibility=' + str(Path(__file__).resolve().parents[1] / 'src/bin/frankenstein-compatibility'))
+    'compatibility="${TEST_COMPATIBILITY:?test must supply isolated compatibility fixture}"')
 
 class SessionBoundaries(unittest.TestCase):
     def run_bash(self, desktop, body, display=None):
@@ -28,6 +28,11 @@ class SessionBoundaries(unittest.TestCase):
             launcher = Path(directory, 'quickshell')
             launcher.write_text('#!/bin/sh\nprintf "launched:%s" "$FRANKENSTEIN_SHELL_PROFILE"\n')
             launcher.chmod(0o755)
+            # Desktop-token routing is independent of the machine's runtime
+            # validation status. Policy behavior has its own fixture tests.
+            compatibility = Path(directory, 'compatibility')
+            compatibility.write_text('#!/bin/sh\n[ "$#" = 2 ] && [ "$1" = require ] && [ "$2" = filtered-shell ] || exit 2\nexit 0\n')
+            compatibility.chmod(0o755)
             body = f'profile_dir={directory}\nshell_dir=/shell\ndisabled_file={directory}/disabled\n' + """
 profile_value() {
  case "$2" in
@@ -38,11 +43,30 @@ profile_value() {
 }
 """
             for desktop, accepted in [('KDE', True), ('KDE:custom', True), ('custom:KDE', True), ('Hyprland', False), ('KDEish', False)]:
-                env = dict(os.environ, XDG_CURRENT_DESKTOP=desktop, PATH=directory + ':' + os.environ['PATH'])
+                env = dict(os.environ, XDG_CURRENT_DESKTOP=desktop, TEST_COMPATIBILITY=str(compatibility), PATH=directory + ':' + os.environ['PATH'])
                 result = subprocess.run(['bash', '-c', 'set -euo pipefail\n' + FUNCTIONS + body + '\nrun_shell plasma'], env=env, capture_output=True, text=True)
                 self.assertEqual(result.returncode == 0, accepted, result.stderr)
                 if accepted:
                     self.assertEqual(result.stdout, 'launched:plasma')
+
+    def test_unvalidated_or_missing_checker_does_not_launch(self):
+        with tempfile.TemporaryDirectory() as directory:
+            compatibility = Path(directory, 'compatibility')
+            compatibility.write_text('#!/bin/sh\nexit 78\n')
+            compatibility.chmod(0o755)
+            launcher = Path(directory, 'quickshell')
+            launcher.write_text('#!/bin/sh\necho unexpected-launch\n')
+            launcher.chmod(0o755)
+            for checker in (compatibility, Path(directory, 'missing')):
+                with self.subTest(checker=checker.name):
+                    env = dict(os.environ, XDG_CURRENT_DESKTOP='KDE',
+                               TEST_COMPATIBILITY=str(checker),
+                               PATH=directory + ':' + os.environ['PATH'])
+                    result = subprocess.run(
+                        ['bash', '-c', 'set -euo pipefail\n' + FUNCTIONS + '\nrun_shell plasma'],
+                        env=env, capture_output=True, text=True)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertEqual(result.stdout, '')
 
     def test_profile_detection_uses_desktop_tokens(self):
         for desktop in ('KDE', 'KDE:custom', 'custom:KDE', 'custom:KDE:other'):
